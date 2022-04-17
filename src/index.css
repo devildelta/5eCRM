@@ -1,4 +1,17 @@
 .btn-operate{
 	height: 48px;
 	width: 48px;
+	font-size: 24px;
+}
+
+.bg-SR{
+	background-color: var(--bs-yellow);
+}
+
+.bg-LR{
+	background-color: var(--bs-red);
+}
+
+.bg-OR{
+	background-color: var(--bs-purple);
 }

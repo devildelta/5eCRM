@@ -8,10 +8,10 @@ resourceController = function(){return {
 		resourceController.populateResource();
 	},
 	populateResource: function(){
-		$('table[data-type="resource"] tbody tr').remove();
+		$('ul[data-type="resource"] li').remove();
 		for(let i = 0;i< resourceController.resources.length;i++){
 			let resource = resourceController.resources[i];
-			$('table[data-type="resource"] tbody').append(toHTML(resource,i));
+			$('ul[data-type="resource"]').append(toHTML(resource,i));
 		}
 	},
 	saveResource: function(){
@@ -37,20 +37,30 @@ resourceController = function(){return {
 		}
 	},
 	onIncrement: function(id){
+		let org = resourceController.resources[id].current;
 		resourceController.resources[id].current = Math.min(resourceController.resources[id].current+1,resourceController.resources[id].max);
+		if(resourceController.resources[id].current === org)return;
 		localStorageController.save(resourceController.storageKey,resourceController.resources);
 		resourceController.populateResource();
 	},
 	onDecrement: function(id){
+		let org = resourceController.resources[id].current;
 		resourceController.resources[id].current = Math.max(resourceController.resources[id].current-1,0);
+		if(resourceController.resources[id].current === org)return;
 		localStorageController.save(resourceController.storageKey,resourceController.resources);
 		resourceController.populateResource();
+	},
+	onRemove: function(id){
+		resourceController.resources.splice(id,1);
+		localStorageController.save(resourceController.storageKey,resourceController.resources);
+		resourceController.populateResource();
+		
 	}
 };}();
 
 resourceModalController = function(){return {
 	show: function(id){
-		if(id !== ""){
+		if(id !== undefined && id !== ""){//damn it can be zero...
 			let resource = resourceController.resources[id];
 			$('form[data-type="resource"]').find('[name="id"]').val(id);
 			$('form[data-type="resource"]').find('[name="name"]').val(resource.name);
@@ -98,11 +108,15 @@ $(document).ready(function(){
 function toHTML(resource,i){
 	if(!resource)return '<tr><td colspan="3">Not Available</td></tr>';
 	return `
-	<tr><td>${resource.name}<span class="badge bg-secondary">${resource.rest}</span><span class="badge bg-primary" data-current="${resource.current}" data-max="${resource.max}">${resource.current}/${resource.max}</span></td>
-	<td>
+	<li class="list-group-item">
+	<h2 class="d-flex justify-content-between align-items-center">${resource.name}</h2>
+	<h2 class=""><span class="badge bg-${resource.rest}">${resource.rest}</span><span class="badge bg-primary" data-current="${resource.current}" data-max="${resource.max}">${resource.current}/${resource.max}</span></h2>
+	<div>
 	<button class="btn btn-dark btn-operate" onclick="resourceController.onIncrement(${i})">+</button>
 	<button class="btn btn-dark btn-operate" onclick="resourceController.onDecrement(${i})">−</button>
 	<button class="btn btn-warning btn-operate" onclick="resourceModalController.show(${i})">E</button>
-	</td></tr>
+	<button class="btn btn-danger btn-operate" onclick="resourceController.onRemove(${i})">D</button>
+	</div>
+	</li>
 	`;
 }
