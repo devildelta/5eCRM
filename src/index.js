@@ -8,10 +8,10 @@ resourceController = function(){return {
 		resourceController.populateResource();
 	},
 	populateResource: function(){
-		$('div[data-type="resource"] div.item-resource').remove();
+		$('div.container-md div[data-type="resource"] div.item-resource').remove();
 		for(let i = 0;i< resourceController.resources.length;i++){
 			let resource = resourceController.resources[i];
-			$('div[data-type="resource"]').append(toHTML(resource,i));
+			$('div.container-md div[data-type="resource"]').append(toHTML(resource,i));
 		}
 	},
 	saveResource: function(){
