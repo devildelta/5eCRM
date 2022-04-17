@@ -15,3 +15,31 @@
 .bg-OR{
 	background-color: var(--bs-purple);
 }
+div.card-list[data-type="resource"]{
+	display:flex;
+	flex-wrap: wrap;
+}
+@media (max-width: 600px) {
+	div.item-resource {
+	width: 100%;
+	flex: 0 0 auto;
+	}
+}
+@media (min-width: 600px) {
+	div.item-resource {
+	width: 50%;
+	flex: 0 0 auto;
+	}
+}
+@media (min-width: 1200px) {
+	div.item-resource {
+	width: 33.3333%;
+	flex: 0 0 auto;
+	}
+}
+@media (min-width: 1600px) {
+	div.item-resource {
+	width: 25%;
+	flex: 0 0 auto;
+	}
+}

@@ -8,10 +8,10 @@ resourceController = function(){return {
 		resourceController.populateResource();
 	},
 	populateResource: function(){
-		$('ul[data-type="resource"] li').remove();
+		$('div[data-type="resource"] div.item-resource').remove();
 		for(let i = 0;i< resourceController.resources.length;i++){
 			let resource = resourceController.resources[i];
-			$('ul[data-type="resource"]').append(toHTML(resource,i));
+			$('div[data-type="resource"]').append(toHTML(resource,i));
 		}
 	},
 	saveResource: function(){
@@ -30,11 +30,10 @@ resourceController = function(){return {
 		resourceModalController.clear();
 	},
 	removeAll: function(){
-		if(confirm('Are you sure to remove all resources?')){
-			resourceController.resources.length = 0;
-			localStorageController.save(resourceController.storageKey,resourceController.resources);
-			resourceController.populateResource();
-		}
+		if(!confirm('Are you sure to remove all resources?'))return;
+		resourceController.resources.length = 0;
+		localStorageController.save(resourceController.storageKey,resourceController.resources);
+		resourceController.populateResource();
 	},
 	onIncrement: function(id){
 		let org = resourceController.resources[id].current;
@@ -51,10 +50,28 @@ resourceController = function(){return {
 		resourceController.populateResource();
 	},
 	onRemove: function(id){
+		if(!confirm('Are you sure to remove the resource?'))return;
 		resourceController.resources.splice(id,1);
 		localStorageController.save(resourceController.storageKey,resourceController.resources);
 		resourceController.populateResource();
-		
+	},
+	doShortRest: function(){
+		resourceController.resources.filter((e)=>["SR"].includes(e.rest)).forEach((e)=>{
+			if(e.current === e.max)return;
+			console.log(`${e.name}: ${e.current} -> ${e.max}`);
+			e.current = e.max;
+		});
+		localStorageController.save(resourceController.storageKey,resourceController.resources);
+		resourceController.populateResource();
+	},
+	doLongRest: function(){
+		resourceController.resources.filter((e)=>["LR","SR"].includes(e.rest)).forEach((e)=>{
+			if(e.current === e.max)return;
+			console.log(`${e.name}: ${e.current} -> ${e.max}`);
+			e.current = e.max;
+		});
+		localStorageController.save(resourceController.storageKey,resourceController.resources);
+		resourceController.populateResource();
 	}
 };}();
 
@@ -106,17 +123,25 @@ $(document).ready(function(){
 });
 
 function toHTML(resource,i){
-	if(!resource)return '<tr><td colspan="3">Not Available</td></tr>';
+	if(!resource)return '<li></li>';
 	return `
-	<li class="list-group-item">
-	<h2 class="d-flex justify-content-between align-items-center">${resource.name}</h2>
-	<h2 class=""><span class="badge bg-${resource.rest}">${resource.rest}</span><span class="badge bg-primary" data-current="${resource.current}" data-max="${resource.max}">${resource.current}/${resource.max}</span></h2>
-	<div>
-	<button class="btn btn-dark btn-operate" onclick="resourceController.onIncrement(${i})">+</button>
-	<button class="btn btn-dark btn-operate" onclick="resourceController.onDecrement(${i})">−</button>
-	<button class="btn btn-warning btn-operate" onclick="resourceModalController.show(${i})">E</button>
-	<button class="btn btn-danger btn-operate" onclick="resourceController.onRemove(${i})">D</button>
+	<div class="item-resource card">
+		<h2 class="d-flex justify-content-between align-items-center">${resource.name}</h2>
+		<h2 class=""><span class="badge bg-${resource.rest}">${formatRest(resource.rest)}</span><span class="badge bg-primary" data-current="${resource.current}" data-max="${resource.max}">${resource.current}/${resource.max}</span></h2>
+		<div>
+		<button class="btn btn-dark btn-operate" onclick="resourceController.onIncrement(${i})">+</button>
+		<button class="btn btn-dark btn-operate" onclick="resourceController.onDecrement(${i})">−</button>
+		<button class="btn btn-warning btn-operate" onclick="resourceModalController.show(${i})">E</button>
+		<button class="btn btn-danger btn-operate" onclick="resourceController.onRemove(${i})">R</button>
+		</div>
 	</div>
-	</li>
 	`;
+}
+
+function formatRest(key){
+	switch(key){
+		case 'SR':return 'Short Rest';
+		case 'LR':return 'Long Rest';
+		case 'OR':default: return 'Others';
+	}
 }
