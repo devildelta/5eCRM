@@ -24,35 +24,40 @@
 		<div class="modal" tabindex="-1" data-type="resource">
 			<div class="modal-dialog">
 				<div class="modal-content">
-					<div class="modal-header">
-						<h5 class="modal-title">Resource</h5>
-						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-					</div>
-					<div class="modal-body">
-						<form data-type="resource">
-							<input type="hidden" name="id" />
-							<div class="row">
-								<label class="form-label">Resource Name</label>
-								<input class="form-control" name="name" autocomplete="off" required/>
-							</div>
-							<div class="row">
-								<label class="form-label">Recover Time</label>
-								<select class="form-select" name="rest">
-									<option selected disabled>Select</option>
-									<option value="SR">Short Rest</option>
-									<option value="LR">Long Rest</option>
-									<option value="OR">Others</option>
-								</select>
-							</div>
-							<div class="row">
-								<label class="form-label">Charges</label>
-								<input class="form-control" type="number" min="1" name="max" autocomplete="off" required/>
-							</div>
-						</form>
-					</div>
-					<div class="modal-footer">
-						<button type="button" class="btn btn-primary btn-save" onclick="resourceController.saveResource()" data-bs-dismiss="modal">Save</button>
-					</div>
+					<form data-type="resource" novalidate class="needs-validation">
+						<div class="modal-header">
+							<h5 class="modal-title">Resource</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						</div>
+						<div class="modal-body">
+							
+								<input type="hidden" name="id" />
+								<div class="row">
+									<label class="form-label">Resource Name</label>
+									<input class="form-control" name="name" autocomplete="off" required data-validate data-validate-empty/>
+									<div class="invalid-feedback">Resource Name should not be empty!</div>
+								</div>
+								<div class="row">
+									<label class="form-label">Recover Time</label>
+									<select class="form-select" name="rest" data-validate data-validate-empty>
+										<option value="" selected>Select</option>
+										<option value="SR">Short Rest</option>
+										<option value="LR">Long Rest</option>
+										<option value="OR">Others</option>
+									</select>
+									<div class="invalid-feedback">Recover Time should not be selected!</div>
+								</div>
+								<div class="row">
+									<label class="form-label">Charges</label>
+									<input class="form-control" type="number" min="1" name="max" autocomplete="off" required data-validate data-validate-empty data-validate-number-positive/>
+									<div class="invalid-feedback">Resource Charge should not be at least 1!</div>
+								</div>
+							
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-primary" onclick="resourceController.saveResource()" >Save</button>
+						</div>
+					</form>
 				</div>
 			</div>
 		</div>

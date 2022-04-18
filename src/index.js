@@ -16,6 +16,7 @@ resourceController = function(){return {
 	},
 	saveResource: function(){
 		console.log('resourceController.saveResource');
+		if(!resourceModalController.validate())return;
 		let r = $('form[data-type="resource"]').serializeArray();
 		let output = {};
 		output.name = r.find(e=>e.name==="name").value;
@@ -27,7 +28,7 @@ resourceController = function(){return {
 		
 		localStorageController.save(resourceController.storageKey,resourceController.resources);
 		resourceController.populateResource();
-		resourceModalController.clear();
+		$('div.modal[data-type="resource"]').modal('hide');
 	},
 	removeAll: function(){
 		if(!confirm('Are you sure to remove all resources?'))return;
@@ -76,6 +77,18 @@ resourceController = function(){return {
 };}();
 
 resourceModalController = function(){return {
+	init: function(){
+		//validation
+		$('form[data-type="resource"]').find('[data-validate][data-validate-empty]').change(function(event){
+			event.preventDefault();
+			$(this).removeClass('is-valid is-invalid');
+			let isValid = $(this).val() !== '' && $(this).val() !== null && $(this).val() !== undefined;
+			$(this).addClass(isValid ? 'is-valid' : 'is-invalid');
+		});
+		$('div.modal[data-type="resource"]').on('hidden.bs.modal',function(event){
+			resourceModalController.clear();
+		});
+	},
 	show: function(id){
 		if(id !== undefined && id !== ""){//damn it can be zero...
 			let resource = resourceController.resources[id];
@@ -86,7 +99,14 @@ resourceModalController = function(){return {
 		}
 		$('div.modal[data-type="resource"]').modal('show');
 	},
-	clear: function(){$('form[data-type="resource"] :input').val('');}
+	clear: function(){
+		$('form[data-type="resource"]').find('[data-validate]').val('');
+		$('form[data-type="resource"]').find('[data-validate]').removeClass('is-valid is-invalid');
+	},
+	validate: function(){
+		$('form[data-type="resource"]').find('[data-validate][data-validate-empty]').change();
+		return $('form[data-type="resource"]').find('[data-validate].is-invalid').length < 1;
+	}
 };}();
 
 localStorageController = function(){return {
@@ -120,6 +140,7 @@ localStorageController = function(){return {
 
 $(document).ready(function(){
 	resourceController.init();
+	resourceModalController.init();
 });
 
 function toHTML(resource,i){
