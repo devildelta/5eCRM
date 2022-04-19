@@ -56,17 +56,23 @@ resourceController = function(){return {
 		localStorageController.save(resourceController.storageKey,resourceController.resources);
 		resourceController.populateResource();
 	},
+	doTurnRest: function(){
+		resourceController.doRest(["PR"]);
+	},
 	doShortRest: function(){
-		resourceController.resources.filter((e)=>["SR"].includes(e.rest)).forEach((e)=>{
-			if(e.current === e.max)return;
-			console.log(`${e.name}: ${e.current} -> ${e.max}`);
-			e.current = e.max;
-		});
-		localStorageController.save(resourceController.storageKey,resourceController.resources);
-		resourceController.populateResource();
+		resourceController.doRest(["SR"]);
 	},
 	doLongRest: function(){
-		resourceController.resources.filter((e)=>["LR","SR"].includes(e.rest)).forEach((e)=>{
+		resourceController.doRest(["LR","SR"]);
+	},
+	doDawnRest: function(){
+		resourceController.doRest(["DN"]);
+	},
+	doDailyRest: function(){
+		resourceController.doRest(["24"]);
+	},
+	doRest: function(types){
+		resourceController.resources.filter((e)=>types.includes(e.rest)).forEach((e)=>{
 			if(e.current === e.max)return;
 			console.log(`${e.name}: ${e.current} -> ${e.max}`);
 			e.current = e.max;
@@ -163,6 +169,9 @@ function formatRest(key){
 	switch(key){
 		case 'SR':return 'Short Rest';
 		case 'LR':return 'Long Rest';
+		case 'PR':return 'Per Round';
+		case 'DN':return 'Dawn';
+		case '24':return 'Per 24 Hours';
 		case 'OR':default: return 'Others';
 	}
 }

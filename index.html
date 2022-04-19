@@ -14,8 +14,12 @@
 		<div class="container-md">
 			<button type="button" class="btn btn-primary" onclick="resourceModalController.show()">New Resource</button>
 			<button type="button" class="btn btn-danger" onclick="resourceController.removeAll()">Remove All</button>
+			<br/>
+			<button type="button" class="btn btn-outline-primary" onclick="resourceController.doShortRest()">Per Round</button>
 			<button type="button" class="btn btn-outline-warning" onclick="resourceController.doShortRest()">Short Rest</button>
 			<button type="button" class="btn btn-outline-danger" onclick="resourceController.doLongRest()">Long Rest</button>
+			<button type="button" class="btn btn-outline-info" onclick="resourceController.doDawnRest()">Dawn</button>
+			<button type="button" class="btn btn-outline-success" onclick="resourceController.doDailyRest()">Per 24 Hours</button>
 			<div class="card-list" data-type="resource">
 			</div>
 		</div>
@@ -41,8 +45,11 @@
 									<label class="form-label">Recover Time</label>
 									<select class="form-select" name="rest" data-validate data-validate-empty>
 										<option value="" selected>Select</option>
+										<option value="PR">Per Round</option>
 										<option value="SR">Short Rest</option>
 										<option value="LR">Long Rest</option>
+										<option value="DN">Dawn</option>
+										<option value="24">Per 24 Hours</option>
 										<option value="OR">Others</option>
 									</select>
 									<div class="invalid-feedback">Recover Time should not be selected!</div>
