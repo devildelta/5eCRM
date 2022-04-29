@@ -96,7 +96,7 @@ resourceModalController = function(){return {
 		});
 	},
 	show: function(id){
-		if(id !== undefined && id !== ""){//damn it can be zero...
+		if(id !== undefined && id > -1){//damn it can be zero...
 			let resource = resourceController.resources[id];
 			$('form[data-type="resource"]').find('[name="id"]').val(id);
 			$('form[data-type="resource"]').find('[name="name"]').val(resource.name);
@@ -106,6 +106,7 @@ resourceModalController = function(){return {
 		$('div.modal[data-type="resource"]').modal('show');
 	},
 	clear: function(){
+		$('form[data-type="resource"]').find('[name="id"]').val('');
 		$('form[data-type="resource"]').find('[data-validate]').val('');
 		$('form[data-type="resource"]').find('[data-validate]').removeClass('is-valid is-invalid');
 	},
