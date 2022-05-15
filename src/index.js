@@ -1,11 +1,31 @@
 resourceController = function(){return {
-	resources:[],
+	// static fields
 	storageKey: 'resources',
+	profileKey: 'profile',
+	
+	// dynamic fields
+	profile: '',
+	resources:[],
 	init: function(){
+		// load profile
+		resourceController.profile = localStorageController.load(resourceController.profileKey,'string',false);
+		if(!resourceController.profile){// if no current profile, it must be from elder version. do conversion
+			resourceController.convertData();
+		}
 		//load all records from localStorage
-		resourceController.resources = localStorageController.load(resourceController.storageKey,'array',true);
+		resourceController.resources = localStorageController.load(resourceController.getStorageKey(),'array',true);
 		//populate to UIs
 		resourceController.populateResource();
+	},
+	getStorageKey: function(){
+		return `${resourceController.storageKey}.${resourceController.profile}`;
+	},
+	convertData: function(){// 
+		let resource = localStorageController.load(resourceController.storageKey,'array',true);
+		resourceController.profile = 'default';
+		localStorageController.save(resourceController.profileKey,resourceController.profile);
+		localStorageController.save(resourceController.getStorageKey(),resource);
+		localStorageController.remove(resourceController.storageKey);
 	},
 	populateResource: function(){
 		$('div.container-md div[data-type="resource"] div.item-resource').remove();
@@ -26,34 +46,34 @@ resourceController = function(){return {
 		if(id !== "" && id > -1)resourceController.resources.splice(id,1,output);
 		else resourceController.resources.push(output);
 		
-		localStorageController.save(resourceController.storageKey,resourceController.resources);
+		localStorageController.save(resourceController.getStorageKey(),resourceController.resources);
 		resourceController.populateResource();
 		$('div.modal[data-type="resource"]').modal('hide');
 	},
 	removeAll: function(){
 		if(!confirm('Are you sure to remove all resources?'))return;
 		resourceController.resources.length = 0;
-		localStorageController.save(resourceController.storageKey,resourceController.resources);
+		localStorageController.save(resourceController.getStorageKey(),resourceController.resources);
 		resourceController.populateResource();
 	},
 	onIncrement: function(id){
 		let org = resourceController.resources[id].current;
 		resourceController.resources[id].current = Math.min(resourceController.resources[id].current+1,resourceController.resources[id].max);
 		if(resourceController.resources[id].current === org)return;
-		localStorageController.save(resourceController.storageKey,resourceController.resources);
+		localStorageController.save(resourceController.getStorageKey(),resourceController.resources);
 		resourceController.populateResource();
 	},
 	onDecrement: function(id){
 		let org = resourceController.resources[id].current;
 		resourceController.resources[id].current = Math.max(resourceController.resources[id].current-1,0);
 		if(resourceController.resources[id].current === org)return;
-		localStorageController.save(resourceController.storageKey,resourceController.resources);
+		localStorageController.save(resourceController.getStorageKey(),resourceController.resources);
 		resourceController.populateResource();
 	},
 	onRemove: function(id){
 		if(!confirm('Are you sure to remove the resource?'))return;
 		resourceController.resources.splice(id,1);
-		localStorageController.save(resourceController.storageKey,resourceController.resources);
+		localStorageController.save(resourceController.getStorageKey(),resourceController.resources);
 		resourceController.populateResource();
 	},
 	doTurnRest: function(){
@@ -77,7 +97,7 @@ resourceController = function(){return {
 			console.log(`${e.name}: ${e.current} -> ${e.max}`);
 			e.current = e.max;
 		});
-		localStorageController.save(resourceController.storageKey,resourceController.resources);
+		localStorageController.save(resourceController.getStorageKey(),resourceController.resources);
 		resourceController.populateResource();
 	}
 };}();
@@ -142,6 +162,9 @@ localStorageController = function(){return {
 	},
 	save: function(key,value){
 		localStorage.setItem(key,JSON.stringify(value));
+	},
+	remove: function(key){
+		localStorage.removeItem(key);
 	}
 };}();
 
