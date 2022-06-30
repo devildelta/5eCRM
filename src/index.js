@@ -50,11 +50,14 @@ resourceController = function(){return {
 		resourceController.populateResource();
 		$('div.modal[data-type="resource"]').modal('hide');
 	},
-	removeAll: function(){
-		if(!confirm('Are you sure to remove all resources?'))return;
+	removeAll: function(needConfirm){
+		if(needConfirm)if(!confirm('Are you sure to remove all resources?'))return;
 		resourceController.resources.length = 0;
 		localStorageController.save(resourceController.getStorageKey(),resourceController.resources);
 		resourceController.populateResource();
+	},
+	removeProfile: function(profile){
+		localStorageController.remove(resourceController.getStorageKey());
 	},
 	onIncrement: function(id){
 		let org = resourceController.resources[id].current;
@@ -145,9 +148,11 @@ profileController = function(){return {
 	deleteProfile:function(){
 		if(!confirm('Are you sure to remove the profile?'))return;
 		let input = $('.select-profile-list').val();
-		profileController.list.splice(profileController.list.findIndex(input),1);
+		profileController.list.splice(profileController.list.findIndex(e=>e===input),1);
 		localStorageController.save(profileController.listKey,profileController.list);
 		profileController.populate();
+		resourceController.removeAll(false);
+		resourceController.removeProfile();
 		$('.select-profile-list').val('default').change();
 	},
 	//saveProfile:function(){},
