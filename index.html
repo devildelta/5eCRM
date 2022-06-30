@@ -11,7 +11,16 @@
 		<script src="src/index.js"></script>
 	</head>
 	<body>
-		<div class="container-md">
+		<div class="container-md"><!-- Profile Management -->
+			<div class="input-group mb-3">
+				<button class="btn btn-primary" type="button" onclick="profileController.addProfile()">New</button>
+				<button class="btn btn-danger" type="button" onclick="profileController.deleteProfile()">Delete</button>
+				<select class="form-select select-profile-list">
+					<!-- Insert profiles by population -->
+				</select>
+			</div>
+		</div>
+		<div class="container-md"><!-- Buttons Toolbar -->
 			<button type="button" class="btn btn-primary" onclick="resourceModalController.show(-1)">New Resource</button>
 			<button type="button" class="btn btn-danger" onclick="resourceController.removeAll()">Remove All</button>
 			<br/>
@@ -20,10 +29,11 @@
 			<button type="button" class="btn btn-outline-danger" onclick="resourceController.doLongRest()">Long Rest</button>
 			<button type="button" class="btn btn-outline-info" onclick="resourceController.doDawnRest()">Dawn</button>
 			<button type="button" class="btn btn-outline-success" onclick="resourceController.doDailyRest()">Per 24 Hours</button>
+		</div>
+		<div class="container-md"><!-- Card List -->
 			<div class="card-list" data-type="resource">
 			</div>
 		</div>
-		
 		<!-- Resourece Modal -->
 		<div class="modal" tabindex="-1" data-type="resource">
 			<div class="modal-dialog">

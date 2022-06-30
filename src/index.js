@@ -1,25 +1,21 @@
 resourceController = function(){return {
 	// static fields
 	storageKey: 'resources',
-	profileKey: 'profile',
 	
 	// dynamic fields
 	profile: '',
 	resources:[],
-	init: function(){
-		// load profile
-		resourceController.profile = localStorageController.load(resourceController.profileKey,'string',false);
-		if(!resourceController.profile){// if no current profile, it must be from elder version. do conversion
-			resourceController.convertData();
-		}
-		//load all records from localStorage
+	load: function(profile){
+		console.log(`resourceController.load#start profile=${profile}`);
+		resourceController.profile = profile;
 		resourceController.resources = localStorageController.load(resourceController.getStorageKey(),'array',true);
-		//populate to UIs
 		resourceController.populateResource();
+		console.log('resourceController.load#end');
 	},
 	getStorageKey: function(){
 		return `${resourceController.storageKey}.${resourceController.profile}`;
 	},
+	/*
 	convertData: function(){// 
 		let resource = localStorageController.load(resourceController.storageKey,'array',true);
 		resourceController.profile = 'default';
@@ -27,12 +23,16 @@ resourceController = function(){return {
 		localStorageController.save(resourceController.getStorageKey(),resource);
 		localStorageController.remove(resourceController.storageKey);
 	},
+	*/
 	populateResource: function(){
+		console.log('resourceController.populateResource#start');
 		$('div.container-md div[data-type="resource"] div.item-resource').remove();
 		for(let i = 0;i< resourceController.resources.length;i++){
 			let resource = resourceController.resources[i];
+			console.log(`\t${resource.name} (${resource.rest})`);
 			$('div.container-md div[data-type="resource"]').append(toHTML(resource,i));
 		}
+		console.log('resourceController.populateResource#end');
 	},
 	saveResource: function(){
 		console.log('resourceController.saveResource');
@@ -60,14 +60,14 @@ resourceController = function(){return {
 		let org = resourceController.resources[id].current;
 		resourceController.resources[id].current = Math.min(resourceController.resources[id].current+1,resourceController.resources[id].max);
 		if(resourceController.resources[id].current === org)return;
-		localStorageController.save(resourceController.getStorageKey(),resourceController.resources);
+		//localStorageController.save(resourceController.getStorageKey(),resourceController.resources);
 		resourceController.populateResource();
 	},
 	onDecrement: function(id){
 		let org = resourceController.resources[id].current;
 		resourceController.resources[id].current = Math.max(resourceController.resources[id].current-1,0);
 		if(resourceController.resources[id].current === org)return;
-		localStorageController.save(resourceController.getStorageKey(),resourceController.resources);
+		//localStorageController.save(resourceController.getStorageKey(),resourceController.resources);
 		resourceController.populateResource();
 	},
 	onRemove: function(id){
@@ -100,6 +100,62 @@ resourceController = function(){return {
 		localStorageController.save(resourceController.getStorageKey(),resourceController.resources);
 		resourceController.populateResource();
 	}
+};}();
+
+profileController = function(){return {
+	listKey: 'profiles',
+	profileKey: 'profile',
+	list: [],
+	init:function(){
+		//load profile list from memory
+		console.log('profileController.init#start');
+		profileController.list = localStorageController.load(profileController.listKey,'array',true);
+		profileController.populate();
+		// on list change populate list
+		$('.select-profile-list').change(function(e){
+			resourceController.load($(this).val());
+		});
+		
+		console.log('profileController.init#end');
+	},
+	populate:function(){
+		console.log('profileController.populate#start');
+		$('.select-profile-list option').remove();
+		$('.select-profile-list').append($('<option value="default">(default)</option>'));
+		for(item of profileController.list){
+			console.log(`\tProfile ${item}`);
+			$('.select-profile-list').append($(`<option value="${item}">${item}</option>`));
+		}
+		console.log('profileController.populate#end');
+	},
+	addProfile:function(){
+		let input = prompt('Enter the profile name');
+		if(profileController.list.indexOf(input) > -1){
+			console.log(`profileController.addProfile input=${input} already existed.`);
+			return;
+		}
+		console.log(`profileController.addProfile#start input=${input}`);
+		profileController.list.push(input);
+		localStorageController.save(profileController.listKey,profileController.list);
+		profileController.populate();
+		$('.select-profile-list').val(input).change();
+		//profileController.loadProfile();
+		console.log('profileController.addProfile#end');
+	},
+	deleteProfile:function(){
+		if(!confirm('Are you sure to remove the profile?'))return;
+		let input = $('.select-profile-list').val();
+		profileController.list.splice(profileController.list.findIndex(input),1);
+		localStorageController.save(profileController.listKey,profileController.list);
+		profileController.populate();
+		$('.select-profile-list').val('default').change();
+	},
+	//saveProfile:function(){},
+	/*
+	loadProfile:function(){
+		resourceController.load($('.select-profile-list').val());
+	}
+	*/
 };}();
 
 resourceModalController = function(){return {
@@ -169,8 +225,13 @@ localStorageController = function(){return {
 };}();
 
 $(document).ready(function(){
-	resourceController.init();
+	console.log('document.ready#start');
+	profileController.init();
+	//resourceController.init();
 	resourceModalController.init();
+	$('.select-profile-list').val('default').change();
+	//profileController.loadProfile();
+	console.log('document.ready#end');
 });
 
 function toHTML(resource,i){
