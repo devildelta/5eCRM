@@ -55,3 +55,7 @@ div.card-list[data-type="resource"]{
 	flex: 0 0 auto;
 	}
 }
+
+.current-row{
+	background-color: #ff80ff;
+}
