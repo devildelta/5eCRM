@@ -25,76 +25,18 @@
 			
 		</div>
 
-		<div class="container-md"><!-- Card List -->
+		<div class="container-md card-list"><!-- Card List -->
 			<div class="row">
 				<div class="col-2">先攻</div>
 				<div class="col-5">對象</div>
 				<div class="col-5">
 				<button class="btn btn-primary" type="button">↑</button>
-				<button class="btn btn-primary" type="button">？</button>
+				<button class="btn btn-primary" type="button">✕</button>
 				<button class="btn btn-primary" type="button">↓</button>
 				</div>
 			</div>
 			<hr class="append-list-here solid" />
-			<div class="row current-row" data-row="0">
-				<div class="col-2">21.0</div>
-				<div class="col-7">黃金大樹</div>
-				<div class="col-3">
-					<button class="btn btn-secondary dropdown-toggle" type="button" id="dropdown-1" data-bs-toggle="dropdown" aria-expanded="false" data-dropdown-button="1">
-						…
-					</button>
-					<ul class="dropdown-menu" aria-labelledby="dropdown-1" data-dropdown-menu="1">
-						<li class="btn-warning"><a class="dropdown-item" href="#" data-dropdown-item="amend">改</a></li>
-						<li class="btn-danger"><a class="dropdown-item" href="#" data-dropdown-item="delete">刪</a></li>
-						<li class="btn-primary"><a class="dropdown-item" href="#" data-dropdown-item="skip" >跳</a></li>
-					</ul>
-				</div>
-			</div>
-			<hr class="dashed" />
-			<div class="row" data-row="0">
-				<div class="col-2">14.1</div>
-				<div class="col-7">AG</div>
-				<div class="col-3">
-					<button class="btn btn-secondary dropdown-toggle" type="button" id="dropdown-2" data-bs-toggle="dropdown" aria-expanded="false" data-dropdown-button="2">
-						…
-					</button>
-					<ul class="dropdown-menu" aria-labelledby="dropdown-2" data-dropdown-menu="2">
-						<li class="btn-warning"><a class="dropdown-item" href="#" data-dropdown-item="amend">改</a></li>
-						<li class="btn-danger"><a class="dropdown-item" href="#" data-dropdown-item="delete">刪</a></li>
-						<li class="btn-primary"><a class="dropdown-item" href="#" data-dropdown-item="skip" >跳</a></li>
-					</ul>
-				</div>
-			</div>
-			
-			
-			<div class="row" data-row="0">
-				<div class="col-2">11.1</div>
-				<div class="col-7">BS</div>
-				<div class="col-3">
-					<button class="btn btn-secondary dropdown-toggle" type="button" id="dropdown-3" data-bs-toggle="dropdown" aria-expanded="false" data-dropdown-button="3">
-						…
-					</button>
-					<ul class="dropdown-menu" aria-labelledby="dropdown-3" data-dropdown-menu="3">
-						<li class="btn-warning"><a class="dropdown-item" href="#" data-dropdown-item="amend">改</a></li>
-						<li class="btn-danger"><a class="dropdown-item" href="#" data-dropdown-item="delete">刪</a></li>
-						<li class="btn-primary"><a class="dropdown-item" href="#" data-dropdown-item="skip" >跳</a></li>
-					</ul>
-				</div>
-			</div>
-			<div class="row" data-row="0">
-				<div class="col-2">11.0</div>
-				<div class="col-7">白銀石</div>
-				<div class="col-3">
-					<button class="btn btn-secondary dropdown-toggle" type="button" id="dropdown-4" data-bs-toggle="dropdown" aria-expanded="false" data-dropdown-button="4">
-						…
-					</button>
-					<ul class="dropdown-menu" aria-labelledby="dropdown-4" data-dropdown-menu="4">
-						<li class="btn-warning"><a class="dropdown-item" href="#" data-dropdown-item="amend">改</a></li>
-						<li class="btn-danger"><a class="dropdown-item" href="#" data-dropdown-item="delete">刪</a></li>
-						<li class="btn-primary"><a class="dropdown-item" href="#" data-dropdown-item="skip" >跳</a></li>
-					</ul>
-				</div>
-			</div>
+
 			<hr class="prepend-list-here solid" />
 			<div class="row gy-5">
 				<div class="input-group mb-3">
@@ -112,14 +54,14 @@
 	
 	
 	<template id="template-initiative-row">
-		<div class="row" data-row="">
-			<div class="col-2 data-initiative"></div>
+		<div class="row row-token">
+			<div class="col-2 data-token-init"></div>
 			<div class="col-7 data-token-name"></div>
 			<div class="col-3">
-				<button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-dropdown-button="">
+				<button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
 					…
 				</button>
-				<ul class="dropdown-menu" data-dropdown-menu="">
+				<ul class="dropdown-menu">
 					<li class="btn-warning"><a class="dropdown-item" href="#" data-dropdown-item="amend">改</a></li>
 					<li class="btn-danger"><a class="dropdown-item" href="#" data-dropdown-item="delete">刪</a></li>
 					<li class="btn-primary"><a class="dropdown-item" href="#" data-dropdown-item="skip" >跳</a></li>
