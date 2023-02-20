@@ -109,13 +109,17 @@ const pageController = function(){
 			obj.initiative = $('#addInit').val();
 			// find insertion point
 			let pt = bSearchRM(list.map(a=>Number.parseFloat(a.initiative)).reverse(),Number.parseFloat(obj.initiative));
-			if(pt >= current) current++;
+			// if(pt <= current) nextInit();
 			// insert into list
 			list.splice(pt,0,obj);
 			// re-populate list on and after insertion point
 			repopulate(list,pt);
-			setCurrent(current);
-			
+			if(pt <= current) {
+				pageController.nextInit();
+			} else {
+				resetCurrent();
+				setCurrent(current);
+			}
 			// clean up input fields;
 			$('#addInit,#addToken').val('');
 		});
