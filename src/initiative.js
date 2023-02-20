@@ -55,6 +55,7 @@ const dataController = function(){return {
 const pageController = function(){
 	// private variables
 	let list = [];
+	let current = -1;
 	// private function
 	function repopulate(list,pt){
 		for(let x = pt;x<list.length;x++){
@@ -88,6 +89,14 @@ const pageController = function(){
 		}
 		return a.length - r;
 	}
+	
+	function setCurrent(){
+		$('div.row-token[data-row="'+current+'"]').addClass('current-row');
+	}
+	
+	function resetCurrent(){
+		$('div.card-list').find('.current-row').removeClass('current-row');
+	}
 	// public functions
 	return {
 	init: function(){
@@ -100,27 +109,38 @@ const pageController = function(){
 			obj.initiative = $('#addInit').val();
 			// find insertion point
 			let pt = bSearchRM(list.map(a=>Number.parseFloat(a.initiative)).reverse(),Number.parseFloat(obj.initiative));
+			if(pt >= current) current++;
 			// insert into list
 			list.splice(pt,0,obj);
 			// re-populate list on and after insertion point
 			repopulate(list,pt);
-			
+			setCurrent(current);
 			
 			// clean up input fields;
 			$('#addInit,#addToken').val('');
 		});
+		$('#nxtBtn').click(pageController.nextInit);
+		$('#lstBtn').click(pageController.lastInit);
 	},
 	setData: function(data){
 		if(!data || !data.tokens || data.tokens.length === 0)return;
 		Array.prototype.push.apply(list,data.tokens.sort((a,b)=>b.initiative.localeCompare(a.initiative)));
+		current = data.currentToken;
 		console.log(list);
 		let i = 0;
 		for(let token of list){
 			insertToken(token.initiative,token.name,i++);
 		}
-		
+		setCurrent(current);
 	},
-	isEmpty: function(){
-		return $('div.card-list').find('div.row.initiative-row')
+	nextInit: function(){
+		list.length - current === 1 ? current = 0 : current++;
+		resetCurrent();
+		setCurrent();
+	},
+	lastInit: function(){
+		current === 0 ? current = list.length-1 : current--;
+		resetCurrent();
+		setCurrent();
 	}
 };}();
