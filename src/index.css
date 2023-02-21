@@ -59,3 +59,9 @@ div.card-list[data-type="resource"]{
 .current-row{
 	background-color: #ff80ff;
 }
+.row.row-token {
+	padding: 0.1rem 0 0.1rem 0;
+}
+.data-token-init,.data-token-name {
+	padding: 0.375rem;
+}

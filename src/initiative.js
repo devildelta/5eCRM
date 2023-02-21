@@ -2,18 +2,6 @@ $(document).ready(function(){
 	pageController.init();
 	// retrieve data from somewhere
 	pageController.setData(dataController.retrieve());
-
-	$("button.dropdown-toggle").on('hide.bs.dropdown', event=>{
-		// console.log('hide.bs.dropdown');
-		// console.log($(event.currentTarget).data('dropdown-button'));
-		// console.log($(event.clickEvent?.target).data('dropdown-item'));
-		switch($(event.clickEvent?.target).data('dropdown-item')){
-			case "amend": break;
-			case "delete": break;
-			case "skip": break;
-			default:break;
-		}
-	})
 });
 
 const dataController = function(){return {
@@ -65,6 +53,7 @@ const pageController = function(){
 		for(let x = pt;x<list.length;x++){
 			insertTokenFromList(list,x);
 		}
+		mountDropdownFunctions();
 	}
 	function insertTokenFromList(list,i){
 		insertToken(list[i].initiative,list[i].name,i);
@@ -82,11 +71,11 @@ const pageController = function(){
 	function bSearchRM(a,t){ // search for the rightmost insertion point for .splice
 		let l = 0, r = a.length;
 		let m = 0;
-		console.log(`${l} <- ${m} -> ${r}`);
+		//console.log(`${l} <- ${m} -> ${r}`);
 		while(l < r){
 			m = Math.floor((l+r)/2);
 			a[m] > t ? r = m : l = m + 1;
-			console.log(`${l} <- ${m} -> ${r}`);
+			//console.log(`${l} <- ${m} -> ${r}`);
 		}
 		return a.length - r;
 	}
@@ -98,16 +87,48 @@ const pageController = function(){
 	function resetCurrent(){
 		$('div.card-list').find('.current-row').removeClass('current-row');
 	}
+	
+	function mountDropdownFunctions(){
+		$("button.dropdown-toggle").off('hide.bs.dropdown').on('hide.bs.dropdown', event=>{
+			// console.log('hide.bs.dropdown');
+			// console.log($(event.currentTarget).data('dropdown-button'));
+			// console.log($(event.clickEvent?.target).data('dropdown-item'));
+			let pt = $(event.currentTarget).data('dropdown-button');
+			switch($(event.clickEvent?.target).data('dropdown-item')){
+				case "amend": pageController.amend(pt); break;
+				case "remove": pageController.remove(pt); break;
+				case "skip": pageController.skip(pt); break;
+				default:break;
+			}
+		})
+	}
+	
+	function validateInput(){
+		let result = true;
+		if(!dataController.validateFloat($('#addInit').val(),0,50)){
+			$('#addInit').addClass('is-invalid').removeClass('is-valid');
+			result = false;
+		} else {
+			$('#addInit').addClass('is-valid').removeClass('is-invalid');
+		}
+		if(!$('#addName').val()){
+			$('#addName').addClass('is-invalid').removeClass('is-valid');
+			result = false;
+		} else {
+			$('#addName').addClass('is-invalid').removeClass('is-valid');
+		}
+		return result;
+	}
 	// public functions
 	return {
 	init: function(){
 		$('#addBtn').click((e)=>{
 			e.preventDefault();
 			// validate
-			let obj = {"name":$('#addToken').val()};
+			let obj = {"name":$('#addName').val()};
 			const template = $('#template-initiative-row').html();
-			if(!dataController.validateFloat($('#addInit').val(),0,50))return;
-			obj.initiative = $('#addInit').val();
+			if(!validateInput())return;
+			obj.initiative = Number.parseFloat($('#addInit').val()).toFixed(1);
 			// find insertion point
 			let pt = bSearchRM(list.map(a=>Number.parseFloat(a.initiative)).reverse(),Number.parseFloat(obj.initiative));
 			// if(pt <= current) nextInit();
@@ -118,18 +139,19 @@ const pageController = function(){
 			if(current === -1){
 				current = 0;
 				setCurrent(current);
-			} else if(pt <= current) {
+			} else if(pt < current) {
 				pageController.nextInit();
 			} else {
 				resetCurrent();
 				setCurrent(current);
 			}
 			// clean up input fields;
-			$('#addInit,#addToken').val('');
+			$('#addInit,#addName').val('').removeClass('is-valid is-invalid');
 		});
 		$('#nxtBtn').click(pageController.nextInit);
 		$('#lstBtn').click(pageController.lastInit);
 		$('#clrBtn').click(pageController.clearData);
+		mountDropdownFunctions();
 	},
 	setData: function(data){
 		if(!data || !data.tokens || data.tokens.length === 0)return;
@@ -140,15 +162,16 @@ const pageController = function(){
 		for(let token of list){
 			insertToken(token.initiative,token.name,i++);
 		}
+		mountDropdownFunctions();
 		setCurrent(current);
 	},
 	nextInit: function(){
-		list.length - current === 1 ? current = 0 : current++;
+		current === -1 ? current = 0 : list.length - current === 1 ? current = 0 : current++;
 		resetCurrent();
 		setCurrent();
 	},
 	lastInit: function(){
-		current === 0 ? current = list.length-1 : current--;
+		current === -1 ? current = 0 : current === 0 ? current = list.length-1 : current--;
 		resetCurrent();
 		setCurrent();
 	},
@@ -158,5 +181,24 @@ const pageController = function(){
 		repopulate(list,0);
 		current = -1;
 		resetCurrent();
+	},
+	amend: function(pt){
+		let [{name,initiative}] = list.splice(pt,1);
+		
+		$('#addName').val(name);
+		$('#addInit').val(initiative);
+		repopulate(list,pt);
+	},
+	remove: function(pt){
+		list.splice(pt,1);
+		current === -1 ? 0 : current < pt ? current = list.length-1 : current--
+		repopulate(list,current);
+		resetCurrent();
+		setCurrent();
+	},
+	skip: function(pt){
+		current = pt;
+		resetCurrent();
+		setCurrent();
 	}
 };}();
