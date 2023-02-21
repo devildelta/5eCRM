@@ -58,7 +58,8 @@ const pageController = function(){
 	let current = -1;
 	// private function
 	function repopulate(list,pt){
-		for(let x = pt;x<list.length;x++){
+		let originalLength = $('div.row-token').length;
+		for(let x = pt;x<originalLength;x++){
 			$('div.row-token[data-row="'+x+'"]').remove();
 		}
 		for(let x = pt;x<list.length;x++){
@@ -114,7 +115,10 @@ const pageController = function(){
 			list.splice(pt,0,obj);
 			// re-populate list on and after insertion point
 			repopulate(list,pt);
-			if(pt <= current) {
+			if(current === -1){
+				current = 0;
+				setCurrent(current);
+			} else if(pt <= current) {
 				pageController.nextInit();
 			} else {
 				resetCurrent();
@@ -125,12 +129,13 @@ const pageController = function(){
 		});
 		$('#nxtBtn').click(pageController.nextInit);
 		$('#lstBtn').click(pageController.lastInit);
+		$('#clrBtn').click(pageController.clearData);
 	},
 	setData: function(data){
 		if(!data || !data.tokens || data.tokens.length === 0)return;
 		Array.prototype.push.apply(list,data.tokens.sort((a,b)=>b.initiative.localeCompare(a.initiative)));
 		current = data.currentToken;
-		console.log(list);
+		//console.log(list);
 		let i = 0;
 		for(let token of list){
 			insertToken(token.initiative,token.name,i++);
@@ -146,5 +151,12 @@ const pageController = function(){
 		current === 0 ? current = list.length-1 : current--;
 		resetCurrent();
 		setCurrent();
+	},
+	clearData: function(){
+		if(!confirm('Remove all items?'))return;
+		list = [];
+		repopulate(list,0);
+		current = -1;
+		resetCurrent();
 	}
 };}();
