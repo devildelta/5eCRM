@@ -1,0 +1,130 @@
+body {
+  background-color: #1e1e1e;
+  color: #f1f1f1;
+}
+
+.card {
+  background-color: #2c2c2c;
+  color: #f8f8f8;
+}
+
+.form-control,
+.form-select {
+  background-color: #2c2c2c;
+  color: #f8f8f8;
+  border: 1px solid #555;
+}
+
+.form-control::placeholder {
+  color: #aaa;
+}
+
+.btn {
+  font-weight: bold;
+}
+
+.card-header > .title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.card-header .button-row {
+  margin-top: 0.5rem;
+}
+
+.card-body p {
+  font-size: 1.05rem;
+  margin-bottom: 0.4rem;
+  font-weight: 500;
+  color: #f0f0f0;
+}
+
+.card-body strong {
+  color: #ffe082;
+}
+
+/* 來源標籤樣式 */
+.tag-source {
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.3rem;
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+}
+
+.source-角色職業 {
+  background-color: #2980b9;
+  color: white;
+}
+
+.source-角色特徵 {
+  background-color: #8e44ad;
+  color: white;
+}
+
+.source-魔法物品 {
+  background-color: #d35400;
+  color: white;
+}
+
+.source-其他 {
+  background-color: #555;
+  color: white;
+}
+
+/* 角色標題區 */
+#currentLabel {
+  font-size: 1.2rem;
+}
+
+/* 匯出設定框樣式 */
+#exportBox {
+  background-color: #1d1d1d;
+  color: #f1f1f1;
+  border: 1px dashed #555;
+  padding: 1rem;
+  margin-top: 1rem;
+  font-family: monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  max-height: 300px;
+  overflow: auto;
+}
+
+#exportActions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+#copyAlert {
+  color: #82e0aa;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .row.g-2 > div {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+  .btn {
+    font-size: 1.2rem;
+    padding: 0.75rem 1.5rem;
+  }
+  .btn-group {
+    flex-direction: column;
+  }
+  .btn-group .btn {
+    width: 100%;
+  }
+}
+
+/* 按鈕排版 */
+.btn-group .btn {
+  flex: 1 1 auto;
+  min-width: 110px;
+}
