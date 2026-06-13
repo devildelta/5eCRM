@@ -1,5 +1,18 @@
 ### 📑 DND5e FFT 統計工具：核心演算法規格書 (Abstracted Spec)
 
+#### 📋 專案歷史與貢獻者 (Engine Credits)
+*   **Core Architecture & Spec Co-Authored By**: Gemini 1.5 Pro
+*   **Technical Review & Math Optimization By**: Microsoft Copilot (M365 Copilot, GPT-5 Chat Model)
+
+#### 🌐 實作語言與底層限制 (Implementation Language & Core Typings)
+*   **Plain JavaScript (ES6+)**：本系統完全使用原生 JavaScript 實作。
+*   **Float64Array (複數時域與頻域緩衝區)**：
+    *   在處理 FFT 時，JavaScript 的原生 Array 效能不足。系統統一採用 `Float64Array` 作為緩衝區。
+    *   **記憶體配置**：其長度固定為 `fftSize * 2`。其中偶數索引 `2*i` 存放複數的**實部（Real Part）**，代表實質的機率值；奇數索引 `2*i + 1` 存放複數的**虛部（Imaginary Part）**，在時域初始化時皆預設為 0。
+*   **Map 結構 (面數聚合)**：
+    *   在解析傷害骰時，系統採用 `Map<number, number>`。以骰子面數（sides）為鍵（Key），投骰數量（count）為值（Value），用於在摺積前進行同面數骰子的線性合併優化。
+
+
 #### 0. 全域離散統計防禦常數 (Top-level Defense Constants)
 *   **`BUCKET_EPSILON = 1e-12`**：巨觀的時域剪枝與噪點抹平防線。用於切除傅立葉變換在時域邊界產生的微小機率漣漪，防止其干擾邊界判定與位移追蹤。
 *   **`MACHINE_EPSILON = 1e-15`**：微觀的硬體精度防線。對齊 IEEE 754 雙精度浮點數在硬體暫存器上的精度極限，用於校正多層次摺積後的二進位制精度損耗。
@@ -16,17 +29,24 @@
     *   **EA 模式 (精靈準確)**：投三顆取最高。其中「至少為 s」的機率公式為 $1 - (\frac{s-1}{20})^3$。
 
 #### 2. 核心快速傅立葉變換與摺積算法 (FFT & Convolution)
+*   **核心演算法選型 (Algorithmic Choice)**：
+    *   在介面層級（Interface Level），Pipeline 僅需呼叫一體化的 FFT。
+    *   在演算法層級（Algorithmic Level），本系統指定採用 **時間抽取基底-2 庫利-圖基演算法 (Radix-2 Decimation-in-Time Cooley-Tukey FFT Algorithm)**。
+    *   **實作約束**：輸入的緩衝區長度 $2N$ 中的 $N$（時域點數）必須嚴格為 **2 的冪次方 (Power of 2)**，否則蝴蝶迭代將無法對齊。
 *   **`fftInPlace(buffer, inverse)`**：
-    *   **輸入**：長度為 2N 的浮點數陣列（實部與虛部交錯），`inverse` 佈林值旗標。
+    *   **輸入**：長度為 2N 的 `Float64Array`（實部與虛部交錯），`inverse` 佈林值旗標。
     *   **處理流程**：
-        1.  **位元反轉置換**：利用 Bit-reversal 排列對齊陣列元素。
-        2.  **蝴蝶定理迭代**：執行 2 階蝴蝶定理進行頻域疊加，複數旋轉因子角度為 ± 2π / len（正負號由 `inverse` 決定）。
+        1.  **位元反轉置換 (Bit-reversal Permutation)**：利用位元反轉排列對齊陣列元素，實現原位（In-place）運算。
+        2.  **蝴蝶定理迭代 (Butterfly Iteration)**：執行對數層級（$\log_2 N$）的蝴蝶定理進行頻域疊加，複數旋轉因子（Twiddle Factors）角度為 ± 2π / len（正負號由 `inverse` 決定）。
         3.  **逆變換歸一化**：若 `inverse == true`，將陣列中所有元素除以 N。
 *   **`convolveMultipleFFT(pool)`**：
-    *   **輸入**：物件陣列 `pool`，每個物件含 `{ dist: 機率陣列, isNegative: 佈林值 }`。
+    *   **輸入**：物件陣列 `pool`，每個物件含 `{ dist: Float64Array, isNegative: 佈林值 }`。
     *   **核心斷言與假設**：輸入的基本骰必滿足 $dist[0] = 0$ 的強烈限制（皆為標準 1-based 均勻骰）。在此前提下，負向分佈可安全跳過動態裁剪。
+    *   **位移整數限制守恆 (Integer Offset Constraint)**：
+        *   因為所有的偏移量（Offset）最終都要直接應用於 `0-based` 陣列的索引（Index）上，而**陣列索引在物理記憶體中必須是嚴格的整數**。
+        *   因此，不論是正向裁剪的 `firstValid`、負向反轉的 `sides`、還是最終累積的 `globalMinOffset`，**其數學計算與傳遞過程必須保證完全為整數（Integer）**，絕不允許出現任何浮點數微調位移。
     *   **處理流程**：
-        1.  初始化全局最小位移量 `globalMinOffset = 0`，建立標準化陣列集合。
+        1.  初始化全局最小位移整數 `globalMinOffset = 0`，建立標準化陣列集合。
         2.  遍歷 `pool` 進行預處理：
             *   若為負數骰，將 `globalMinOffset` 減去最大面數（sides）。建立新陣列，將原正向骰點數 $s$ 的機率填入新陣列的 `sides - s` 索引處。
             *   若為正向分佈，利用 `BUCKET_EPSILON` 門檻進行進場過濾：尋找第一個滿足 `dist[i] > BUCKET_EPSILON` 的有效起點 `firstValid`。將 `firstValid` 累加至 `globalMinOffset`，隨後裁剪掉前端零點，將剩餘區間平移移入新陣列（從索引 0 開始）。
@@ -35,7 +55,7 @@
         5.  建立主頻域緩衝區 `mainFreqBuffer`（長度 `fftSize * 2`）。在時域初始狀態下，僅將實部首項 `mainFreqBuffer[0]` 設為 1.0（即標準單位脈衝信號，其餘元素皆為 0），隨後對其執行正向 FFT。
         6.  遍歷標準化集合：將各分佈填入臨時複數緩衝區，執行正向 FFT，並與主緩衝區進行頻域點對點複數相乘：(r₁ r₂ - i₁ i₂, r₁ i₂ + i₁ r₂)。
         7.  對主緩衝區執行逆向 FFT（IFFT）轉回時域。
-        8.  **出場噪點抹平**：截取實部前 `maxPossibleSpan + 1` 個元素。若元素值 `val > BUCKET_EPSILON` 則保留，其餘微小正負浮點數噪點一律強制抹平為 0，絕不向上墊高。同時累加所有抹平後的有效機率得到 `currentSum`。
+        8.  **出場噪點抹平**：截取實部前 `maxPossibleSpan + 1` 個元素。若元素值 `val > BUCKET_EPSILON` 則保留，其餘微小正負浮點數噪點一律強制抹平為 0。同時累加所有抹平後的有效機率得到 `currentSum`。
         9.  **單次防漂移歸一化**：使用 `MACHINE_EPSILON` 進行硬體級檢核。若 `Math.abs(currentSum - 1.0) > MACHINE_EPSILON`，則在回傳前對時域分佈執行唯一一次的除法歸一化（Re-normalization），防止多層次高階摺積後 CDF 四分位數判定產生邊界漂移。
 
 #### 3. 語法解析器規格 (Parsers)
@@ -51,6 +71,10 @@
     *   **備份機制**：若無括號，則檢查是否有前綴數字作為重複次數（例如 `2 1D8+7`），若無則預設 `repeatCount = 1`。
 
 #### 4. 流水線與條件機率耦合 (Pipeline Engine)
+*   **爆擊判定的規則正當性 (Critical Hit Rules & Justification)**：
+    *   **DND 5e 核心規則 (PHB, p.194)**：爆擊（Critical Hit）的判定有其絕對的**互斥獨立性**——它**完全、唯一取決於核心 D20 骰子的原生面點數 (Natural Roll)** 是否大於等於爆擊門檻（例如 Natural 20）。
+    *   **條件機率耦合正當性**：不論後續加入了多少命中輔助骰（如 +1D4 聖職術）或多高的固定加值（如 +11 攻擊修正），這些「輔助骰與加值」只能決定最終是否「成功命中 AC」，**絕對無法將一個非爆擊的 D20 點數「修正」為爆擊**。
+    *   因此，系統在計算 `pCrit` 時，**必須且僅能從未摺積的原始 D20 陣列中單獨提取**。隨後，在與輔助骰摺積出的總命中分佈中算出的總成功率 `pValidSuccess`，必須扣除此獨立 `pCrit`，才能推導出不具爆擊效果的純普通命中率 `pHit`。
 *   **`evaluateAttackProbabilities(attackStr, targetAC, critThreshold)`**：
     *   **處理流程**：
         1.  呼叫 `parseAttackString` 取得核心 D20 模式、輔助骰與命中固定加值 `flatMod`。
@@ -68,8 +92,8 @@
             *   摺積該擊的所有普通傷害骰，得到普通骰子傷害分佈 `hitDiceDist`。
             *   將該擊的所有傷害骰數量乘以 `critMultiplier` 後進行摺積，得到爆擊骰子傷害分佈 `critDiceDist`。
             *   初始化一個長度足以覆蓋最大可能傷害的單擊 PDF 陣列，並將索引 0 預填為未命中率 `pMiss`。
-            *   遍歷 `hitDiceDist`，將機率乘以 `pHit` 後，平移 `flatMod` 個單位累加至單擊 PDF。
-            *   遍歷 `critDiceDist`，將機率乘以 `pCrit` 後，平移 `flatMod` 個單位累加至單擊 PDF。
+            *   遍歷 `hitDiceDist`，將機率乘以 `pHit` 後，平移 `flatMod` 個單位（保證為整數）累加至單擊 PDF。
+            *   遍歷 `critDiceDist`，將機率乘以 `pCrit` 後，平移 `flatMod` 個單位（保證為整數）累加至單擊 PDF。
             *   將此單擊 PDF 分佈放入輪次 pool 中。
         5.  將單輪內所有打擊的 PDF 進行 `convolveMultipleFFT` 摺積，合併為「單次完整動作傷害分佈」。
         6.  將該完整動作傷害分佈根據 `repeatCount` 自乘摺積 N 次，得到全輪總傷害機率質量分佈 `finalTotalDist`。
