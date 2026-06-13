@@ -1,25 +1,21 @@
 // Pre-generated constants
-const { PREGENERATED_DICE_NORMAL, PREGENERATED_DICE_MINUS } = (function() {
+/** @const {number} 時域微小機率漣漪抹平門檻 (用於剪枝與進出場雜訊消減) */
+const BUCKET_EPSILON = 1e-12;
+/** @const {number} IEEE 754 雙精度浮點數機器精度極限 (用於硬體級歸一化檢核) */
+const MACHINE_EPSILON = 1e-15;
+const { PREGENERATED_DICE_NORMAL } = (function() {
     const diceSizes = [4,6,8,10,12];
     const normalRegistry = {};
-    const minusRegistry = {};
 
     for (const sides of diceSizes) {
         const normalDist = new Array(sides + 1).fill(0);
         const normalProb = 1 / sides;
         for (let s = 1; s <= sides; s++) normalDist[s] = normalProb;
         normalRegistry[`D${sides}`] = Object.freeze(normalDist);
-
-        const minusDist = new Array(sides + 1).fill(0);
-        for (let s = 1; s <= sides; s++) {
-            minusDist[sides + 1 - s] = normalProb;
-        }
-        minusRegistry[`D${sides}`] = Object.freeze(minusDist);
     }
 
     return {
-        PREGENERATED_DICE_NORMAL: Object.freeze(normalRegistry),
-        PREGENERATED_DICE_MINUS: Object.freeze(minusRegistry)
+        PREGENERATED_DICE_NORMAL: Object.freeze(normalRegistry)
     };
 })();
 
@@ -109,10 +105,13 @@ function convolveMultipleFFT(pool) {
             }
             standardizedPool.push(reversedDist);
         } else {
-            let firstValid = 0;
-            for (let i = 0; i < item.dist.length; i++) {
-                if (item.dist[i] > 0) { firstValid = i; break; }
-            }
+			let firstValid = 0;
+			for (let i = 0; i < item.dist.length; i++) {
+				if (item.dist[i] > BUCKET_EPSILON) { 
+					firstValid = i; 
+					break; 
+				}
+			}
             globalMinOffset += firstValid;
 
             const croppedLength = item.dist.length - firstValid;
@@ -150,9 +149,23 @@ function convolveMultipleFFT(pool) {
     fftInPlace(mainFreqBuffer, true);
 
     let finalDist = new Float64Array(maxPossibleSpan + 1);
-    for (let i = 0; i <= maxPossibleSpan; i++) {
-        finalDist[i] = Math.max(0, mainFreqBuffer[2 * i]);
-    }
+	let currentSum = 0;
+
+	for (let i = 0; i <= maxPossibleSpan; i++) {
+		const val = mainFreqBuffer[2 * i];
+		// 只有大於 EPSILON 的數值才會被保留，其餘微小正負噪點一律抹平成 0
+		const cleanVal = val > BUCKET_EPSILON ? val : 0;
+		finalDist[i] = cleanVal;
+		currentSum += cleanVal;
+	}
+
+	// 2. 評審建議的防漂移歸一化 (Re-normalization)
+	// 只有在總和有效且不等於 1 時才進行除法，修正機器浮點數誤差
+	if (currentSum > 0 && Math.abs(currentSum - 1.0) > MACHINE_EPSILON) {
+		for (let i = 0; i <= maxPossibleSpan; i++) {
+			finalDist[i] /= currentSum;
+		}
+	}
 
     return { dist: finalDist, offset: globalMinOffset };
 }
@@ -306,18 +319,6 @@ function parseAdvancedDamageString(damageStr) {
         return { repeatCount, attackSequence: [parseSingleFormula(singleFormula)] };
     }
 }
-
-function probAtLeast(x, advantageMode) {
-    const clampedX = Math.max(1, Math.min(21, x));
-    const pNormal = (21 - clampedX) / 20;
-    
-    if (advantageMode === -1) return pNormal * pNormal;                      // : p(x)^2
-    if (advantageMode === 1)  return 1 - Math.pow((clampedX - 1) / 20, 2);   // : 1 - (x-1)^2/400
-    if (advantageMode === 2)  return 1 - Math.pow((clampedX - 1) / 20, 3);   // : 1 - (x-1)^3/8000
-    return pNormal;
-}
-
-
 
 /**
  * 配合全新離散命中 Pipeline 升級後的印表機函數

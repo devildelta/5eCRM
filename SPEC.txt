@@ -1,0 +1,76 @@
+### 📑 DND5e FFT 統計工具：核心演算法規格書 (Abstracted Spec)
+
+#### 0. 全域離散統計防禦常數 (Top-level Defense Constants)
+*   **`BUCKET_EPSILON = 1e-12`**：巨觀的時域剪枝與噪點抹平防線。用於切除傅立葉變換在時域邊界產生的微小機率漣漪，防止其干擾邊界判定與位移追蹤。
+*   **`MACHINE_EPSILON = 1e-15`**：微觀的硬體精度防線。對齊 IEEE 754 雙精度浮點數在硬體暫存器上的精度極限，用於校正多層次摺積後的二進位制精度損耗。
+
+#### 1. 離散機率質量函數快取 (Probability Mass Function Registry)
+*   **`PREGENERATED_DICE_NORMAL` **：
+    *   **輸入**：骰子面數 $S \in \{4, 6, 8, 10, 12\}$。
+    *   **正向分佈處理**：建立長度 S+1 的浮點數陣列。將索引 1 到 S 的機率值皆設為 1/S，索引 0 設為 0。完成後鎖定陣列。
+*   **`PREGENERATED_D20_ATTACK`**：
+    *   **預計算目標**：長度為 21 的 D20 點數分佈陣列（有效索引 $1 \dots 20$）。
+    *   **NORMAL 模式**：常規投骰。每點機率皆為定值 1/20。
+    *   **ADV 模式 (優勢)**：投兩顆取最高。利用累積機率差值計算：$P(X = s) = P(\text{at least } s) - P(\text{at least } s+1)$。其中「至少為 s」的機率公式為 $1 - (\frac{s-1}{20})^2$。
+    *   **DIS 模式 (劣勢)**：投兩顆取最低。其中「至少為 s」的機率公式為 $(\frac{21-s}{20})^2$。
+    *   **EA 模式 (精靈準確)**：投三顆取最高。其中「至少為 s」的機率公式為 $1 - (\frac{s-1}{20})^3$。
+
+#### 2. 核心快速傅立葉變換與摺積算法 (FFT & Convolution)
+*   **`fftInPlace(buffer, inverse)`**：
+    *   **輸入**：長度為 2N 的浮點數陣列（實部與虛部交錯），`inverse` 佈林值旗標。
+    *   **處理流程**：
+        1.  **位元反轉置換**：利用 Bit-reversal 排列對齊陣列元素。
+        2.  **蝴蝶定理迭代**：執行 2 階蝴蝶定理進行頻域疊加，複數旋轉因子角度為 ± 2π / len（正負號由 `inverse` 決定）。
+        3.  **逆變換歸一化**：若 `inverse == true`，將陣列中所有元素除以 N。
+*   **`convolveMultipleFFT(pool)`**：
+    *   **輸入**：物件陣列 `pool`，每個物件含 `{ dist: 機率陣列, isNegative: 佈林值 }`。
+    *   **核心斷言與假設**：輸入的基本骰必滿足 $dist[0] = 0$ 的強烈限制（皆為標準 1-based 均勻骰）。在此前提下，負向分佈可安全跳過動態裁剪。
+    *   **處理流程**：
+        1.  初始化全局最小位移量 `globalMinOffset = 0`，建立標準化陣列集合。
+        2.  遍歷 `pool` 進行預處理：
+            *   若為負數骰，將 `globalMinOffset` 減去最大面數（sides）。建立新陣列，將原正向骰點數 $s$ 的機率填入新陣列的 `sides - s` 索引處。
+            *   若為正向分佈，利用 `BUCKET_EPSILON` 門檻進行進場過濾：尋找第一個滿足 `dist[i] > BUCKET_EPSILON` 的有效起點 `firstValid`。將 `firstValid` 累加至 `globalMinOffset`，隨後裁剪掉前端零點，將剩餘區間平移移入新陣列（從索引 0 開始）。
+        3.  將所有物件標準化後的剩餘長度相加，得到最高可能總長度 `maxPossibleSpan`。
+        4.  計算大於該總長度的最小 2 的冪次方，作為 `fftSize`。
+        5.  建立主頻域緩衝區 `mainFreqBuffer`（長度 `fftSize * 2`）。在時域初始狀態下，僅將實部首項 `mainFreqBuffer[0]` 設為 1.0（即標準單位脈衝信號，其餘元素皆為 0），隨後對其執行正向 FFT。
+        6.  遍歷標準化集合：將各分佈填入臨時複數緩衝區，執行正向 FFT，並與主緩衝區進行頻域點對點複數相乘：(r₁ r₂ - i₁ i₂, r₁ i₂ + i₁ r₂)。
+        7.  對主緩衝區執行逆向 FFT（IFFT）轉回時域。
+        8.  **出場噪點抹平**：截取實部前 `maxPossibleSpan + 1` 個元素。若元素值 `val > BUCKET_EPSILON` 則保留，其餘微小正負浮點數噪點一律強制抹平為 0，絕不向上墊高。同時累加所有抹平後的有效機率得到 `currentSum`。
+        9.  **單次防漂移歸一化**：使用 `MACHINE_EPSILON` 進行硬體級檢核。若 `Math.abs(currentSum - 1.0) > MACHINE_EPSILON`，則在回傳前對時域分佈執行唯一一次的除法歸一化（Re-normalization），防止多層次高階摺積後 CDF 四分位數判定產生邊界漂移。
+
+#### 3. 語法解析器規格 (Parsers)
+*   **`parseAttackString(attackStr)`**：
+    *   **處理**：移除所有空格並轉大寫。利用正規表達式拆解帶有正負號的標記（Tokens）。
+    *   **命中骰識別**：精確匹配 `D20A1` (mode=1), `D20A2` (mode=2), `D20D1` (mode=-1) 或標準 `D20` (mode=0)。前方若帶有負號則拋出異常。
+    *   **輔助骰與加值**：收集所有輔助骰（如 `+D4`, `-D6`），記錄其面數與正負號數量，並累加所有固定純數字至 `flatMod`。
+*   **`parseSingleFormula(formulaStr)`**：
+    *   **處理**：拆解基礎傷害公式（如 `1D8+7`）。利用 Map 結構以骰子面數（sides）為鍵值，自動合併同面數的骰子數量（count）。
+    *   **輸出**：過濾掉數量小於等於 0 的無效項目，回傳正數量的武器骰陣列 `weaponDice` 與固定加值 `flatMod`。
+*   **`parseAdvancedDamageString(damageStr)`**：
+    *   **處理**：識別外部重複次數與括號多擊。若符合 `N (公式1, 公式2)` 語法，則提取 `repeatCount = N`，並對括號內以逗號分隔的子公式分別呼叫 `parseSingleFormula`，存入序列陣列。
+    *   **備份機制**：若無括號，則檢查是否有前綴數字作為重複次數（例如 `2 1D8+7`），若無則預設 `repeatCount = 1`。
+
+#### 4. 流水線與條件機率耦合 (Pipeline Engine)
+*   **`evaluateAttackProbabilities(attackStr, targetAC, critThreshold)`**：
+    *   **處理流程**：
+        1.  呼叫 `parseAttackString` 取得核心 D20 模式、輔助骰與命中固定加值 `flatMod`。
+        2.  從快取提取對應的 D20 原始分佈陣列，複製一份並將索引 1（大失敗點）清空為 0（隔離處理）。
+        3.  將該 D20 陣列與所有輔助骰放入 pool，執行 `convolveMultipleFFT`，得到命中總點數分佈 `dist` 與位移量 `offset`。
+        4.  根據原始 D20 陣列，加總大於等於 $\min(20, \text{critThreshold})$ 的所有機率，得到絕對爆擊率 `pCrit`。
+        5.  遍歷摺積後的 `dist` 陣列，計算最終命中值：finalAttackRollResult = 索引 + offset + flatMod。若命中值 ≥ targetAC，則累加該點機率，得到總成功率 `pValidSuccess`。
+        6.  計算普通命中率 $\text{pHit} = \max(0, \text{pValidSuccess} - \text{pCrit})$。計算未命中率 $\text{pMiss} = \max(0, 1.0 - \text{pHit} - \text{pCrit})$。
+*   **`calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)`**：
+    *   **處理流程**：
+        1.  設定爆擊門檻與傷害骰倍率 `critMultiplier`（預設 2）。
+        2.  呼叫 `evaluateAttackProbabilities` 計算出該次攻擊的 `pHit, pCrit, pMiss` 三態機率。
+        3.  呼叫 `parseAdvancedDamageString` 解析出傷害重複次數與單輪內的打擊序列 `attackSequence`。
+        4.  遍歷 `attackSequence` 中的每一擊：
+            *   摺積該擊的所有普通傷害骰，得到普通骰子傷害分佈 `hitDiceDist`。
+            *   將該擊的所有傷害骰數量乘以 `critMultiplier` 後進行摺積，得到爆擊骰子傷害分佈 `critDiceDist`。
+            *   初始化一個長度足以覆蓋最大可能傷害的單擊 PDF 陣列，並將索引 0 預填為未命中率 `pMiss`。
+            *   遍歷 `hitDiceDist`，將機率乘以 `pHit` 後，平移 `flatMod` 個單位累加至單擊 PDF。
+            *   遍歷 `critDiceDist`，將機率乘以 `pCrit` 後，平移 `flatMod` 個單位累加至單擊 PDF。
+            *   將此單擊 PDF 分佈放入輪次 pool 中。
+        5.  將單輪內所有打擊的 PDF 進行 `convolveMultipleFFT` 摺積，合併為「單次完整動作傷害分佈」。
+        6.  將該完整動作傷害分佈根據 `repeatCount` 自乘摺積 N 次，得到全輪總傷害機率質量分佈 `finalTotalDist`。
+        7.  遍歷 `finalTotalDist` 計算累積機率（CDF），精確抓取累加值首度 ≥ 0.25, 0.50, 0.75 的傷害索引，作為四分位數 Q₁, Q₂, Q₃。

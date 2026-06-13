@@ -1,0 +1,18 @@
+命中與攻擊判定模組（Attack Roll TODOs）
+- 優勢與劣勢的相互抵消（Advantage Cancel Logic）
+  - 現狀： 目前解析器會單獨識別 D20A1 或 D20D1。
+  - 目標： D&D 5e 規則規定只要同時存在任何數量的優勢與劣勢，就會直接互相抵消回「常規 Normal (0)」。未來可以擴充解析器，若在一串命中字串中同時偵測到 A 與 D（例如 D20A1 + D20D1），自動將其強制重置為 advantageMode = 0。
+- 大失敗與大成功對一般命中分數的覆蓋（Auto-Miss & Auto-Hit Threshold Overrides）
+  - 現狀： 目前我們完美隔離了自然 1 的大失敗。
+  - 目標： 在 D&D 5e 中，只要骰出爆擊（如 Natural 20），即使加上所有修正值後的總分低於 AC，依然算作「絕對命中（Auto-Hit）」。目前的卷積掃描已有此趨勢，但可針對極端高 AC 環境（如 30 AC）進行硬編碼優先權防禦，確保爆擊 100% 必定造成普通與爆擊傷害。
+傷害與規則判定模組（Damage Roll TODOs）
+- 近戰大武器戰鬥風格（GWF Reroll 1s & 2s）
+  - 現狀： 我們在上一輪討論中，為了維持字串解析與 FFT 核心的純淨，主動回滾（Rollback）了 GWF。
+  - 目標： 未來如果重啟此功能，可以在字串中正式引入後綴（例如帶有 W 的 2D6W），並建立專屬的非均勻 PDF 字典。這將會是近戰巨劍流派的終極拼圖。
+- 武僧接箭與傷害減免骰（Damage Reduction / Monk Deflect Missiles）
+  - 現狀： 我們重構了底層 convolveMultipleFFT，使其能接收 { dist, isNegative: true } 來處理相減，並且 evaluateAttackProbabilities 已成功使用了此特性。
+  - 目標： 傷害 Pipeline (calculate) 目前尚未真正串接這個負向骰子功能。未來如果想模擬「目標怪物自帶 1d4 減傷護盾」或「武僧接箭減傷」，需要讓 parseAdvancedDamageString 也支援傷害字串中的減號骰（例如 2D6W - 1D4 + 5），並讓 calculate 內部將其打包為 isNegative: true 丟進 FFT 引擎中。
+排版、橫向對比與自動化模組（API & Comparison TODOs）
+- 神射手 / 巨武器大師對比矩陣的完全體適配（Upgrade generateSharpshooterTable）
+  - 現狀： generateSharpshooterTable 目前內部依然在使用舊版的純數字 toHit 進行衍生計算，它會與你最新的新版 calculate 函數發生型態衝突（會報錯崩潰）。
+  - 目標： 需要將對比矩陣重構。使其能接收一個基礎的 attackStr（如 "D20A1 + D4 + 2"），然後在內部利用 Regex 自動將裡面的固定加值扣除 5（變更字串為 "D20A1 + D4 - 3"），藉此完成新版 Q1/Q2/Q3 統一格式決策矩陣。
