@@ -268,9 +268,14 @@ function parseAttackString(attackStr) {
     return { advantageMode, bonusDice, flatMod };
 }
 
+/**
+ * 基礎單擊公式解析器 (此時專職解析純武器傷害與固定加值，不包含 PR 字串)
+ */
 function parseSingleFormula(formulaStr) {
-    const tokens = formulaStr.replace(/\s+/g, '').toUpperCase().match(/[+-]?[^+-]+/g) || [];
-    const diceMap = new Map();
+    const cleanStr = formulaStr.replace(/\s+/g, '').toUpperCase();
+    const tokens = cleanStr.match(/[+-]?[^+-]+/g) || [];
+    
+    const weaponDiceMap = new Map();
     let flatMod = 0;
 
     for (const token of tokens) {
@@ -279,36 +284,60 @@ function parseSingleFormula(formulaStr) {
             let countStr = diceMatch[1];
             const sides = parseInt(diceMatch[2], 10);
             let count = (countStr === "" || countStr === "+") ? 1 : (countStr === "-") ? -1 : parseInt(countStr, 10);
-            diceMap.set(sides, (diceMap.get(sides) || 0) + count);
-        } else {
-            const val = parseInt(token, 10);
-            if (!isNaN(val)) flatMod += val;
+            weaponDiceMap.set(sides, (weaponDiceMap.get(sides) || 0) + count);
+            continue;
+        }
+
+        const val = parseInt(token, 10);
+        if (!isNaN(val)) flatMod += val;
+    }
+
+    const weaponDice = Array.from(weaponDiceMap.entries())
+        .filter(([_, c]) => c > 0)
+        .map(([sides, count]) => ({ sides: Math.floor(sides), count: Math.floor(count) }));
+
+    return { weaponDice, flatMod: Math.floor(flatMod) };
+}
+
+/**
+ * 專職解析單獨 PR 字串的微型輔助函式
+ */
+function parsePrFormula(prStr) {
+    const cleanStr = prStr.replace(/\s+/g, '').toUpperCase();
+    const tokens = cleanStr.match(/[+-]?[^+-]+/g) || [];
+    const prDiceMap = new Map();
+
+    for (const token of tokens) {
+        const prMatch = token.match(/^([+-]?\d*)D(\d+)PR$/);
+        if (prMatch) {
+            let countStr = prMatch[1];
+            const sides = parseInt(prMatch[2], 10);
+            let count = (countStr === "" || countStr === "+") ? 1 : (countStr === "-") ? -1 : parseInt(countStr, 10);
+            prDiceMap.set(sides, (prDiceMap.get(sides) || 0) + count);
         }
     }
 
-    const weaponDice = Array.from(diceMap.entries())
+    return Array.from(prDiceMap.entries())
         .filter(([_, c]) => c > 0)
-        .map(([sides, count]) => ({ sides, count }));
-
-    return { weaponDice, flatMod };
+        .map(([sides, count]) => ({ sides: Math.floor(sides), count: Math.floor(count) }));
 }
 
+/**
+ * 終極版：進階跨輪輸出 (DPR) 序列解析器
+ * 【修正】：括號內逗號分隔的元素，含 PR 的會被抽離進 prDices 總池，不含 PR 的才是實質打擊！
+ */
 function parseAdvancedDamageString(damageStr) {
     const cleanStr = damageStr.trim();
-    
-    const complexMatch = cleanStr.match(/^(\d+)\s*\((.+)\)$/);
-    
-    if (complexMatch) {
-        const repeatCount = parseInt(complexMatch[1], 10);
-        const subFormulas = complexMatch[2].split(',').map(s => s.trim());
-        
-        const attackSequence = subFormulas.map(formula => parseSingleFormula(formula));
-        return { repeatCount, attackSequence };
-    } else {
+    const roundSequencePool = [];
+
+    // 1. 分割外層「輪次群組」
+    const groupMatches = cleanStr.match(/(?:\d+\s*)?\([^)]+\)/g) || [];
+
+    if (groupMatches.length === 0) {
+        // 降級相容常規無括號語法
         const spaceIndex = cleanStr.indexOf(' ');
         let repeatCount = 1;
         let singleFormula = cleanStr;
-        
         if (spaceIndex !== -1) {
             const prefix = cleanStr.substring(0, spaceIndex);
             if (/^\d+$/.test(prefix)) {
@@ -316,8 +345,65 @@ function parseAdvancedDamageString(damageStr) {
                 singleFormula = cleanStr.substring(spaceIndex + 1);
             }
         }
-        return { repeatCount, attackSequence: [parseSingleFormula(singleFormula)] };
+        const isPr = singleFormula.toUpperCase().includes("PR");
+        const roundStructure = {
+            attacks: isPr ? [] : [parseSingleFormula(singleFormula)],
+            prDices: isPr ? parsePrFormula(singleFormula) : []
+        };
+        for (let i = 0; i < repeatCount; i++) roundSequencePool.push(roundStructure);
+        return roundSequencePool;
     }
+
+    // 2. 遍歷每個輪次群組
+    for (const groupStr of groupMatches) {
+        const trimmedGroup = groupStr.trim();
+        const complexMatch = trimmedGroup.match(/^(\d+)\s*\((.+)\)$/);
+        
+        let repeatCount = 1;
+        let subFormulasStr = "";
+
+        if (complexMatch) {
+            repeatCount = parseInt(complexMatch[1], 10);
+            subFormulasStr = complexMatch[2];
+        } else {
+            const noPrefixMatch = trimmedGroup.match(/^\((.+)\)$/);
+            if (noPrefixMatch) subFormulasStr = noPrefixMatch[1];
+        }
+
+        if (!subFormulasStr) continue;
+
+        // 3. 核心修正：內層逗號拆分後，進行「打擊」與「全輪 PR 資源」的非對稱分流調度
+        const subTokens = subFormulasStr.split(',').map(s => s.trim());
+        
+        const attacks = [];
+        const globalPrMap = new Map();
+
+        for (const token of subTokens) {
+            if (token.toUpperCase().includes("PR")) {
+                // 它是全輪共享增傷池的一員！抽離出來解析
+                const extractedPrDices = parsePrFormula(token);
+                // 【多源自動合併】：同面數的 PR 骰在此線性累加合併
+                for (const dice of extractedPrDices) {
+                    globalPrMap.set(dice.sides, (globalPrMap.get(dice.sides) || 0) + dice.count);
+                }
+            } else {
+                // 它是實質的打擊嘗試，不增加打擊次數的雜訊
+                attacks.push(parseSingleFormula(token));
+            }
+        }
+
+        const prDices = Array.from(globalPrMap.entries())
+            .map(([sides, count]) => ({ sides, count }));
+
+        const roundStructure = { attacks, prDices };
+
+        // 依重複係數展開
+        for (let i = 0; i < repeatCount; i++) {
+            roundSequencePool.push(roundStructure);
+        }
+    }
+
+    return roundSequencePool;
 }
 
 /**
