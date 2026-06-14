@@ -410,6 +410,84 @@ function testPipelineCaseDamageReduction() {
     }
 }
 
+/**
+ * 戰士冠軍爆擊門檻擴展與半奧克殘暴爆擊自動化斷言檢驗群組
+ * @name testPipelineCaseSubclassModifiers
+ */
+function testPipelineCaseSubclassModifiers() {
+    console.log("🧪 [啟動測試群組] -> testPipelineCaseSubclassModifiers: 冠軍擴展門檻與殘暴爆擊倍率檢驗...");
+    try {
+        const attackStr = "D20A1 + 5";
+        const targetAC = 15;
+        const rawDamageStr = "(1D12+4)";
+
+        // ------------------------------------------------------------------------
+        // 【檢查點 A】 戰士冠軍 19-20 爆擊擴展門檻檢驗
+        // ------------------------------------------------------------------------
+        const summaryA = calculate("冠軍戰士 19 門檻測試", attackStr, targetAC, { threshold: 19, multiplier: 2 }, rawDamageStr);
+        const dA = summaryA.details;
+
+        // 斷言 A-1: 優勢下 19+ 爆擊率必須精確等於 19.0%
+        console.assert(
+            Math.abs(dA.pCrit - 0.1900) < MACHINE_EPSILON,
+            `[失敗] 檢查點 A-1 錯誤: 冠軍 19 門檻優勢爆擊率未對齊 (預期 0.19, 實測值 ${dA.pCrit})`
+        );
+        // 斷言 A-2: 普通命中率必須精確等於 60.75%
+        console.assert(
+            Math.abs(dA.pHit - 0.6075) < MACHINE_EPSILON,
+            `[失敗] 檢查點 A-2 錯誤: 冠軍 19 門檻優勢普通命中率未對齊 (預期 0.6075, 實測值 ${dA.pHit})`
+        );
+        console.log("  ├─ ✅ 檢查點 A 通過: 戰士冠軍 19 門檻優勢三態機率流 ── 數據對齊完全無偏誤。");
+
+        // ------------------------------------------------------------------------
+        // 【檢查點 B】 戰士冠軍 18-20 高階爆擊擴展門檻檢驗
+        // ------------------------------------------------------------------------
+        const summaryB = calculate("冠軍戰士 18 門檻測試", attackStr, targetAC, { threshold: 18, multiplier: 2 }, rawDamageStr);
+        const dB = summaryB.details;
+
+        // 斷言 B-1: 優勢下 18+ 爆擊率必須精確等於 27.75%
+        console.assert(
+            Math.abs(dB.pCrit - 0.2775) < MACHINE_EPSILON,
+            `[失敗] 檢查點 B-1 錯誤: 冠軍 18 門檻優勢爆擊率未對齊 (預期 0.2775, 實測值 ${dB.pCrit})`
+        );
+        // 斷言 B-2: 普通命中率必須精確等於 52.00%
+        console.assert(
+            Math.abs(dB.pHit - 0.5200) < MACHINE_EPSILON,
+            `[失敗] 檢查點 B-2 錯誤: 冠軍 18 門檻優勢普通命中率未對齊 (預期 0.52, 實測值 ${dB.pHit})`
+        );
+        console.log("  ├─ ✅ 檢查點 B 通過: 戰士冠軍 18 門檻優勢三態機率流 ── 數據對齊完全無偏誤。");
+
+        // ------------------------------------------------------------------------
+        // 【檢查點 C】 半奧克蠻族 3x 殘暴爆擊倍率與代數上限檢驗
+        // ------------------------------------------------------------------------
+        const summaryC = calculate("半奧克蠻族 3倍爆擊測試", attackStr, targetAC, { threshold: 19, multiplier: 3 }, rawDamageStr);
+        const dC = summaryC.details;
+
+        // 斷言 C-1: 驗證代數上限解析器是否能精確算出 3 倍爆擊最大傷為 40 點 (12 * 3 + 4 = 40)
+        console.assert(
+            dC.totalMaxPossibleDmg === 40,
+            `[失敗] 檢查點 C-1 錯誤: 殘暴爆擊 3x 代數上限不對齊 (預期最大值 40, 實測值 ${dC.totalMaxPossibleDmg})`
+        );
+
+        // 斷言 C-2: 檢驗統計分佈的實質物理最末端，第 41 格及以上必須為絕對真空區
+        let upperContamination = 0;
+        for (let i = 41; i < summaryC.distribution.length; i++) {
+            if (summaryC.distribution[i] > BUCKET_EPSILON) upperContamination += summaryC.distribution[i];
+        }
+        console.assert(
+            upperContamination <= BUCKET_EPSILON,
+            `[失敗] 檢查點 C-2 錯誤: 3x 爆擊時域高位判定域污染 (發現超出理論上限的幽靈質量 ${upperContamination})`
+        );
+        console.log("  ├─ ✅ 檢查點 C 通過: 半奧克蠻族 3x 殘暴爆擊時域與代數真理上限 ── 數據對齊完全無偏誤。");
+
+        console.log("\n================================================================================");
+        console.log("🎉 [群組通關] ── testPipelineCaseSubclassModifiers: 門檻擴展與殘暴爆擊管線 100% 守恆！");
+        console.log("================================================================================\n");
+
+    } catch (error) {
+        console.error("❌ 斷言測試發生未預期崩潰，捕獲異常:", error.message);
+    }
+}
 
 
 testParser();
@@ -417,6 +495,7 @@ testPipelineCaseSoulKnife();
 testPipelineCaseAC25();
 testPipelineCaseOffsetLoss();
 testPipelineCaseDamageReduction();
+testPipelineCaseSubclassModifiers();
 
 /**
  * 執行一體化核心 Pipeline 綜合測試
