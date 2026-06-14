@@ -91,7 +91,15 @@ function fftInPlace(buffer, inverse = false) {
 }
 function convolveMultipleFFT(pool) {
     if (pool.length === 0) return { dist: new Float64Array([1.0]), offset: 0 };
-    
+
+    // pass through if pool only contains one item -> means no fft is required.
+    if (pool.length === 1 && !pool[0].isNegative) {
+        return { 
+            dist: new Float64Array(pool[0].dist), // 直接複製，不給計算機任何製造 1e-15 底噪的機會
+            offset: 0 
+        };
+    }
+
     let globalMinOffset = 0;
     const standardizedPool = [];
 
@@ -202,27 +210,17 @@ function evaluateAttackProbabilities(attackStr, targetAC, critThreshold = 20) {
         }
     }
 
-    const { dist, offset } = convolveMultipleFFT(distPoolForFFT);
+    const { dist: attackDist, offset: attackOffset } = convolveMultipleFFT(distPoolForFFT);
 
     // 爆擊完全、唯一取決於核心 D20 骰子的原生面點數 (Natural Roll)
     let pCrit = 0;
     for (let s = safeCrit; s <= 20; s++) pCrit += d20Dist[s];
 
     let pValidSuccess = 0;
-    for (let i = 0; i < dist.length; i++) {
-        if (dist[i] <= BUCKET_EPSILON) continue;
-
-		// 【核心修正】：利用時域物理對齊，反向還原出這一點中「包含核心 D20 原生投出 1 點」的成分
-		// 如果這次摺積結果的點數，扣除輔助骰後，核心 D20 貢獻的是 1 點 (大失敗)，依規則強制落入未命中
-		// 在沒有其他輔助骰干擾或純固定值加值下，這等同於：
-		const d20Part = i + offset; 
-		if (d20Part === 1) {
-			continue; // 大失敗保底剪枝：直接跳過，不計入成功率
-		}
-        const finalAttackRollResult = i + offset + flatMod;
-        if (finalAttackRollResult >= targetAC) {
-            pValidSuccess += dist[i];
-        }
+	for (let i = 0; i < attackDist.length; i++) {
+		if (attackDist[i] <= BUCKET_EPSILON) continue;
+		if (i + attackOffset === 1) continue; 
+        if (i + attackOffset + flatMod >= targetAC) pValidSuccess += attackDist[i];
     }
 
     const pHit = Math.max(0, pValidSuccess - pCrit);
@@ -462,7 +460,7 @@ function printTestCase(summary) {
 }
 
 /**
- * 微觀除錯工具：使用原生表格印出實質總傷害機率分佈 (完美對齊，不雜亂)
+ * 微觀除錯工具：使用網格表格列印分佈，並附帶可直接複製的合法 JSON 陣列藍圖
  * 
  * @param {Object} summary - 由 calculate() 傳回的統計數據總物件
  */
@@ -474,6 +472,7 @@ function printDamageDistribution(summary) {
 
     const dist = summary.distribution;
     const tableData = [];
+    const copyableArray = []; // 專門收集供測試腳本一鍵複製比對的乾淨 JSON 結構
 
     // 顯示精度防線：低於 5e-9 的實質機率值在 .toFixed(6) 下會變成 0.000000%
     const DISPLAY_THRESHOLD = 5e-9;
@@ -501,35 +500,38 @@ function printDamageDistribution(summary) {
         } else {
             // 如果從長尾模式切回常規模式，先結算並推入先前的長尾區間
             if (isInTailMode && tailProbabilitySum > 0) {
-                tableData.push({
-                    "傷害 / 區間": `${tailStartDamage} ~ ${tailEndDamage} 點傷害`,
-                    "機率百分比": `${(tailProbabilitySum * 100).toFixed(6)}%`,
-                    "備註": "長尾聚合"
-                });
+                const label = `${tailStartDamage}~${tailEndDamage}`;
+                const pct = (tailProbabilitySum * 100).toFixed(6);
+                
+                tableData.push({ "傷害 / 區間": `${label} 點傷害`, "機率百分比": `${pct}%`, "備註": "長尾聚合" });
+                copyableArray.push({ damage: label, percentage: `${pct}%`, note: "長尾聚合" });
+                
                 isInTailMode = false;
                 tailProbabilitySum = 0;
             }
 
-            // 常規顯性機率點推入表格資料結構
-            tableData.push({
-                "傷害 / 區間": `${d} 點傷害`,
-                "機率百分比": `${(prob * 100).toFixed(6)}%`,
-                "備註": "" // 常規行保持留空
-            });
+            // 常規顯性機率點推入資料結構
+            const pct = (prob * 100).toFixed(6);
+            tableData.push({ "傷害 / 區間": `${d} 點傷害`, "機率百分比": `${pct}%`, "備註": "" });
+            copyableArray.push({ damage: d, percentage: `${pct}%` });
         }
     }
 
     // 遍歷收尾：結算最後殘留的極端暴擊長尾
     if (isInTailMode && tailProbabilitySum > 0) {
-        tableData.push({
-            "傷害 / 區間": `${tailStartDamage} ~ ${tailEndDamage} 點傷害`,
-            "機率百分比": `${(tailProbabilitySum * 100).toFixed(6)}%`,
-            "備註": "極端暴擊尾"
-        });
+        const label = `${tailStartDamage}~${tailEndDamage}`;
+        const pct = (tailProbabilitySum * 100).toFixed(6);
+        
+        tableData.push({ "傷害 / 區間": `${label} 點傷害`, "機率百分比": `${pct}%`, "備註": "極端暴擊尾" });
+        copyableArray.push({ damage: label, percentage: `${pct}%`, note: "極端暴擊尾" });
     }
 
-    // 呼叫原生瀏覽器/Node.js 高階表格列印工具，自動排版欄位
+    // 軌道一：印出由瀏覽器/Node.js 自動分配最優欄寬的完美表格邊框
     console.table(tableData);
+
+    // 軌道二：印出供程式碼一鍵複製、做自動化斷言檢查的合法單行 JSON 陣列
+    console.log(`📋 可複製的 JS 驗證數據陣列 (可用於 Automated Assert 比對)：`);
+    console.log(JSON.stringify(copyableArray));
 }
 
 
@@ -590,70 +592,87 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
         let pPR_Available = 1.0;
         const singleRoundAttackPDFs = [];
 
+        // 1. 全輪唯一的 PR 資源骰池預摺積 (接收其 dist 與實質 offset)
         let prNormalDist = new Float64Array([1.0]), prCritDist = new Float64Array([1.0]);
+        let prNormalOffset = 0, prCritOffset = 0; // 👈 接收 PR 實質原點
+        
         if (roundData.prDices && roundData.prDices.length > 0) {
             const prNormalPool = [], prCritPool = [];
             for (const dice of roundData.prDices) {
                 const baseDist = PREGENERATED_DICE_NORMAL[`D${dice.sides}`];
-                if (!baseDist) throw new Error(`不支援的 PR 骰子面數: D${dice.sides}`);
                 for (let i = 0; i < dice.count; i++) prNormalPool.push({ dist: baseDist, isNegative: false });
                 for (let i = 0; i < dice.count * critMultiplier; i++) prCritPool.push({ dist: baseDist, isNegative: false });
             }
-            prNormalDist = convolveMultipleFFT(prNormalPool).dist;
-            prCritDist = convolveMultipleFFT(prCritPool).dist;
+            const prNormalRes = convolveMultipleFFT(prNormalPool);
+            const prCritRes = convolveMultipleFFT(prCritPool);
+            prNormalDist = prNormalRes.dist;
+            prNormalOffset = prNormalRes.offset;
+            prCritDist = prCritRes.dist;
+            prCritOffset = prCritRes.offset;
         }
 
+        // 2. 進入微觀打擊迴圈
         for (const attack of roundData.attacks) {
             const weaponNormalPool = [], weaponCritPool = [];
             for (const dice of attack.weaponDice) {
                 const baseDist = PREGENERATED_DICE_NORMAL[`D${dice.sides}`];
-                if (!baseDist) throw new Error(`不支援的武器骰子面數: D${dice.sides}`);
                 for (let i = 0; i < dice.count; i++) weaponNormalPool.push({ dist: baseDist, isNegative: false });
                 for (let i = 0; i < dice.count * critMultiplier; i++) weaponCritPool.push({ dist: baseDist, isNegative: false });
             }
-            const weaponNormalDist = convolveMultipleFFT(weaponNormalPool).dist;
-            const weaponCritDist = convolveMultipleFFT(weaponCritPool).dist;
+            const weaponNormalRes = convolveMultipleFFT(weaponNormalPool);
+            const weaponCritRes = convolveMultipleFFT(weaponCritPool);
+            
+            const weaponNormalDist = weaponNormalRes.dist;
+            const weaponNormalOffset = weaponNormalRes.offset; // 👈 接收武器實質原點
+            const weaponCritDist = weaponCritRes.dist;
+            const weaponCritOffset = weaponCritRes.offset;     // 👈 接收武器實質爆擊原點
 
-            const maxHitWithPr = (weaponNormalDist.length - 1) + (prNormalDist.length - 1) + attack.flatMod;
-            const maxCritWithPr = (weaponCritDist.length - 1) + (prCritDist.length - 1) + attack.flatMod;
+            // 分配單擊 PDF 的安全定義域跨度
+            const maxHitWithPr = (weaponNormalDist.length - 1) + (prNormalDist.length - 1) + weaponNormalOffset + prNormalOffset + attack.flatMod;
+            const maxCritWithPr = (weaponCritDist.length - 1) + (prCritDist.length - 1) + weaponCritOffset + prCritOffset + attack.flatMod;
             const maxSingleAttackDmg = Math.max(maxHitWithPr, maxCritWithPr, attack.flatMod, 0);
             
             const singleAttackPDF = new Float64Array(maxSingleAttackDmg + 1);
             singleAttackPDF[0] = pMiss;
 
+            // 狀態 B：普通首擊觸發 (加回實質 offset 補償)
             const w1_weight = pHit * pPR_Available;
             if (w1_weight > BUCKET_EPSILON) {
                 for (let w = 0; w < weaponNormalDist.length; w++) {
                     for (let p = 0; p < prNormalDist.length; p++) {
-                        const dmg = w + p + attack.flatMod;
+                        // 【核心校正】：實質點數 = 陣列相對索引 + 各自的實質平移補償量
+                        const dmg = (w + weaponNormalOffset) + (p + prNormalOffset) + attack.flatMod;
                         singleAttackPDF[dmg > 0 ? dmg : 0] += weaponNormalDist[w] * prNormalDist[p] * w1_weight;
                     }
                 }
             }
 
+            // 狀態 C：爆擊首擊觸發 (加回實質 offset 補償)
             const w2_weight = pCrit * pPR_Available;
             if (w2_weight > BUCKET_EPSILON) {
                 for (let w = 0; w < weaponCritDist.length; w++) {
                     for (let p = 0; p < prCritDist.length; p++) {
-                        const dmg = w + p + attack.flatMod;
+                        // 【核心校正】：實質點數 = 陣列相對索引 + 各自的實質爆擊平移補償量
+                        const dmg = (w + weaponCritOffset) + (p + prCritOffset) + attack.flatMod;
                         singleAttackPDF[dmg > 0 ? dmg : 0] += weaponCritDist[w] * prCritDist[p] * w2_weight;
                     }
                 }
             }
 
+            // 狀態 D：常規武器傷 (加回實質 offset 補償)
             const pPR_Consumed = 1.0 - pPR_Available;
             if (pPR_Consumed > BUCKET_EPSILON) {
                 const w3_normal_weight = pHit * pPR_Consumed;
                 if (w3_normal_weight > BUCKET_EPSILON) {
                     for (let w = 0; w < weaponNormalDist.length; w++) {
-                        const dmg = w + attack.flatMod;
+                        const dmg = (w + weaponNormalOffset) + attack.flatMod;
                         singleAttackPDF[dmg > 0 ? dmg : 0] += weaponNormalDist[w] * w3_normal_weight;
                     }
                 }
                 const w3_crit_weight = pCrit * pPR_Consumed;
                 if (w3_crit_weight > BUCKET_EPSILON) {
                     for (let w = 0; w < weaponCritDist.length; w++) {
-                        const dmg = w + attack.flatMod;
+                        const dmg = (w + weaponCritOffset) + attack.flatMod;
                         singleAttackPDF[dmg > 0 ? dmg : 0] += weaponCritDist[w] * w3_crit_weight;
                     }
                 }
@@ -663,12 +682,13 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
             singleRoundAttackPDFs.push({ dist: singleAttackPDF, isNegative: false });
         }
 
+		// 單輪合併
         const { dist: roundCombinedDmgDist } = convolveMultipleFFT(singleRoundAttackPDFs);
         finalRoundCombinedPDFs.push({ dist: roundCombinedDmgDist, isNegative: false });
     }
 
     // 4. 將所有獨立輪次的分佈進行最終大總結摺積，得出全戰鬥跨輪輸出分佈
-    const { dist: finalTotalDist } = convolveMultipleFFT(finalRoundCombinedPDFs);
+    const { dist: finalTotalDist, offset: finalTotalOffset } = convolveMultipleFFT(finalRoundCombinedPDFs);
     
     // 5. 掃描 CDF 提取精準的統計四分位數
     let cumulativeProbability = 0;
@@ -679,7 +699,7 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
         if (q2 === null && cumulativeProbability >= 0.50) q2 = d;
         if (q3 === null && cumulativeProbability >= 0.75) { q3 = d; break; }
     }
-    
+
     return { 
         caseName, q1, q2, q3, 
         distribution: finalTotalDist, // 👈 正式附加完整的 Float64Array 分佈數據傳回
