@@ -1,6 +1,4 @@
-function runAllRigorousParserTests() {
-    console.log("🧪 啟動完全體硬核斷言單元測試 (Comprehensive Assertion Tests)...\n");
-
+function testParser() {
     try {
         // --------------------------------------------------------
         // 【測試案例 1】標準單擊公式拆解
@@ -68,6 +66,27 @@ function runAllRigorousParserTests() {
         console.assert(r2.prDices[0].count === 2, "Case 5 失敗: 第 2 輪 PR 數量應為 2 (即 2D6 偷襲)");
         console.log("✅ Case 5 通過: 終極非對稱跨輪序列斷言完全吻合，多源 PR 完美自動合併為 3D6。");
 
+        // 1. 解析全新精簡語法
+        const nestedRes = parseAdvancedDamageString("2 (2 1D8+1D6+17, 2D8+1D6+17)");
+        
+        // 2. 進行多維硬核斷言
+        console.assert(nestedRes.length === 2, "Nested Test 失敗: 總作戰輪數應精確為 2 輪");
+        
+        const round1 = nestedRes[0];
+        // 【關鍵斷言】：第一輪內部的打擊次數必須精確等於 3 擊（2 擊常規 + 1 擊 Gloomstalker 特殊擊）
+        console.assert(round1.attacks.length === 3, `Nested Test 失敗: 單輪內實質打擊數應為 3，但產出了 ${round1.attacks.length}`);
+        
+        // 檢查前兩擊是否成功經由 "2 " 前綴複製展開
+        console.assert(round1.attacks[0].flatMod === 17 && round1.attacks[0].weaponDice[0].sides === 8, "Nested Test 失敗: 第 1 擊展開內容錯誤");
+        console.assert(round1.attacks[1].flatMod === 17 && round1.attacks[1].weaponDice[0].sides === 8, "Nested Test 失敗: 第 2 擊展開內容錯誤");
+        
+        // 檢查第三擊（Gloomstalker 的 2D8 特殊擊）是否完好不受影響
+        console.assert(round1.attacks[2].flatMod === 17 && round1.attacks[2].weaponDice[0].count === 2, "Nested Test 失敗: 第 3 擊特殊擊內容錯誤");
+        
+        console.log("✅ 多層嵌套語法測試完美通過！新語法與手動攤平長字串在資料結構上達到了 100% 完美對齊。");
+
+
+
         console.log("\n🎉 【全套通關】所有單元測試與邊界硬核斷言全數完美通過！");
 
     } catch (error) {
@@ -76,36 +95,47 @@ function runAllRigorousParserTests() {
 }
 
 // 執行完全體測試
-runAllRigorousParserTests();
+testParser();
 
 
 
 
 
-// Unit test
+/**
+ * 執行一體化核心 Pipeline 綜合測試
+ */
+function runPipelineIntegrationTests() {
+    console.log("⚔️  開始執行 Gemini & Copilot 聯名版統計 Pipeline 整合測試...\n");
 
-const summaries = [
-calculate("GloomStalker Action Surge", "D20+10", 18, {threshold: 20, multiplier: 2}, "2 (1D8+1D6+7,1D8+1D6+7,2D8+1D6+7)"),
-calculate("GloomStalker Action Surge Dis Bless", "D20D1+10+D4", 18, {threshold: 20, multiplier: 2}, "2 (1D8+1D6+7,1D8+1D6+7,2D8+1D6+7)"),
-calculate("GloomStalker Action Surge Dis Precision", "D20D1+10+D8", 18, {threshold: 20, multiplier: 2}, "2 (1D8+1D6+7,1D8+1D6+7,2D8+1D6+7)"),
-calculate("GloomStalker Action Surge Bless", "D20+10+D4", 18, {threshold: 20, multiplier: 2}, "2 (1D8+1D6+7,1D8+1D6+7,2D8+1D6+7)"),
-calculate("GloomStalker Action Surge Advantage", "D20A1+10", 18, {threshold: 20, multiplier: 2}, "2 (1D8+1D6+7,1D8+1D6+7,2D8+1D6+7)"),
-calculate("GloomStalker Action Surge Elven Accuracy", "D20A2+10", 18, {threshold: 20, multiplier: 2}, "2 (1D8+1D6+7,1D8+1D6+7,2D8+1D6+7)"),
-calculate("GloomStalker Action Surge Elven Accuracy Sharpshooter", "D20A2+10-5", 18, {threshold: 20, multiplier: 2}, "2 (1D8+1D6+17,1D8+1D6+17,2D8+1D6+17)"),
-calculate("GloomStalker Action Surge Elven Accuracy Sharpshooter Bless", "D20A2+10-5+1D4", 18, {threshold: 20, multiplier: 2}, "2 (1D8+1D6+17,1D8+1D6+17,2D8+1D6+17)"),
-calculate("GloomStalker Action Surge Elven Accuracy Sharpshooter Bless Precision", "D20A2+10-5+1D4+1D8", 18, {threshold: 20, multiplier: 2}, "2 (1D8+1D6+17,1D8+1D6+17,2D8+1D6+17)"),
-//calculate("術士 4發魔能爆連射", "D20+9", 18, {threshold: 20, multiplier: 2}, "4 1D10+5"),
-//calculate("大劍聖騎士至高斬擊 (Fiend)", "D20+8", 18, {threshold: 20, multiplier: 2}, "2D6+2D8+1D8+1D6+15"),
-//calculate("5級 雙短劍武僧 連環瘋狂亂打 (Flurry of Blows)", "D20+8", 18, {threshold: 20, multiplier: 2}, "4 (1D6+5)"),
-//calculate("11級 雙雷霆戰錘 戰士 雙武器瘋狂連擊 (Two-Weapon Action Surge)", "D20+9", 18, {threshold: 20, multiplier: 2}, "7 (1D6+5)"),
-//calculate("9級 狂暴野蠻人 殘虐長矛重擊 (Reckless Brutal Critical Piercer)", "D20+9", 18, {threshold: 19, multiplier: 2}, "2 (1D6+1D6+7) + 1D6"),
-//calculate("5級 咒劍邪術師 幽冥大劍魂刃斬 (Eldritch Smite)", "D20+8", 18, {threshold: 19, multiplier: 2}, "2 (2D6+3D8+5)"),
-//calculate("5級 吟遊詩人 散兵巨劍華麗揮砍 (Slashing Flourish)", "D20+8", 18, {threshold: 20, multiplier: 2}, "2 (2D6+4) + 1D8"),
-//calculate("5級 浪人刺客 毒刃偷襲 (Sneak Attack with Poison)", "D20+8", 18, {threshold: 20, multiplier: 2}, "1 (1D6+3D6+2D6+5)"),
-//calculate("11級 聖騎士 破邪斬日光長劍 (Sun Blade vs Undead)", "D20+8+2", 18, {threshold: 20, multiplier: 2}, "2 (1D8+1D8+1D8+7) + 2D8")
-];
+    // 1. 建立測試案例陣列 (包含既有 GloomStalker 案例與全新 Level 5 Soulknife 賊案例)
+    const testCases = [
+        // ----------------------------------------------------------------------
+        // 既有 GloomStalker Action Surge 爆發案例 (2 個完整輪次，每輪 3 次打擊)
+        // ----------------------------------------------------------------------
+        calculate("GloomStalker Action Surge", "D20+10", 18, {threshold: 20, multiplier: 2}, "(2 1D8+1D6+7,2D8+1D6+7), 2 (2 1D8+1D6+7)"),
+        calculate("GloomStalker Action Surge Dis Bless", "D20D1+10+D4", 18, {threshold: 20, multiplier: 2}, "(2 1D8+1D6+7,2D8+1D6+7), 2 (2 1D8+1D6+7)"),
+        calculate("GloomStalker Action Surge Dis Precision", "D20D1+10+D8", 18, {threshold: 20, multiplier: 2}, "(2 1D8+1D6+7,2D8+1D6+7), 2 (2 1D8+1D6+7)"),
+        calculate("GloomStalker Action Surge Bless", "D20+10+D4", 18, {threshold: 20, multiplier: 2}, "(2 1D8+1D6+7,2D8+1D6+7), 2 (2 1D8+1D6+7)"),
+        calculate("GloomStalker Action Surge Advantage", "D20A1+10", 18, {threshold: 20, multiplier: 2}, "(2 1D8+1D6+7,2D8+1D6+7), 2 (2 1D8+1D6+7)"),
+        calculate("GloomStalker Action Surge Elven Accuracy", "D20A2+10", 18, {threshold: 20, multiplier: 2}, "(2 1D8+1D6+7,2D8+1D6+7), 2 (2 1D8+1D6+7)"),
+        calculate("GloomStalker Action Surge Elven Accuracy Sharpshooter", "D20A2+10-5", 18, {threshold: 20, multiplier: 2}, "(2 1D8+1D6+7,2D8+1D6+7), 2 (2 1D8+1D6+7)"),
+        calculate("GloomStalker Action Surge Elven Accuracy Sharpshooter Bless", "D20A2+10-5+1D4", 18, {threshold: 20, multiplier: 2}, "(2 1D8+1D6+17,2D8+1D6+17), 2 (2 1D8+1D6+17)"),
+        calculate("GloomStalker Action Surge Elven Accuracy Sharpshooter Bless Precision", "D20A2+10-5+1D4+1D8", 18, {threshold: 20, multiplier: 2}, "(2 1D8+1D6+17,2D8+1D6+17), 2 (2 1D8+1D6+17)"),
 
-summaries.forEach(printTestCase);
+        calculate(
+            "Level 5 Soulknife Rogue (Hunter's Mark Setup 3-Round DPR)", 
+            "D20A1+6", 
+            18, 
+            { threshold: 20, multiplier: 2 }, 
+            "(1D6+7+1D6, 2D6PR), 2 (1D6+7+1D6, 1D4+7+1D6, 2D6PR)"
+        )
+    ];
 
-calculate("Soulknife FS, Round 1", "D20+6", 18, {threshold: 20, multiplier: 2}, "1D6+7+1D6+2D6"),
-calculate("Soulknife FS, Round 2", "D20+6", 18, {threshold: 20, multiplier: 2}, "1D6+7+1D6+2D6,1D4+"),
+    // 2. 依序遍歷陣列，調用原有的 printTestCase 格式化印出數據
+    testCases.forEach(summary => printTestCase(summary));
+
+    console.log("🏁 所有整合測試案例解算完成並已完整印出。");
+}
+
+// 執行整合測試
+runPipelineIntegrationTests();

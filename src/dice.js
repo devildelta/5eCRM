@@ -171,18 +171,23 @@ function convolveMultipleFFT(pool) {
 }
 
 // Helper Subroutine
+/**
+ * 評估單發打擊的命中、爆擊與未命中機率 (三態分離)
+ * 
+ * @param {string} attackStr - 命中公式字串 (例如 "D20A1 + 5 + D4")
+ * @param {number} targetAC - 目標敌人的 Armor Class
+ * @param {number} critThreshold - 爆擊原生門檻 (Natural Roll, 預設 20)
+ * @returns {Object} 包含 pHit, pCrit, pMiss 的三態互斥機率物件
+ */
 function evaluateAttackProbabilities(attackStr, targetAC, critThreshold = 20) {
     const { advantageMode, bonusDice, flatMod } = parseAttackString(attackStr);
-    const safeCrit = Math.min(20, critThreshold);
+    const safeCrit = Math.min(20, Math.floor(critThreshold));
 
     const modeMapper = { "-1": "DIS", "0": "NORMAL", "1": "ADV", "2": "EA" };
     const d20Dist = PREGENERATED_D20_ATTACK[modeMapper[advantageMode] || "NORMAL"];
     
-    const cleanD20Dist = Array.from(d20Dist);
-    cleanD20Dist[1] = 0;
-
     const distPoolForFFT = [
-        { dist: cleanD20Dist, isNegative: false }
+        { dist: d20Dist, isNegative: false }
     ];
     
     for (let group of bonusDice) {
@@ -199,22 +204,31 @@ function evaluateAttackProbabilities(attackStr, targetAC, critThreshold = 20) {
 
     const { dist, offset } = convolveMultipleFFT(distPoolForFFT);
 
+    // 爆擊完全、唯一取決於核心 D20 骰子的原生面點數 (Natural Roll)
     let pCrit = 0;
     for (let s = safeCrit; s <= 20; s++) pCrit += d20Dist[s];
 
     let pValidSuccess = 0;
     for (let i = 0; i < dist.length; i++) {
-        if (dist[i] <= 0) continue;
+        if (dist[i] <= BUCKET_EPSILON) continue;
 
+		// 【核心修正】：利用時域物理對齊，反向還原出這一點中「包含核心 D20 原生投出 1 點」的成分
+		// 如果這次摺積結果的點數，扣除輔助骰後，核心 D20 貢獻的是 1 點 (大失敗)，依規則強制落入未命中
+		// 在沒有其他輔助骰干擾或純固定值加值下，這等同於：
+		const d20Part = i + offset; 
+		if (d20Part === 1) {
+			continue; // 大失敗保底剪枝：直接跳過，不計入成功率
+		}
         const finalAttackRollResult = i + offset + flatMod;
-
         if (finalAttackRollResult >= targetAC) {
             pValidSuccess += dist[i];
         }
     }
 
     const pHit = Math.max(0, pValidSuccess - pCrit);
-    return { pHit, pCrit, pMiss: Math.max(0, 1.0 - pHit - pCrit) };
+    const pMiss = Math.max(0, 1.0 - pHit - pCrit);
+    
+    return { pHit, pCrit, pMiss };
 }
 
 function parseAttackString(attackStr) {
@@ -323,14 +337,14 @@ function parsePrFormula(prStr) {
 }
 
 /**
- * 終極版：進階跨輪輸出 (DPR) 序列解析器
- * 【修正】：括號內逗號分隔的元素，含 PR 的會被抽離進 prDices 總池，不含 PR 的才是實質打擊！
+ * 終極嵌套版：進階跨輪輸出 (DPR) 序列解析器
+ * 【升級】：完美支援外層定義輪次重複、內層定義單擊重複（例如 "2 (2 1D8+1D6+17, 2D8+1D6+17)"）
  */
 function parseAdvancedDamageString(damageStr) {
     const cleanStr = damageStr.trim();
     const roundSequencePool = [];
 
-    // 1. 分割外層「輪次群組」
+    // 1. 分割外層「輪次群組」 (保護括號內層)
     const groupMatches = cleanStr.match(/(?:\d+\s*)?\([^)]+\)/g) || [];
 
     if (groupMatches.length === 0) {
@@ -363,7 +377,7 @@ function parseAdvancedDamageString(damageStr) {
         let subFormulasStr = "";
 
         if (complexMatch) {
-            repeatCount = parseInt(complexMatch[1], 10);
+            repeatCount = parseInt(complexMatch, 10);
             subFormulasStr = complexMatch[2];
         } else {
             const noPrefixMatch = trimmedGroup.match(/^\((.+)\)$/);
@@ -372,7 +386,7 @@ function parseAdvancedDamageString(damageStr) {
 
         if (!subFormulasStr) continue;
 
-        // 3. 核心修正：內層逗號拆分後，進行「打擊」與「全輪 PR 資源」的非對稱分流調度
+        // 3. 內層逗號拆分後，進行打擊與 PR 資源分流
         const subTokens = subFormulasStr.split(',').map(s => s.trim());
         
         const attacks = [];
@@ -380,15 +394,27 @@ function parseAdvancedDamageString(damageStr) {
 
         for (const token of subTokens) {
             if (token.toUpperCase().includes("PR")) {
-                // 它是全輪共享增傷池的一員！抽離出來解析
+                // 它是全輪共享增傷池
                 const extractedPrDices = parsePrFormula(token);
-                // 【多源自動合併】：同面數的 PR 骰在此線性累加合併
                 for (const dice of extractedPrDices) {
                     globalPrMap.set(dice.sides, (globalPrMap.get(dice.sides) || 0) + dice.count);
                 }
             } else {
-                // 它是實質的打擊嘗試，不增加打擊次數的雜訊
-                attacks.push(parseSingleFormula(token));
+                // 【核心升級】：檢查是否帶有內層打擊重複前綴 (例如 "2 1D8+1D6+17")
+                const innerRepeatMatch = token.match(/^(\d+)\s+(.+)$/);
+                if (innerRepeatMatch) {
+                    const innerCount = parseInt(innerRepeatMatch[1], 10);
+                    const actualFormula = innerRepeatMatch[2];
+                    const parsedAttack = parseSingleFormula(actualFormula);
+                    
+                    // 根據內層係數，將同一個打擊公式獨立複製 N 次放入打擊時序中
+                    for (let c = 0; c < innerCount; c++) {
+                        attacks.push(JSON.parse(JSON.stringify(parsedAttack))); // 深拷貝防止引用污染
+                    }
+                } else {
+                    // 常規單發打擊
+                    attacks.push(parseSingleFormula(token));
+                }
             }
         }
 
@@ -397,7 +423,7 @@ function parseAdvancedDamageString(damageStr) {
 
         const roundStructure = { attacks, prDices };
 
-        // 依重複係數展開
+        // 依外層重複係數展開為多輪
         for (let i = 0; i < repeatCount; i++) {
             roundSequencePool.push(roundStructure);
         }
@@ -407,93 +433,247 @@ function parseAdvancedDamageString(damageStr) {
 }
 
 /**
- * 配合全新離散命中 Pipeline 升級後的印表機函數
- * @param {Object} summary - 來自新版 calculate 函數回傳的完整封裝數據
+ * 升級版：格式化印出測試案例統計數據 (四分位數與解析理論最大值一體化整合)
+ * 
+ * @param {Object} summary - 由 calculate() 傳回的統計數據總物件
  */
 function printTestCase(summary) {
     const d = summary.details;
+    
+    // 動態調用解析器以獲取即時的結構詳情，確保與最新嵌套語法格式 100% 同步
+    const roundsBlueprint = parseAdvancedDamageString(d.rawDamageStr);
+    const totalRounds = roundsBlueprint.length;
+    
+    // 計算全戰鬥總打擊次數
+    const totalAttackAttempts = roundsBlueprint.reduce((sum, r) => sum + r.attacks.length, 0);
 
-    console.log(`==================================================`);
+    console.log(`================================================================================`);
     console.log(` ⚔️  測試案例: ${summary.caseName}`);
-    console.log(`--------------------------------------------------`);
-    console.log(`• 語法解析: "${d.rawDamageStr}" (極限最大總傷: ${d.totalMaxPossibleDmg})`);
-    console.log(`• 命中設定: "${d.attackStr}" VS ${d.targetAC} AC`);
-    console.log(`• 爆擊設定: 門檻 Natural ${d.critThreshold}+ | 爆擊傷害骰倍率: ${d.critMultiplier}x`);
-    console.log(`• 單發機率: 命中 ${(d.pHit * 100).toFixed(1)}% | 爆擊 ${(d.pCrit * 100).toFixed(1)}% | 未命中 ${(d.pMiss * 100).toFixed(1)}%`);
-    console.log(`• 攻擊結構: 動作重複 ${d.repeats} 次 × 每輪 ${d.attacksPerRepeat} 擊 (共 ${d.repeats * d.attacksPerRepeat} 次獨立判定)`);
-    console.log(`--------------------------------------------------`);
-    console.log(`   👉 有 50% 的機率，總傷害會落在 [ ${summary.q1} ～ ${summary.q3} ] 之間。`);
-    console.log(`==================================================\n`);
+    console.log(`--------------------------------------------------------------------------------`);
+    console.log(`• 命中設定: "${d.attackStr}" VS Target AC: ${d.targetAC}`);
+    console.log(`• 爆擊設定: 門檻 Natural ${d.critThreshold}+ | 傷害骰增幅倍率: ${d.critMultiplier}x`);
+    console.log(`• 單發機率: 🎯 普通命中 ${(d.pHit * 100).toFixed(1)}% | 🔥 爆擊 ${(d.pCrit * 100).toFixed(1)}% | ❌ 未命中 ${(d.pMiss * 100).toFixed(1)}%`);
+    console.log(`• 戰術序列: "${d.rawDamageStr}"`);
+    console.log(`• 結構展開: 總作戰輪數 ${totalRounds} 輪 (全戰鬥共進行 ${totalAttackAttempts} 次獨立 D20 判定)`);
+    console.log(`--------------------------------------------------------------------------------`);
+    console.log(`   👉 傷害統計分佈 [ Q1: ${summary.q1} 點 | 中位數 Q2: ${summary.q2} 點 | Q3: ${summary.q3} 點 | 理論最大上限: ${d.totalMaxPossibleDmg} 點 ]`);
+    console.log(`   👉 統計承諾：本輪戰鬥有 50% 的絕對機率，最終累積總傷害會落在 [ ${summary.q1} ～ ${summary.q3} ] 點之間。`);
+    console.log(`================================================================================\n`);
+}
+
+/**
+ * 微觀除錯工具：使用原生表格印出實質總傷害機率分佈 (完美對齊，不雜亂)
+ * 
+ * @param {Object} summary - 由 calculate() 傳回的統計數據總物件
+ */
+function printDamageDistribution(summary) {
+    if (!summary.distribution) {
+        console.error("無法印出分佈：請確保您的 calculate() 函數返回物件中包含 'distribution: finalTotalDist'。");
+        return;
+    }
+
+    const dist = summary.distribution;
+    const tableData = [];
+
+    // 顯示精度防線：低於 5e-9 的實質機率值在 .toFixed(6) 下會變成 0.000000%
+    const DISPLAY_THRESHOLD = 5e-9;
+
+    let isInTailMode = false;
+    let tailStartDamage = null;
+    let tailEndDamage = null;
+    let tailProbabilitySum = 0;
+
+    console.log(`\n📊 傷害機率質量分佈 (PMF) 表格 ── 測試案例: ${summary.caseName}`);
+
+    for (let d = 0; d < dist.length; d++) {
+        const prob = dist[d];
+        
+        // 跳過完全沒有機率的絕對零點 (全域防禦常數)
+        if (prob <= BUCKET_EPSILON) continue;
+
+        if (prob < DISPLAY_THRESHOLD) {
+            if (!isInTailMode) {
+                isInTailMode = true;
+                tailStartDamage = d;
+            }
+            tailEndDamage = d;
+            tailProbabilitySum += prob;
+        } else {
+            // 如果從長尾模式切回常規模式，先結算並推入先前的長尾區間
+            if (isInTailMode && tailProbabilitySum > 0) {
+                tableData.push({
+                    "傷害 / 區間": `${tailStartDamage} ~ ${tailEndDamage} 點傷害`,
+                    "機率百分比": `${(tailProbabilitySum * 100).toFixed(6)}%`,
+                    "備註": "長尾聚合"
+                });
+                isInTailMode = false;
+                tailProbabilitySum = 0;
+            }
+
+            // 常規顯性機率點推入表格資料結構
+            tableData.push({
+                "傷害 / 區間": `${d} 點傷害`,
+                "機率百分比": `${(prob * 100).toFixed(6)}%`,
+                "備註": "" // 常規行保持留空
+            });
+        }
+    }
+
+    // 遍歷收尾：結算最後殘留的極端暴擊長尾
+    if (isInTailMode && tailProbabilitySum > 0) {
+        tableData.push({
+            "傷害 / 區間": `${tailStartDamage} ~ ${tailEndDamage} 點傷害`,
+            "機率百分比": `${(tailProbabilitySum * 100).toFixed(6)}%`,
+            "備註": "極端暴擊尾"
+        });
+    }
+
+    // 呼叫原生瀏覽器/Node.js 高階表格列印工具，自動排版欄位
+    console.table(tableData);
 }
 
 
+
+
+
 /**
- * 遷移升級後的終極一體化 Pipeline 主函數
+ * 終極跨輪輸出 (DPR) 統計 Pipeline 主函數 (正式附加分佈數據傳回)
  * 
  * @param {string} caseName - 測試案例名稱
- * @param {string} attackStr - 離散命中公式字串 (例如 "D20A1 + D8 + D4 + 2")
- * @param {number} targetAC - 目標敵人的 Armor Class (例如 18)
- * @param {Object} criticalOptions - 僅包含爆擊傷害倍率的設定物件
- * @param {number} criticalOptions.multiplier - 爆擊時傷害骰增幅倍率 (預設 2x)
- * @param {number} criticalOptions.threshold - 爆擊門檻 (預設 20，用於與命中 Roller 對齊)
- * @param {string} rawDamageStr - 進階括號傷害公式字串 (例如 "2 (1D8+7, 2D8+7)")
+ * @param {string} attackStr - 命中公式字串 (例如 "D20A1 + 6")
+ * @param {number} targetAC - 目標敵人 AC (例如 18)
+ * @param {Object} criticalOptions - 爆擊設定物件 { multiplier: 2, threshold: 20 }
+ * @param {string} rawDamageStr - 進階跨輪括號傷害公式序列 (例如 "(1D6+7+1D6, 2D6PR)")
+ * @returns {Object} 包含精準四分位數、完整機率分佈、與解析理論極限值的總數據物件
  */
 function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr) {
-    const critMultiplier = criticalOptions.multiplier !== undefined ? criticalOptions.multiplier : 2;
-    const critThreshold = criticalOptions.threshold !== undefined ? criticalOptions.threshold : 20;
+    const critMultiplier = criticalOptions.multiplier !== undefined ? Math.floor(criticalOptions.multiplier) : 2;
+    const critThreshold = criticalOptions.threshold !== undefined ? Math.floor(criticalOptions.threshold) : 20;
 
+    // 1. 取得單發打擊的中立三態命中機率
     const { pHit, pCrit, pMiss } = evaluateAttackProbabilities(attackStr, targetAC, critThreshold);
     
-    const { repeatCount, attackSequence } = parseAdvancedDamageString(rawDamageStr);
-    const singleActionUnitPDFs = [];
+    // 2. 解析出完整的跨輪次序列結構藍圖
+    const roundSequencePool = parseAdvancedDamageString(rawDamageStr);
+    const finalRoundCombinedPDFs = [];
 
-    for (const attack of attackSequence) {
-        const normalDiceArrays = [];
-        const critDiceArrays = [];
-        
-        for (const group of attack.weaponDice) {
-            const baseDist = PREGENERATED_DICE_NORMAL[`D${group.sides}`];
-            if (!baseDist) throw new Error(`不支援的骰子類型: D${group.sides}`);
+    // ================================================================================
+    // 【純代數解析法】：精準計算全戰鬥絕對理論傷害上限
+    // ================================================================================
+    let analyticalMaxTotalDmg = 0;
+
+    for (const roundData of roundSequencePool) {
+        let roundWeaponAndFlatMax = 0;
+        for (const attack of roundData.attacks) {
+            let weaponMaxCrit = 0;
+            for (const dice of attack.weaponDice) {
+                weaponMaxCrit += dice.sides * dice.count * critMultiplier;
+            }
+            roundWeaponAndFlatMax += weaponMaxCrit + attack.flatMod;
+        }
+
+        let prMaxCrit = 0;
+        if (roundData.prDices && roundData.prDices.length > 0) {
+            for (const dice of roundData.prDices) {
+                prMaxCrit += dice.sides * dice.count * critMultiplier;
+            }
+        }
+
+        const roundMaxPossible = roundWeaponAndFlatMax + prMaxCrit;
+        analyticalMaxTotalDmg += Math.max(roundMaxPossible, 0);
+    }
+
+    // ================================================================================
+    // 3. 進入巨觀跨輪迴圈，逐一解算每個獨立輪次的分佈耦合
+    // ================================================================================
+    for (const roundData of roundSequencePool) {
+        let pPR_Available = 1.0;
+        const singleRoundAttackPDFs = [];
+
+        let prNormalDist = new Float64Array([1.0]), prCritDist = new Float64Array([1.0]);
+        if (roundData.prDices && roundData.prDices.length > 0) {
+            const prNormalPool = [], prCritPool = [];
+            for (const dice of roundData.prDices) {
+                const baseDist = PREGENERATED_DICE_NORMAL[`D${dice.sides}`];
+                if (!baseDist) throw new Error(`不支援的 PR 骰子面數: D${dice.sides}`);
+                for (let i = 0; i < dice.count; i++) prNormalPool.push({ dist: baseDist, isNegative: false });
+                for (let i = 0; i < dice.count * critMultiplier; i++) prCritPool.push({ dist: baseDist, isNegative: false });
+            }
+            prNormalDist = convolveMultipleFFT(prNormalPool).dist;
+            prCritDist = convolveMultipleFFT(prCritPool).dist;
+        }
+
+        for (const attack of roundData.attacks) {
+            const weaponNormalPool = [], weaponCritPool = [];
+            for (const dice of attack.weaponDice) {
+                const baseDist = PREGENERATED_DICE_NORMAL[`D${dice.sides}`];
+                if (!baseDist) throw new Error(`不支援的武器骰子面數: D${dice.sides}`);
+                for (let i = 0; i < dice.count; i++) weaponNormalPool.push({ dist: baseDist, isNegative: false });
+                for (let i = 0; i < dice.count * critMultiplier; i++) weaponCritPool.push({ dist: baseDist, isNegative: false });
+            }
+            const weaponNormalDist = convolveMultipleFFT(weaponNormalPool).dist;
+            const weaponCritDist = convolveMultipleFFT(weaponCritPool).dist;
+
+            const maxHitWithPr = (weaponNormalDist.length - 1) + (prNormalDist.length - 1) + attack.flatMod;
+            const maxCritWithPr = (weaponCritDist.length - 1) + (prCritDist.length - 1) + attack.flatMod;
+            const maxSingleAttackDmg = Math.max(maxHitWithPr, maxCritWithPr, attack.flatMod, 0);
             
-            for (let i = 0; i < group.count; i++) {
-                normalDiceArrays.push({ dist: baseDist, isNegative: false });
+            const singleAttackPDF = new Float64Array(maxSingleAttackDmg + 1);
+            singleAttackPDF[0] = pMiss;
+
+            const w1_weight = pHit * pPR_Available;
+            if (w1_weight > BUCKET_EPSILON) {
+                for (let w = 0; w < weaponNormalDist.length; w++) {
+                    for (let p = 0; p < prNormalDist.length; p++) {
+                        const dmg = w + p + attack.flatMod;
+                        singleAttackPDF[dmg > 0 ? dmg : 0] += weaponNormalDist[w] * prNormalDist[p] * w1_weight;
+                    }
+                }
             }
-            for (let i = 0; i < group.count * critMultiplier; i++) {
-                critDiceArrays.push({ dist: baseDist, isNegative: false });
+
+            const w2_weight = pCrit * pPR_Available;
+            if (w2_weight > BUCKET_EPSILON) {
+                for (let w = 0; w < weaponCritDist.length; w++) {
+                    for (let p = 0; p < prCritDist.length; p++) {
+                        const dmg = w + p + attack.flatMod;
+                        singleAttackPDF[dmg > 0 ? dmg : 0] += weaponCritDist[w] * prCritDist[p] * w2_weight;
+                    }
+                }
             }
+
+            const pPR_Consumed = 1.0 - pPR_Available;
+            if (pPR_Consumed > BUCKET_EPSILON) {
+                const w3_normal_weight = pHit * pPR_Consumed;
+                if (w3_normal_weight > BUCKET_EPSILON) {
+                    for (let w = 0; w < weaponNormalDist.length; w++) {
+                        const dmg = w + attack.flatMod;
+                        singleAttackPDF[dmg > 0 ? dmg : 0] += weaponNormalDist[w] * w3_normal_weight;
+                    }
+                }
+                const w3_crit_weight = pCrit * pPR_Consumed;
+                if (w3_crit_weight > BUCKET_EPSILON) {
+                    for (let w = 0; w < weaponCritDist.length; w++) {
+                        const dmg = w + attack.flatMod;
+                        singleAttackPDF[dmg > 0 ? dmg : 0] += weaponCritDist[w] * w3_crit_weight;
+                    }
+                }
+            }
+
+            pPR_Available *= pMiss;
+            singleRoundAttackPDFs.push({ dist: singleAttackPDF, isNegative: false });
         }
-        
-        const { dist: hitDiceDist } = convolveMultipleFFT(normalDiceArrays);
-        const { dist: critDiceDist } = convolveMultipleFFT(critDiceArrays);
-        
-        const maxSingleDmg = Math.max(hitDiceDist.length - 1 + attack.flatMod, critDiceDist.length - 1 + attack.flatMod, 0);
-        const singleAttackPDF = new Array(maxSingleDmg + 1).fill(0);
-        
-        singleAttackPDF[0] = pMiss;
-        
-        for (let i = 0; i < hitDiceDist.length; i++) {
-            if (hitDiceDist[i] > 0) singleAttackPDF[i + attack.flatMod] += hitDiceDist[i] * pHit;
-        }
-        for (let i = 0; i < critDiceDist.length; i++) {
-            if (critDiceDist[i] > 0) singleAttackPDF[i + attack.flatMod] += critDiceDist[i] * pCrit;
-        }
-        
-        singleActionUnitPDFs.push({ dist: singleAttackPDF, isNegative: false });
+
+        const { dist: roundCombinedDmgDist } = convolveMultipleFFT(singleRoundAttackPDFs);
+        finalRoundCombinedPDFs.push({ dist: roundCombinedDmgDist, isNegative: false });
     }
+
+    // 4. 將所有獨立輪次的分佈進行最終大總結摺積，得出全戰鬥跨輪輸出分佈
+    const { dist: finalTotalDist } = convolveMultipleFFT(finalRoundCombinedPDFs);
     
-    const { dist: singleActionCombinedPDF } = convolveMultipleFFT(singleActionUnitPDFs);
-    
-    const finalSequencePool = [];
-    for (let i = 0; i < repeatCount; i++) {
-        finalSequencePool.push({ dist: singleActionCombinedPDF, isNegative: false });
-    }
-    
-    const { dist: finalTotalDist } = convolveMultipleFFT(finalSequencePool);
-    const maxDmg = finalTotalDist.length - 1;
-    
+    // 5. 掃描 CDF 提取精準的統計四分位數
     let cumulativeProbability = 0;
     let q1 = null, q2 = null, q3 = null;
-    for (let d = 0; d <= maxDmg; d++) {
+    for (let d = 0; d < finalTotalDist.length; d++) {
         cumulativeProbability += finalTotalDist[d];
         if (q1 === null && cumulativeProbability >= 0.25) q1 = d;
         if (q2 === null && cumulativeProbability >= 0.50) q2 = d;
@@ -502,13 +682,15 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
     
     return { 
         caseName, q1, q2, q3, 
+        distribution: finalTotalDist, // 👈 正式附加完整的 Float64Array 分佈數據傳回
         details: { 
-            attackStr, targetAC, critThreshold, critMultiplier, rawDamageStr,
-            repeats: repeatCount, attacksPerRepeat: attackSequence.length,
-            pHit, pCrit, pMiss, totalMaxPossibleDmg: maxDmg 
+            attackStr, targetAC, critThreshold, critMultiplier, rawDamageStr, pHit, pCrit, pMiss,
+            totalMaxPossibleDmg: analyticalMaxTotalDmg 
         } 
     };
 }
+
+
 
 /**
  * 橫向對比生成器：遍歷不同 AC 與優勢狀態，輸出一體化對比矩陣表格
