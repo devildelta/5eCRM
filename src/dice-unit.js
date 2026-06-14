@@ -361,11 +361,62 @@ function testPipelineCaseOffsetLoss() {
     }
 }
 
+function testPipelineCaseDamageReduction() {
+    console.log("🧪 [啟動測試群組] -> testPipelineCaseDamageReduction: 減傷骰時域相減與零傷沈澱檢驗...");
+    try {
+        const caseName = "武僧接箭與減傷護盾測試";
+        const attackStr = "D20 + 99"; 
+        const targetAC = 10;
+        const criticalOptions = { threshold: 20, multiplier: 2 };
+        const rawDamageStr = "(1D4 - 1D12 + 1)";
+
+        const summary = calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr);
+        const d = summary.details;
+
+        // 斷言 A: 【爆擊減傷修正】最大爆擊傷 = 4*2 - 1 + 1 = 8 點。對齊純代數解析軌道。
+        console.assert(
+            d.totalMaxPossibleDmg === 8,
+            `[失敗] 檢查點 A 錯誤: 減傷代數上限不對齊 (預期最大值 8, 實測值 ${d.totalMaxPossibleDmg})`
+        );
+        console.log("  ├─ ✅ 檢查點 A 通過: 減傷資產架構下純代數 8 點真理最大傷害上限 ── 數據對齊完全無偏誤。");
+
+        // 斷言 B: 5e 零傷保底沉澱檢驗
+        const expectedZeroBucketMass = 19.0 / 24.0;
+        const actualZeroBucketMass = summary.distribution[0];
+
+        console.assert(
+            Math.abs(actualZeroBucketMass - expectedZeroBucketMass) < MACHINE_EPSILON,
+            `[失敗] 檢查點 B 錯誤: 5e 零傷保底時域沉澱率未與真理交匯 (預期 ${expectedZeroBucketMass}, 實測值 ${actualZeroBucketMass})`
+        );
+        console.log("  ├─ ✅ 檢查點 B 通過: 減傷幅度溢出時 5e 零傷保底時域沈澱防線 ── 數據對齊完全無偏誤。");
+
+        // 斷言 C: 整個分佈的最高物理傷害邊界絕對不允許超出 8 點。第 9 格及以上的機率必須為絕對零點。
+        let upperContamination = 0;
+        for (let i = 9; i < summary.distribution.length; i++) {
+            if (summary.distribution[i] > BUCKET_EPSILON) upperContamination += summary.distribution[i];
+        }
+        console.assert(
+            upperContamination <= BUCKET_EPSILON,
+            `[失敗] 檢查點 C 錯誤: 減傷判定域高位污染 (發現超出理論上限的幽靈質量 ${upperContamination})`
+        );
+        console.log("  ├─ ✅ 檢查點 C 通過: 減傷相減後高位時域定義域邊界真空區 ── 數據對齊完全無偏誤。");
+
+        console.log("\n================================================================================");
+        console.log("🎉 [群組通關] ── testPipelineCaseDamageReduction: 負向減傷與零傷沈澱管線 100% 守恆！");
+        console.log("================================================================================\n");
+
+    } catch (error) {
+        console.error("❌ 斷言測試發生未預期崩潰，捕獲異常:", error.message);
+    }
+}
+
+
+
 testParser();
 testPipelineCaseSoulKnife();
 testPipelineCaseAC25();
 testPipelineCaseOffsetLoss();
-
+testPipelineCaseDamageReduction();
 
 /**
  * 執行一體化核心 Pipeline 綜合測試

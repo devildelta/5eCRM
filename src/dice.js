@@ -308,7 +308,10 @@ function parseAttackString(attackStr) {
 }
 
 /**
- * 基礎單擊公式解析器 (此時專職解析純武器傷害與固定加值，不包含 PR 字串)
+ * 升級版基礎單擊公式解析器（完美支援正向武器骰與負向減傷骰之雙向語義分流）
+ * 
+ * @param {string} formulaStr - 傷害公式 (例如 "1D8 - 1D4 + 3")
+ * @returns {Object} 包含 weaponDice(正向), negativeDice(負向) 與 flatMod 的物件
  */
 function parseSingleFormula(formulaStr) {
     const cleanStr = formulaStr.replace(/\s+/g, '').toUpperCase();
@@ -323,6 +326,7 @@ function parseSingleFormula(formulaStr) {
             let countStr = diceMatch[1];
             const sides = parseInt(diceMatch[2], 10);
             let count = (countStr === "" || countStr === "+") ? 1 : (countStr === "-") ? -1 : parseInt(countStr, 10);
+            
             weaponDiceMap.set(sides, (weaponDiceMap.get(sides) || 0) + count);
             continue;
         }
@@ -331,11 +335,19 @@ function parseSingleFormula(formulaStr) {
         if (!isNaN(val)) flatMod += val;
     }
 
-    const weaponDice = Array.from(weaponDiceMap.entries())
-        .filter(([_, c]) => c > 0)
-        .map(([sides, count]) => ({ sides: Math.floor(sides), count: Math.floor(count) }));
+    const weaponDice = [];
+    const negativeDice = [];
 
-    return { weaponDice, flatMod: Math.floor(flatMod) };
+    for (const [sides, count] of weaponDiceMap.entries()) {
+        if (count > 0) {
+            weaponDice.push({ sides: Math.floor(sides), count: Math.floor(count) });
+        } else if (count < 0) {
+            // 完美捕捉負向減傷骰，將其數量轉為絕對值儲存
+            negativeDice.push({ sides: Math.floor(sides), count: Math.floor(Math.abs(count)) });
+        }
+    }
+
+    return { weaponDice, negativeDice, flatMod: Math.floor(flatMod) };
 }
 
 /**
@@ -362,8 +374,11 @@ function parsePrFormula(prStr) {
 }
 
 /**
- * 終極嵌套版：進階跨輪輸出 (DPR) 序列解析器
- * 【升級】：完美支援外層定義輪次重複、內層定義單擊重複（例如 "2 (2 1D8+1D6+17, 2D8+1D6+17)"）
+ * 終極嵌套版：進階跨輪輸出 (DPR) 序列解析器 (升級：全面開通正向武器骰與負向減傷骰雙向分流)
+ * 完美支援外層定義輪次重複、內層單擊重複與負向減傷骰之雙向語義分流
+ * 
+ * @param {string} damageStr - 完整一輪次語法 (含括號與嵌套複製)
+ * @returns {Array<Object>} 展開後的跨輪次序列結構藍圖陣列
  */
 function parseAdvancedDamageString(damageStr) {
     const cleanStr = damageStr.trim();
@@ -385,11 +400,22 @@ function parseAdvancedDamageString(damageStr) {
             }
         }
         const isPr = singleFormula.toUpperCase().includes("PR");
+        
+        // 呼叫升級後的單擊解析器
+        const parsedAttack = parseSingleFormula(singleFormula);
         const roundStructure = {
-            attacks: isPr ? [] : [parseSingleFormula(singleFormula)],
+            attacks: isPr ? [] : [{
+                weaponDice: parsedAttack.weaponDice,
+                negativeDice: parsedAttack.negativeDice, // 🚀 注入負向減傷骰
+                flatMod: parsedAttack.flatMod,
+                prDiceMap: null
+            }],
             prDices: isPr ? parsePrFormula(singleFormula) : []
         };
-        for (let i = 0; i < repeatCount; i++) roundSequencePool.push(roundStructure);
+        for (let i = 0; i < repeatCount; i++) {
+            // 使用深拷貝防止引用污染
+            roundSequencePool.push(JSON.parse(JSON.stringify(roundStructure)));
+        }
         return roundSequencePool;
     }
 
@@ -425,20 +451,34 @@ function parseAdvancedDamageString(damageStr) {
                     globalPrMap.set(dice.sides, (globalPrMap.get(dice.sides) || 0) + dice.count);
                 }
             } else {
-                // 【核心升級】：檢查是否帶有內層打擊重複前綴 (例如 "2 1D8+1D6+17")
+                // 檢查是否帶有內層打擊重複前綴 (例如 "2 1D8-1D4+17")
                 const innerRepeatMatch = token.match(/^(\d+)\s+(.+)$/);
                 if (innerRepeatMatch) {
                     const innerCount = parseInt(innerRepeatMatch[1], 10);
                     const actualFormula = innerRepeatMatch[2];
+                    
+                    // 呼叫升級後的基礎解析器，分離出正負向骰子
                     const parsedAttack = parseSingleFormula(actualFormula);
+                    const structuredAttack = {
+                        weaponDice: parsedAttack.weaponDice,
+                        negativeDice: parsedAttack.negativeDice, // 🚀 注入負向減傷骰
+                        flatMod: parsedAttack.flatMod,
+                        prDiceMap: null
+                    };
                     
                     // 根據內層係數，將同一個打擊公式獨立複製 N 次放入打擊時序中
                     for (let c = 0; c < innerCount; c++) {
-                        attacks.push(JSON.parse(JSON.stringify(parsedAttack))); // 深拷貝防止引用污染
+                        attacks.push(JSON.parse(JSON.stringify(structuredAttack))); // 深拷貝防止引用污染
                     }
                 } else {
-                    // 常規單發打擊
-                    attacks.push(parseSingleFormula(token));
+                    // 常規單發打擊，同樣執行雙向分流結構化封裝
+                    const parsedAttack = parseSingleFormula(token);
+                    attacks.push({
+                        weaponDice: parsedAttack.weaponDice,
+                        negativeDice: parsedAttack.negativeDice, // 🚀 注入負向減傷骰
+                        flatMod: parsedAttack.flatMod,
+                        prDiceMap: null
+                    });
                 }
             }
         }
@@ -450,7 +490,7 @@ function parseAdvancedDamageString(damageStr) {
 
         // 依外層重複係數展開為多輪
         for (let i = 0; i < repeatCount; i++) {
-            roundSequencePool.push(roundStructure);
+            roundSequencePool.push(JSON.parse(JSON.stringify(roundStructure)));
         }
     }
 
@@ -575,26 +615,41 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
     const finalRoundCombinedPDFs = [];
 
     // ================================================================================
-    // 【純代數解析法】：精準計算全戰鬥絕對理論傷害上限
+    // 【純代數解析法】：精準計算全戰鬥絕對理論傷害上限 (修正負向減傷爆擊不對稱)
     // ================================================================================
     let analyticalMaxTotalDmg = 0;
+
     for (const roundData of roundSequencePool) {
         let roundWeaponAndFlatMax = 0;
         for (const attack of roundData.attacks) {
+            // 正向武器骰：爆擊時面數翻倍
             let weaponMaxCrit = 0;
             for (const dice of attack.weaponDice) {
                 weaponMaxCrit += dice.sides * dice.count * critMultiplier;
             }
-            roundWeaponAndFlatMax += weaponMaxCrit + attack.flatMod;
+            
+            // 負向減傷骰：爆擊時不翻倍。且為了求「最大可能傷害」，減傷骰應貢獻其最小減傷量 (即 count * 1)
+            let reductionMinContribution = 0;
+            if (attack.negativeDice && attack.negativeDice.length > 0) {
+                for (const dice of attack.negativeDice) {
+                    reductionMinContribution -= dice.count * 1; // 減傷越少，最終傷害越高
+                }
+            }
+            
+            roundWeaponAndFlatMax += weaponMaxCrit + reductionMinContribution + attack.flatMod;
         }
+
         let prMaxCrit = 0;
         if (roundData.prDices && roundData.prDices.length > 0) {
             for (const dice of roundData.prDices) {
                 prMaxCrit += dice.sides * dice.count * critMultiplier;
             }
         }
-        analyticalMaxTotalDmg += Math.max(roundWeaponAndFlatMax + prMaxCrit, 0);
+
+        const roundMaxPossible = roundWeaponAndFlatMax + prMaxCrit;
+        analyticalMaxTotalDmg += Math.max(roundMaxPossible, 0);
     }
+
 
     // ================================================================================
     // 3. 進入巨觀跨輪迴圈，逐一解算每個獨立輪次的分佈耦合
@@ -623,77 +678,89 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
         }
 
         // 微觀打擊迴圈
-        for (const attack of roundData.attacks) {
-            const weaponNormalPool = [], weaponCritPool = [];
-            for (const dice of attack.weaponDice) {
-                const baseDist = PREGENERATED_DICE_NORMAL[`D${dice.sides}`];
-                for (let i = 0; i < dice.count; i++) weaponNormalPool.push({ dist: baseDist, isNegative: false });
-                for (let i = 0; i < dice.count * critMultiplier; i++) weaponCritPool.push({ dist: baseDist, isNegative: false });
-            }
-            const weaponNormalRes = convolveMultipleFFT(weaponNormalPool);
-            const weaponCritRes = convolveMultipleFFT(weaponCritPool);
-            
-            const weaponNormalDist = weaponNormalRes.dist;
-            const weaponNormalOffset = weaponNormalRes.offset; 
-            const weaponCritDist = weaponCritRes.dist;
-            const weaponCritOffset = weaponCritRes.offset;     
-
-            // 分配單擊 PDF 的安全定義域跨度 (回復包含 0 點與完整傷軌的標準寬度)
-            const maxHitWithPr = (weaponNormalDist.length - 1) + (prNormalDist.length - 1) + weaponNormalOffset + prNormalOffset + attack.flatMod;
-            const maxCritWithPr = (weaponCritDist.length - 1) + (prCritDist.length - 1) + weaponCritOffset + prCritOffset + attack.flatMod;
-            const maxSingleAttackDmg = Math.max(maxHitWithPr, maxCritWithPr, attack.flatMod, 0);
-            
-            // 【核心修正 A】：回歸符合 DND 5e 實質物理現狀的單擊二態分佈
-            // 第 0 格精確承接未命中質量 pMiss，這能自然保留多段打擊展開時的 1 命中與 2 命中軌道
-            const singleAttackPDF = new Float64Array(maxSingleAttackDmg + 1);
-            singleAttackPDF[0] = pMiss;
-
-            // 狀態 B：普通首擊觸發
-            const w1_weight = pHit * pPR_Available;
-            if (w1_weight > BUCKET_EPSILON) {
-                for (let w = 0; w < weaponNormalDist.length; w++) {
-                    for (let p = 0; p < prNormalDist.length; p++) {
-                        const dmg = (w + weaponNormalOffset) + (p + prNormalOffset) + attack.flatMod;
-                        singleAttackPDF[dmg > 0 ? dmg : 0] += weaponNormalDist[w] * prNormalDist[p] * w1_weight;
+		for (const attack of roundData.attacks) {
+			const weaponNormalPool = [], weaponCritPool = [];
+			
+			// 1. 注入正向武器骰
+			for (const dice of attack.weaponDice) {
+				const baseDist = PREGENERATED_DICE_NORMAL[`D${dice.sides}`];
+				for (let i = 0; i < dice.count; i++) weaponNormalPool.push({ dist: baseDist, isNegative: false });
+				for (let i = 0; i < dice.count * critMultiplier; i++) weaponCritPool.push({ dist: baseDist, isNegative: false });
+			}
+			
+            // 2. 【核心修正】：注入負向減傷骰 ── 爆擊時維持 1 倍數量，絕不翻倍！
+            if (attack.negativeDice && attack.negativeDice.length > 0) {
+                for (const dice of attack.negativeDice) {
+                    const baseDist = PREGENERATED_DICE_NORMAL[`D${dice.sides}`];
+                    for (let i = 0; i < dice.count; i++) {
+                        weaponNormalPool.push({ dist: baseDist, isNegative: true });
+                        weaponCritPool.push({ dist: baseDist, isNegative: true }); // 🚀 保持 1 倍，封殺二次相乘
                     }
                 }
             }
 
-            // 狀態 C：爆擊首擊觸發
-            const w2_weight = pCrit * pPR_Available;
-            if (w2_weight > BUCKET_EPSILON) {
-                for (let w = 0; w < weaponCritDist.length; w++) {
-                    for (let p = 0; p < prCritDist.length; p++) {
-                        const dmg = (w + weaponCritOffset) + (p + prCritOffset) + attack.flatMod;
-                        singleAttackPDF[dmg > 0 ? dmg : 0] += weaponCritDist[w] * prCritDist[p] * w2_weight;
-                    }
-                }
-            }
+			const weaponNormalRes = convolveMultipleFFT(weaponNormalPool);
+			const weaponCritRes = convolveMultipleFFT(weaponCritPool);
+			
+			const weaponNormalDist = weaponNormalRes.dist;
+			const weaponNormalOffset = weaponNormalRes.offset; // 👈 此時若有減傷骰，offset 包含負向平移量
+			const weaponCritDist = weaponCritRes.dist;
+			const weaponCritOffset = weaponCritRes.offset;     
 
-            // 狀態 D：常規武器傷
-            const pPR_Consumed = 1.0 - pPR_Available;
-            if (pPR_Consumed > BUCKET_EPSILON) {
-                const w3_normal_weight = pHit * pPR_Consumed;
-                if (w3_normal_weight > BUCKET_EPSILON) {
-                    for (let w = 0; w < weaponNormalDist.length; w++) {
-                        const dmg = (w + weaponNormalOffset) + attack.flatMod;
-                        singleAttackPDF[dmg > 0 ? dmg : 0] += weaponNormalDist[w] * w3_normal_weight;
-                    }
-                }
-                const w3_crit_weight = pCrit * pPR_Consumed;
-                if (w3_crit_weight > BUCKET_EPSILON) {
-                    for (let w = 0; w < weaponCritDist.length; w++) {
-                        const dmg = (w + weaponCritOffset) + attack.flatMod;
-                        singleAttackPDF[dmg > 0 ? dmg : 0] += weaponCritDist[w] * w3_crit_weight;
-                    }
-                }
-            }
+			// 3. 安全計算定義域最大跨度
+			const maxHitWithPr = (weaponNormalDist.length - 1) + (prNormalDist.length - 1) + weaponNormalOffset + prNormalOffset + attack.flatMod;
+			const maxCritWithPr = (weaponCritDist.length - 1) + (prCritDist.length - 1) + weaponCritOffset + prCritOffset + attack.flatMod;
+			const maxSingleAttackDmg = Math.max(maxHitWithPr, maxCritWithPr, attack.flatMod, 0);
+			
+			const singleAttackPDF = new Float64Array(maxSingleAttackDmg + 1);
+			singleAttackPDF[0] = pMiss; // 未命中基礎沉澱
 
-            pPR_Available *= pMiss;
-            
-            // 填入單輪 pool
-            singleRoundAttackPDFs.push({ dist: singleAttackPDF, isNegative: false });
-        }
+			// 4. 時域遍歷加總 (依靠 dmg > 0 ? dmg : 0 執行 5e 零傷保底沉澱)
+			// 狀態 B：普通首擊觸發
+			const w1_weight = pHit * pPR_Available;
+			if (w1_weight > BUCKET_EPSILON) {
+				for (let w = 0; w < weaponNormalDist.length; w++) {
+					for (let p = 0; p < prNormalDist.length; p++) {
+						const dmg = (w + weaponNormalOffset) + (p + prNormalOffset) + attack.flatMod;
+						// 🚀 5e 規則防禦：小於 0 點的傷害全部安全沉澱在第 0 格
+						singleAttackPDF[dmg > 0 ? dmg : 0] += weaponNormalDist[w] * prNormalDist[p] * w1_weight;
+					}
+				}
+			}
+
+			// 狀態 C：爆擊首擊觸發
+			const w2_weight = pCrit * pPR_Available;
+			if (w2_weight > BUCKET_EPSILON) {
+				for (let w = 0; w < weaponCritDist.length; w++) {
+					for (let p = 0; p < prCritDist.length; p++) {
+						const dmg = (w + weaponCritOffset) + (p + prCritOffset) + attack.flatMod;
+						singleAttackPDF[dmg > 0 ? dmg : 0] += weaponCritDist[w] * prCritDist[p] * w2_weight;
+					}
+				}
+			}
+
+			// 狀態 D：常規武器傷
+			const pPR_Consumed = 1.0 - pPR_Available;
+			if (pPR_Consumed > BUCKET_EPSILON) {
+				const w3_normal_weight = pHit * pPR_Consumed;
+				if (w3_normal_weight > BUCKET_EPSILON) {
+					for (let w = 0; w < weaponNormalDist.length; w++) {
+						const dmg = (w + weaponNormalOffset) + attack.flatMod;
+						singleAttackPDF[dmg > 0 ? dmg : 0] += weaponNormalDist[w] * w3_normal_weight;
+					}
+				}
+				const w3_crit_weight = pCrit * pPR_Consumed;
+				if (w3_crit_weight > BUCKET_EPSILON) {
+					for (let w = 0; w < weaponCritDist.length; w++) {
+						const dmg = (w + weaponCritOffset) + attack.flatMod;
+						singleAttackPDF[dmg > 0 ? dmg : 0] += weaponCritDist[w] * w3_crit_weight;
+					}
+				}
+			}
+
+			pPR_Available *= pMiss;
+			singleRoundAttackPDFs.push({ dist: singleAttackPDF, isNegative: false });
+		}
 
         // 單輪合併：接收返回的 roundOffset
         const { dist: roundCombinedDmgDist, offset: roundOffset } = convolveMultipleFFT(singleRoundAttackPDFs);
