@@ -563,16 +563,6 @@ function printDamageDistribution(summary) {
 
 
 
-/**
- * 終極跨輪輸出 (DPR) 統計 Pipeline 主函數 (正式附加分佈數據傳回)
- * 
- * @param {string} caseName - 測試案例名稱
- * @param {string} attackStr - 命中公式字串 (例如 "D20A1 + 6")
- * @param {number} targetAC - 目標敵人 AC (例如 18)
- * @param {Object} criticalOptions - 爆擊設定物件 { multiplier: 2, threshold: 20 }
- * @param {string} rawDamageStr - 進階跨輪括號傷害公式序列 (例如 "(1D6+7+1D6, 2D6PR)")
- * @returns {Object} 包含精準四分位數、完整機率分佈、與解析理論極限值的總數據物件
- */
 function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr) {
     const critMultiplier = criticalOptions.multiplier !== undefined ? Math.floor(criticalOptions.multiplier) : 2;
     const critThreshold = criticalOptions.threshold !== undefined ? Math.floor(criticalOptions.threshold) : 20;
@@ -588,7 +578,6 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
     // 【純代數解析法】：精準計算全戰鬥絕對理論傷害上限
     // ================================================================================
     let analyticalMaxTotalDmg = 0;
-
     for (const roundData of roundSequencePool) {
         let roundWeaponAndFlatMax = 0;
         for (const attack of roundData.attacks) {
@@ -598,16 +587,13 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
             }
             roundWeaponAndFlatMax += weaponMaxCrit + attack.flatMod;
         }
-
         let prMaxCrit = 0;
         if (roundData.prDices && roundData.prDices.length > 0) {
             for (const dice of roundData.prDices) {
                 prMaxCrit += dice.sides * dice.count * critMultiplier;
             }
         }
-
-        const roundMaxPossible = roundWeaponAndFlatMax + prMaxCrit;
-        analyticalMaxTotalDmg += Math.max(roundMaxPossible, 0);
+        analyticalMaxTotalDmg += Math.max(roundWeaponAndFlatMax + prMaxCrit, 0);
     }
 
     // ================================================================================
@@ -617,9 +603,9 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
         let pPR_Available = 1.0;
         const singleRoundAttackPDFs = [];
 
-        // 1. 全輪唯一的 PR 資源骰池預摺積 (接收其 dist 與實質 offset)
+        // 全輪唯一的 PR 資源骰池預摺積
         let prNormalDist = new Float64Array([1.0]), prCritDist = new Float64Array([1.0]);
-        let prNormalOffset = 0, prCritOffset = 0; // 👈 接收 PR 實質原點
+        let prNormalOffset = 0, prCritOffset = 0; 
         
         if (roundData.prDices && roundData.prDices.length > 0) {
             const prNormalPool = [], prCritPool = [];
@@ -636,7 +622,7 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
             prCritOffset = prCritRes.offset;
         }
 
-        // 2. 進入微觀打擊迴圈
+        // 微觀打擊迴圈
         for (const attack of roundData.attacks) {
             const weaponNormalPool = [], weaponCritPool = [];
             for (const dice of attack.weaponDice) {
@@ -648,43 +634,43 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
             const weaponCritRes = convolveMultipleFFT(weaponCritPool);
             
             const weaponNormalDist = weaponNormalRes.dist;
-            const weaponNormalOffset = weaponNormalRes.offset; // 👈 接收武器實質原點
+            const weaponNormalOffset = weaponNormalRes.offset; 
             const weaponCritDist = weaponCritRes.dist;
-            const weaponCritOffset = weaponCritRes.offset;     // 👈 接收武器實質爆擊原點
+            const weaponCritOffset = weaponCritRes.offset;     
 
-            // 分配單擊 PDF 的安全定義域跨度
+            // 分配單擊 PDF 的安全定義域跨度 (回復包含 0 點與完整傷軌的標準寬度)
             const maxHitWithPr = (weaponNormalDist.length - 1) + (prNormalDist.length - 1) + weaponNormalOffset + prNormalOffset + attack.flatMod;
             const maxCritWithPr = (weaponCritDist.length - 1) + (prCritDist.length - 1) + weaponCritOffset + prCritOffset + attack.flatMod;
             const maxSingleAttackDmg = Math.max(maxHitWithPr, maxCritWithPr, attack.flatMod, 0);
             
+            // 【核心修正 A】：回歸符合 DND 5e 實質物理現狀的單擊二態分佈
+            // 第 0 格精確承接未命中質量 pMiss，這能自然保留多段打擊展開時的 1 命中與 2 命中軌道
             const singleAttackPDF = new Float64Array(maxSingleAttackDmg + 1);
             singleAttackPDF[0] = pMiss;
 
-            // 狀態 B：普通首擊觸發 (加回實質 offset 補償)
+            // 狀態 B：普通首擊觸發
             const w1_weight = pHit * pPR_Available;
             if (w1_weight > BUCKET_EPSILON) {
                 for (let w = 0; w < weaponNormalDist.length; w++) {
                     for (let p = 0; p < prNormalDist.length; p++) {
-                        // 【核心校正】：實質點數 = 陣列相對索引 + 各自的實質平移補償量
                         const dmg = (w + weaponNormalOffset) + (p + prNormalOffset) + attack.flatMod;
                         singleAttackPDF[dmg > 0 ? dmg : 0] += weaponNormalDist[w] * prNormalDist[p] * w1_weight;
                     }
                 }
             }
 
-            // 狀態 C：爆擊首擊觸發 (加回實質 offset 補償)
+            // 狀態 C：爆擊首擊觸發
             const w2_weight = pCrit * pPR_Available;
             if (w2_weight > BUCKET_EPSILON) {
                 for (let w = 0; w < weaponCritDist.length; w++) {
                     for (let p = 0; p < prCritDist.length; p++) {
-                        // 【核心校正】：實質點數 = 陣列相對索引 + 各自的實質爆擊平移補償量
                         const dmg = (w + weaponCritOffset) + (p + prCritOffset) + attack.flatMod;
                         singleAttackPDF[dmg > 0 ? dmg : 0] += weaponCritDist[w] * prCritDist[p] * w2_weight;
                     }
                 }
             }
 
-            // 狀態 D：常規武器傷 (加回實質 offset 補償)
+            // 狀態 D：常規武器傷
             const pPR_Consumed = 1.0 - pPR_Available;
             if (pPR_Consumed > BUCKET_EPSILON) {
                 const w3_normal_weight = pHit * pPR_Consumed;
@@ -704,34 +690,53 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
             }
 
             pPR_Available *= pMiss;
+            
+            // 填入單輪 pool
             singleRoundAttackPDFs.push({ dist: singleAttackPDF, isNegative: false });
         }
 
-		// 單輪合併
-        const { dist: roundCombinedDmgDist } = convolveMultipleFFT(singleRoundAttackPDFs);
-        finalRoundCombinedPDFs.push({ dist: roundCombinedDmgDist, isNegative: false });
+        // 單輪合併：接收返回的 roundOffset
+        const { dist: roundCombinedDmgDist, offset: roundOffset } = convolveMultipleFFT(singleRoundAttackPDFs);
+        
+        // 【核心修正 B】：落實位移不滅定理，將單輪裁剪產生的 offset 完整平移對齊
+        const alignedRoundDist = new Float64Array(roundCombinedDmgDist.length + roundOffset);
+        for (let i = 0; i < roundCombinedDmgDist.length; i++) {
+            alignedRoundDist[i + roundOffset] = roundCombinedDmgDist[i];
+        }
+        
+        finalRoundCombinedPDFs.push({ dist: alignedRoundDist, isNegative: false });
     }
 
-    // 4. 將所有獨立輪次的分佈進行最終大總結摺積，得出全戰鬥跨輪輸出分佈
+    // 4. 跨輪總結摺積：接收最終全域原點平移量 finalTotalOffset
     const { dist: finalTotalDist, offset: finalTotalOffset } = convolveMultipleFFT(finalRoundCombinedPDFs);
     
-    // 5. 掃描 CDF 提取精準的統計四分位數
+    // 同步還原具有絕對座標對齊的完整分佈陣列
+    const absoluteDomainDist = new Float64Array(finalTotalDist.length + finalTotalOffset);
+    for (let d = 0; d < finalTotalDist.length; d++) {
+        absoluteDomainDist[d + finalTotalOffset] = finalTotalDist[d];
+    }
+
+    // 5. 掃描實質絕對 PMF 的 CDF 提取精準的統計四分位數
     let cumulativeProbability = 0;
     let q1 = null, q2 = null, q3 = null;
-    for (let d = 0; d < finalTotalDist.length; d++) {
-        cumulativeProbability += finalTotalDist[d];
+    
+    for (let d = 0; d < absoluteDomainDist.length; d++) {
+        cumulativeProbability += absoluteDomainDist[d];
         if (q1 === null && cumulativeProbability >= 0.25) q1 = d;
         if (q2 === null && cumulativeProbability >= 0.50) q2 = d;
         if (q3 === null && cumulativeProbability >= 0.75) { q3 = d; break; }
     }
 
+    if (q1 === null) q1 = 0;
+    if (q2 === null) q2 = 0;
+    if (q3 === null) q3 = 0;
+
     return { 
         caseName, q1, q2, q3, 
-        distribution: finalTotalDist, // 👈 正式附加完整的 Float64Array 分佈數據傳回
+        distribution: absoluteDomainDist, 
         details: { 
             attackStr, targetAC, critThreshold, critMultiplier, rawDamageStr, pHit, pCrit, pMiss,
             totalMaxPossibleDmg: analyticalMaxTotalDmg 
         } 
     };
 }
-
