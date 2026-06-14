@@ -189,7 +189,7 @@ function convolveMultipleFFT(pool) {
  */
 function evaluateAttackProbabilities(attackStr, targetAC, critThreshold = 20) {
     const { advantageMode, bonusDice, flatMod } = parseAttackString(attackStr);
-    const safeCrit = Math.min(20, Math.floor(critThreshold));
+    const safeCrit = Math.max(2, Math.min(20, Math.floor(critThreshold)));
 
     const modeMapper = { "-1": "DIS", "0": "NORMAL", "1": "ADV", "2": "EA" };
     const rawD20Dist = PREGENERATED_D20_ATTACK[modeMapper[advantageMode] || "NORMAL"];
