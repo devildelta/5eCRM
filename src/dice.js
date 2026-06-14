@@ -180,7 +180,7 @@ function convolveMultipleFFT(pool) {
 
 // Helper Subroutine
 /**
- * 評估單發打擊的命中、爆擊與未命中機率 (三態分離)
+ * 評估單發打擊的命中、爆擊與未命中機率 (三態分離 - 修正大失敗/爆擊摺積污染漏洞)
  * 
  * @param {string} attackStr - 命中公式字串 (例如 "D20A1 + 5 + D4")
  * @param {number} targetAC - 目標敌人的 Armor Class
@@ -192,10 +192,28 @@ function evaluateAttackProbabilities(attackStr, targetAC, critThreshold = 20) {
     const safeCrit = Math.min(20, Math.floor(critThreshold));
 
     const modeMapper = { "-1": "DIS", "0": "NORMAL", "1": "ADV", "2": "EA" };
-    const d20Dist = PREGENERATED_D20_ATTACK[modeMapper[advantageMode] || "NORMAL"];
+    const rawD20Dist = PREGENERATED_D20_ATTACK[modeMapper[advantageMode] || "NORMAL"];
     
+    // ================================================================================
+    // 【核心修正】：原生點數防禦隔離門檻 (Natural Roll Segregation)
+    // ================================================================================
+    // 1. 完全由核心 D20 獨立抽取大失敗與大成功的絕對機率
+    const pNatural1 = rawD20Dist[1]; 
+    let pCrit = 0;
+    for (let s = safeCrit; s <= 20; s++) {
+        pCrit += rawD20Dist[s];
+    }
+
+    // 2. 建立一個「純淨常規命中」的 D20 分佈，將大失敗與爆擊位點清零
+    // 這能確保進入摺積的機率質量，完美對齊常規判定的物理空間
+    const pureNormalD20Dist = new Float64Array(21);
+    for (let s = 2; s < safeCrit; s++) {
+        pureNormalD20Dist[s] = rawD20Dist[s];
+    }
+    
+    // 3. 將純淨 D20 分佈送入摺積管線
     const distPoolForFFT = [
-        { dist: d20Dist, isNegative: false }
+        { dist: pureNormalD20Dist, isNegative: false }
     ];
     
     for (let group of bonusDice) {
@@ -210,20 +228,25 @@ function evaluateAttackProbabilities(attackStr, targetAC, critThreshold = 20) {
         }
     }
 
+    // 執行傅立葉高效摺積 (此時 attackDist 僅包含「純常規命中 D20」與輔助骰的複合可能)
     const { dist: attackDist, offset: attackOffset } = convolveMultipleFFT(distPoolForFFT);
 
-    // 爆擊完全、唯一取決於核心 D20 骰子的原生面點數 (Natural Roll)
-    let pCrit = 0;
-    for (let s = safeCrit; s <= 20; s++) pCrit += d20Dist[s];
-
-    let pValidSuccess = 0;
-	for (let i = 0; i < attackDist.length; i++) {
-		if (attackDist[i] <= BUCKET_EPSILON) continue;
-		if (i + attackOffset === 1) continue; 
-        if (i + attackOffset + flatMod >= targetAC) pValidSuccess += attackDist[i];
+    // 4. 在實質絕對座標補償下，精確累加通過 AC 檢定的純命中機率
+    let pHit = 0;
+    for (let i = 0; i < attackDist.length; i++) {
+        if (attackDist[i] <= BUCKET_EPSILON) continue;
+        
+        // 實質物理座標 = 陣列索引 + 摺積動態原點補償
+        const realRollTotal = i + attackOffset;
+        
+        // 常規點數判定：必須加上 flatMod 滿足目標 AC
+        if (realRollTotal + flatMod >= targetAC) {
+            pHit += attackDist[i];
+        }
     }
 
-    const pHit = Math.max(0, pValidSuccess - pCrit);
+    // 5. 根據機率質量守恆定理，未命中率即為總機率 1.0 扣除其餘三態
+    // 大失敗 (pNatural1) 已被物理隔離，自然會安全地落入未命中 (pMiss) 中
     const pMiss = Math.max(0, 1.0 - pHit - pCrit);
     
     return { pHit, pCrit, pMiss };
@@ -243,16 +266,20 @@ function parseAttackString(attackStr) {
         if (d20Match) {
             const sign = d20Match[1] === '-' ? -1 : 1;
             const type = d20Match[2];
-            const count = parseInt(d20Match[3], 10) || 1;
+            
+            // 【核心修正】：精確解析 count，防止 0 被短路運算子 || 1 覆蓋
+            const hasCountStr = d20Match[3] !== "";
+            const count = hasCountStr ? parseInt(d20Match[3], 10) : 1;
 
             if (sign === -1) {
                 throw new Error("核心 D20 命中骰前方不允許帶有負號！");
             }
 
-            if (type === 'A' && count === 1) advantageMode = 1;      // D20A1
-            else if (type === 'A' && count === 2) advantageMode = 2; // D20A2
-            else if (type === 'D' && count === 1) advantageMode = -1; // D20D1
-            else advantageMode = 0;                                  //  D20
+            // 嚴格狀態機判定：D20A0 或 D20D0 會精確落入 else 分支，降級為常規模式 (0)
+            if (type === 'A' && count === 1) advantageMode = 1;       // D20A1 (優勢)
+            else if (type === 'A' && count === 2) advantageMode = 2;  // D20A2 (精靈準確)
+            else if (type === 'D' && count === 1) advantageMode = -1; // D20D1 (劣勢)
+            else advantageMode = 0;                                   // 常規 D20 / D20A0 / D20D0
             
             continue; 
         }
@@ -536,8 +563,6 @@ function printDamageDistribution(summary) {
 
 
 
-
-
 /**
  * 終極跨輪輸出 (DPR) 統計 Pipeline 主函數 (正式附加分佈數據傳回)
  * 
@@ -710,136 +735,3 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
     };
 }
 
-
-
-/**
- * 橫向對比生成器：遍歷不同 AC 與優勢狀態，輸出一體化對比矩陣表格
- * @param {number} toHit - 基礎命中加值
- * @param {Object} critOptions - 包含 threshold 和 multiplier 的爆擊設定 (此處不傳入 advantageMode，由迴圈控制)
- * @param {string} damageStr - 傷害公式字串 (例如 "2 (1D8+1D6+7, 1D8+1D6+7, 2D8+1D6+7)")
- * @param {Array<number>} acRange - 想要測試的 AC 陣列，預設為 [10, 12, 14, 16, 18, 20, 22]
- */
-//TODO: refactor
-function generateComparisonTable(toHit, critOptions, damageStr, acRange = [10,12,14,16,18,20,22]) {
-    const modes = [
-        { code: -1, name: "劣勢 DIS" },
-        { code: 0,  name: "常規 NOR" },
-        { code: 1,  name: "優勢 ADV" },
-        { code: 2,  name: "精靈準確 EA" }
-    ];
-
-    const tableData = [];
-
-    // 遍歷所有指定的防禦 AC 點
-    for (const ac of acRange) {
-        // 建立一列（Row）的基礎資料
-        const row = { "目標 AC": `AC ${ac}` };
-
-        // 遍歷 4 種不同的優勢狀態
-        for (const mode of modes) {
-            // 動態組裝當前狀況的完整 criticalOptions
-            const currentCritOptions = {
-                threshold: critOptions.threshold,
-                multiplier: critOptions.multiplier,
-                advantageMode: mode.code
-            };
-
-            // 呼叫你的固定核心 Pipeline 主函數進行精確計算
-            const result = calculate(`AC:${ac}_Mode:${mode.code}`, toHit, ac, currentCritOptions, damageStr);
-
-            // 將 Q1 和 Q3 的傷害範圍打包成乾淨的字串格式 "Q1~Q3"
-            row[mode.name] = `[${result.q1} ～ ${result.q3}]`;
-        }
-
-        tableData.push(row);
-    }
-
-    // 輸出美化報告
-    console.log(`======================================================================`);
-    console.log(` 📊 橫向對比矩陣報告`);
-    console.log(`======================================================================`);
-    console.log(`• 基礎命中: +${toHit} | 爆擊門檻: Natural ${critOptions.threshold || 20}+ | 爆擊骰倍率: ${critOptions.multiplier || 2}x`);
-    console.log(`• 測試公式: "${damageStr}"`);
-    console.log(`----------------------------------------------------------------------`);
-    
-    // 利用原生的 JavaScript console.table 進行完美網格排版
-    console.table(tableData);
-    
-    console.log(`======================================================================\n`);
-}
-
-//TODO: refactor
-function generateSharpshooterTable(baseToHit, critOptions, rawDamageStr, acRange = [10,12,14,16,18,20,22]) {
-    let ssDamageStr = "";
-    const complexMatch = rawDamageStr.trim().match(/^(\d+)\s*\((.+)\)$/);
-    
-    // 1. 自動為多軌括號語法內的每一發攻擊精準加上 +10
-    if (complexMatch) {
-        const repeatCount = complexMatch[1]; // 拿取次數
-        const innerFormulas = complexMatch[2]; // 拿取括號內的核心字串
-        
-        // 對字串調用 split，並為每一發獨立攻擊公式尾端加上 +10
-        const subFormulas = innerFormulas.split(',').map(s => `${s.trim()}+10`);
-        ssDamageStr = `${repeatCount} (${subFormulas.join(', ')})`;
-    } else {
-        ssDamageStr = `${rawDamageStr.trim()}+10`;
-    }
-
-    const tableData = [];
-
-    // 2. 遍歷指定的防禦 AC 區間
-    for (const ac of acRange) {
-        const row = { "目標 AC": `AC ${ac}` };
-
-        // 呼叫 Pipeline 核心進行精確計算
-        const normalResult = calculate(`AC:${ac}_Normal`, baseToHit, ac, critOptions, rawDamageStr);
-        const ssResult = calculate(`AC:${ac}_SS`, baseToHit - 5, ac, critOptions, ssDamageStr);
-
-        // 3. 提取常規組與特技組的 Q1, Q2, Q3 (Q2 需掃描累積機率達到 50%)
-        const getQ2 = (dist) => {
-            let cum = 0;
-            for (let d = 0; d < dist.length; d++) {
-                cum += dist[d];
-                if (cum >= 0.50) return d;
-            }
-            return 0;
-        };
-
-        // 由於之前核心只回傳了 q1 和 q3，我們這裡利用相同的 cdf 邏輯在印表機內現場解出 Q2 差值
-        // 為了避免重複計算，我們直接將原結果的 cdf 分佈拿來抓 Q2 點
-        // 註：這步假設 calculate 回傳的結果包含全分佈，若無，我們可以直接用常規組與特技組的結果進行快速差值封裝。
-        // 為確保安全，我們直接從結果中衍生出 Q1, Q2, Q3 的對比
-        
-        // 核心指標 1：Q1 差值 (保底 Steady DPS 增長)
-        const q1Diff = ssResult.q1 - normalResult.q1;
-        if (q1Diff > 0) row["Q1保底 (25%)"] = `+${q1Diff} 🟢`;
-        else if (q1Diff === 0) row["Q1保底 (25%)"] = ` 0 🟡`;
-        else row["Q1保底 (25%)"] = `${q1Diff} 🔴`;
-
-        // 核心指標 2：Q2 差值 (中段 Median DPS 增長)
-        const q2Diff = ssResult.q2 - normalResult.q2; // 確保你的 calculate 函數回傳結構已帶有 q2 屬性
-        if (q2Diff > 0) row["Q2中衛 (50%)"] = `+${q2Diff} 🟢`;
-        else if (q2Diff === 0) row["Q2中衛 (50%)"] = ` 0 🟡`;
-        else row["Q2中衛 (50%)"] = `${q2Diff} 🔴`;
-
-        // 核心指標 3：Q3 差值 (中高爆發 Burst 增長)
-        const q3Diff = ssResult.q3 - normalResult.q3;
-        if (q3Diff > 0) row["Q3爆發 (75%)"] = `+${q3Diff} 🟢`;
-        else if (q3Diff === 0) row["Q3爆發 (75%)"] = ` 0 🟡`;
-        else row["Q3爆發 (75%)"] = `${q3Diff} 🔴`;
-
-        tableData.push(row);
-    }
-
-    // 4. 輸出美化表格報告
-    const modeNames = { "-1": "劣勢 DIS", "0": "常規 NOR", "1": "優勢 ADV", "2": "精靈準確 EA" };
-    console.log(`================================================================================`);
-    console.log(` 🎯 神射手天賦 (Sharpshooter -5/+10) 統一格式決策矩陣 (Q1 / Q2 / Q3 橫向掃描)`);
-    console.log(`================================================================================`);
-    console.log(" 🟢 = 特技勝出 | 🟡 = 數值持平 | 🔴 = 常規勝出 (特技導致衰退)");
-    console.log(`--------------------------------------------------------------------------------`);
-    
-    console.table(tableData);
-    
-    console.log(`================================================================================\n`);
-}

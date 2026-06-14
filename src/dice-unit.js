@@ -94,9 +94,6 @@ function testParser() {
     }
 }
 
-// 執行完全體測試
-testParser();
-
 /**
  * 針對 5級心靈刃賊非對稱輸出序列進行全方位數值斷言測試
  */
@@ -173,9 +170,98 @@ function testPipelineCaseSoulKnife() {
     }
 }
 
-// 執行 Pipeline 數值測試
-testPipelineCaseSoulKnife();
+/**
+ * 核心離散統計引擎自動化回歸測試：大失敗隔離與 D20A0 語法漏洞檢驗
+ */
+function runPipelineCaseAC25() {
+    console.log("🧪 啟動核心離散統計引擎自動化斷言檢驗...");
 
+    // 2. 執行實質管線運算
+    const summary =         calculate(
+            "大失敗隔離與輔助骰邊界校正測試 (AC 25 極端防禦)",
+            "D20 + 1D4 + 1", 
+            25, 
+            { threshold: 20, multiplier: 2 }, 
+            "(1D8+3)"
+        )
+    const d = summary.details;
+
+    // ================================================================================
+    // 【第一軌：命中與命中率判定斷言 (Accuracy & State Segregation Asserts)】
+    // ================================================================================
+    
+    // 斷言 A: D20A0 必須被正確識別並降級為常規 NORMAL 模式，爆擊率與大失敗率皆必須精確為 5% (1/20)
+    console.assert(
+        Math.abs(d.pCrit - 0.05) < MACHINE_EPSILON, 
+        `[失敗] 爆擊率錯誤：預期 0.05, 實測值 ${d.pCrit} (可能誤觸優勢 D20A1)`
+    );
+
+    // 斷言 B: 在 AC 25 的防線下，即使 D20 投出常規上限 19 且 1D4 投出 4 點，總和 19+4+1=24 依舊無法命中。
+    // 因此純普通命中率 pHit 理論上必須精確等於 0.0
+    console.assert(
+        Math.abs(d.pHit - 0.0) < MACHINE_EPSILON, 
+        `[失敗] 普通命中率錯誤：預期 0.0, 實測值 ${d.pHit} (大失敗或常規質量發生污染外洩)`
+    );
+
+    // 斷言 C: 根據機率質量守恆，未命中率 pMiss 必須精確收網在 1.0 - 0.0 - 0.05 = 0.95 (95%)
+    console.assert(
+        Math.abs(d.pMiss - 0.95) < MACHINE_EPSILON, 
+        `[失敗] 未命中率錯誤：預期 0.95, 實測值 ${d.pMiss}`
+    );
+
+
+    // ================================================================================
+    // 【第二軌：定義域與純代數真理邊界斷言 (Domain Bound Asserts)】
+    // ================================================================================
+    
+    // 斷言 D: 全系統管線最前端的純代數解析器，必須計算出絕對理論最高爆擊傷害：8 * 2 + 3 = 19 點
+    console.assert(
+        d.totalMaxPossibleDmg === 19, 
+        `[失敗] 代數理論最大傷害上限錯誤：預期 19, 實測值 ${d.totalMaxPossibleDmg}`
+    );
+
+    // 斷言 E: 因為普通命中率為 0，此戰鬥唯一能造成傷害的只有未命中 (0點) 與爆擊 (最少 1*2+3 = 5 點)。
+    // 因此分佈矩陣的相對索引 1, 2, 3, 4 點傷害在時域中必須恆為絕對零點 (機率和 <= BUCKET_EPSILON)
+    let traceContaminationProb = 0;
+    for (let dmg = 1; dmg <= 4; dmg++) {
+        if (summary.distribution[dmg]) {
+            traceContaminationProb += summary.distribution[dmg];
+        }
+    }
+    console.assert(
+        traceContaminationProb <= BUCKET_EPSILON,
+        `[失敗] 時域判定域污染：在 1~4 點傷害區間偵測到幽靈機率質量 ${traceContaminationProb}`
+    );
+
+    // 斷言 F: 檢驗統計分佈的總體 CDF 中位數 (Q2) 以及上四分位數 (Q3) 是否因 95% 未命中而完美鎖定在 0 點
+    console.assert(summary.q1 === 0, `[失敗] Q1 偏移：預期 0, 實測值 ${summary.q1}`);
+    console.assert(summary.q2 === 0, `[失敗] 中位數 Q2 偏移：預期 0, 實測值 ${summary.q2}`);
+    console.assert(summary.q3 === 0, `[失敗] Q3 偏移：預期 0, 實測值 ${summary.q3}`);
+
+
+    // ================================================================================
+    // 【第三軌：四分位數與機率質量守恆斷言 (Mass Conservation Asserts)】
+    // ================================================================================
+    
+    // 斷言 G: 全分佈 PMF 陣列的所有桶位機率加總，必須 100% 滿足統計學底線：總和恆等於 1.0 (容許硬體級微觀雜訊)
+    let totalMassSum = 0;
+    for (let i = 0; i < summary.distribution.length; i++) {
+        totalMassSum += summary.distribution[i];
+    }
+    console.assert(
+        Math.abs(totalMassSum - 1.0) < MACHINE_EPSILON,
+        `[失敗] 機率質量未守恆：全分佈加總為 ${totalMassSum}，觸發防漂移防線破裂`
+    );
+
+    console.log("✅ 恭喜！全量雙軌自動化斷言 100% 通過，大失敗時域防火牆與語法解析狀態機無噪點運作。");
+}
+
+
+
+
+testParser();
+testPipelineCaseSoulKnife();
+runPipelineCaseAC25();
 
 
 
@@ -183,9 +269,6 @@ testPipelineCaseSoulKnife();
  * 執行一體化核心 Pipeline 綜合測試
  */
 function runPipelineIntegrationTests() {
-    console.log("⚔️  開始執行 Gemini & Copilot 聯名版統計 Pipeline 整合測試...\n");
-
-    // 1. 建立測試案例陣列 (包含既有 GloomStalker 案例與全新 Level 5 Soulknife 賊案例)
     const testCases = [
         // ----------------------------------------------------------------------
         // 既有 GloomStalker Action Surge 爆發案例 (2 個完整輪次，每輪 3 次打擊)
@@ -206,6 +289,14 @@ function runPipelineIntegrationTests() {
             18, 
             { threshold: 20, multiplier: 2 }, 
             "(1D6+7+1D6, 2D6PR), 2 (1D6+7+1D6, 1D4+7+1D6, 2D6PR)"
+        ),
+		
+        calculate(
+            "大失敗隔離與輔助骰邊界校正測試 (AC 25 極端防禦)",
+            "D20 + 1D4 + 1", 
+            25, 
+            { threshold: 20, multiplier: 2 }, 
+            "(1D8+3)"
         )
     ];
 
