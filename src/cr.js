@@ -81,12 +81,12 @@
 
   function resourceSortGroup(resource) {
     if (isHitDieResource(resource)) return 0;
+    if (isMysticArcanumResource(resource)) return 3;
     if (isSpellSlotResource(resource)) {
       if (resource && resource.generatedClass && resource.generatedClass.kind === 'pact-slot') return 3;
       const slotLevel = resourceSlotLevel(resource);
       return slotLevel <= 5 ? 1 : 2;
     }
-    if (resource && resource.generatedClass && resource.generatedClass.kind === 'mystic-arcanum') return 4;
     return 5;
   }
 
@@ -257,13 +257,15 @@
       { label: '生命骰', type: 'hit-dice', items: [] },
       { label: '法術位（1–5 環）', type: 'spell-1-5', items: [] },
       { label: '法術位（6–9 環）', type: 'spell-6-9', items: [] },
-      { label: '契約魔法', type: 'pact', items: [] },
+      { label: '契約魔法與神秘奧秘', type: 'pact', items: [] },
       { label: '其他資源', type: 'other', items: [] }
     ];
     entries.forEach(function (entry) {
       const resource = entry.resource;
       if (isHitDieResource(resource)) {
         groups[0].items.push({ resource: resource, index: entry.index });
+      } else if (isMysticArcanumResource(resource)) {
+        groups[3].items.push({ resource: resource, index: entry.index });
       } else if (isSpellSlotResource(resource)) {
         if (resource && resource.generatedClass && resource.generatedClass.kind === 'pact-slot') groups[3].items.push({ resource: resource, index: entry.index });
         else {
@@ -530,7 +532,7 @@
     } else if (action.type === 'apply-class-levels') {
       const resources = currentResources();
       const manualResources = resources.filter(function (resource) {
-        return !isHitDieResource(resource) && !isSpellSlotResource(resource);
+        return !isHitDieResource(resource) && !isSpellSlotResource(resource) && !isMysticArcanumResource(resource);
       });
       action.resources.forEach(function (resource) { manualResources.push(resource); });
       state.db[state.character] = manualResources;
@@ -561,6 +563,10 @@
 
   function isSpellSlotResource(resource) {
     return Boolean(resource && resource.generatedClass && ['spell-slot', 'pact-slot'].includes(resource.generatedClass.kind)) || Boolean(resource && !resource.generatedClass && /^(法術位|契約魔法|spell slots?|pact magic)/i.test(resource.name || ''));
+  }
+
+  function isMysticArcanumResource(resource) {
+    return Boolean(resource && resource.generatedClass && resource.generatedClass.kind === 'mystic-arcanum');
   }
 
   function renderHitDiceAccumulator() {
@@ -821,13 +827,13 @@
       else if (config.progression === 'pact') {
         const pact = pactSlots[config.level];
         const metadata = Object.assign({}, common, { kind: 'pact-slot', classId: config.classId, className: config.name, slotLevel: pact[1] });
-        pactResources.push(slotResource('契約魔法（' + config.name + '，' + pact[1] + ' 環）', pact[0], '短休', metadata));
-        const mysticTier = config.level >= 17 ? 6 : config.level >= 11 ? 5 : null;
-        if (mysticTier) {
-          const arcanumName = '神秘奧秘（' + config.name + '，' + mysticTier + ' 環）';
-          const arcanumMetadata = Object.assign({}, common, { kind: 'mystic-arcanum', classId: config.classId, className: config.name, slotLevel: mysticTier });
+        pactResources.push(slotResource('契約魔法（' + pact[1] + ' 環）', pact[0], '短休', metadata));
+        [{ level: 11, slotLevel: 6 }, { level: 13, slotLevel: 7 }, { level: 15, slotLevel: 8 }, { level: 17, slotLevel: 9 }].forEach(function (tier) {
+          if (config.level < tier.level) return;
+          const arcanumName = '神秘奧秘（' + tier.slotLevel + ' 環）';
+          const arcanumMetadata = Object.assign({}, common, { kind: 'mystic-arcanum', classId: config.classId, className: config.name, slotLevel: tier.slotLevel });
           pactResources.push({ name: arcanumName, current: 1, max: 1, cooldown: '長休', source: '角色職業', generatedClass: arcanumMetadata });
-        }
+        });
       }
     });
     const generated = [];
