@@ -105,7 +105,17 @@
     return details.join('，');
   }
 
-  function createResourceRow(resource, index) {
+  function resourceState(resource) {
+    const current = Number(resource.current);
+    const max = Number(resource.max);
+    return {
+      overMax: current > max,
+      depleted: current === 0,
+      low: current > 0 && max > 0 && current / max <= 0.5
+    };
+  }
+
+  function createResourceRow(resource, index, showCooldown) {
     const row = document.createElement('div');
     row.className = 'resource-row p-2 border rounded';
     row.dataset.resourceIndex = String(index);
@@ -118,6 +128,13 @@
     meta.className = 'small text-secondary text-end resource-count';
     meta.textContent = '使用次數：' + resource.current + ' / ' + resource.max;
     summary.append(name, meta);
+    const status = document.createElement('div');
+    status.className = 'small resource-status';
+    status.textContent = '狀態：可用';
+    const cooldown = document.createElement('div');
+    cooldown.className = 'small text-secondary resource-cooldown';
+    cooldown.textContent = '回復時機：' + resource.cooldown;
+    cooldown.classList.toggle('d-none', showCooldown === false);
     const actions = document.createElement('div');
     actions.className = 'd-flex gap-2 mt-2';
     const useButton = document.createElement('button');
@@ -135,7 +152,8 @@
     resetButton.textContent = '重置';
     resetButton.disabled = !state.character;
     actions.append(useButton, resetButton);
-    row.append(summary, actions);
+    row.append(summary, status, cooldown, actions);
+    applyResourceStatus(row, resource);
     return row;
   }
 
@@ -151,15 +169,29 @@
     const source = document.createElement('span');
     source.className = 'tag-source';
     source.textContent = '角色職業';
-    header.append(name, source);
+    const cooldownValues = Array.from(new Set(items.map(function (item) { return item.resource.cooldown; })));
+    const isMixed = cooldownValues.length > 1;
+    const cooldownSummary = document.createElement('small');
+    cooldownSummary.className = 'text-secondary d-block';
+    cooldownSummary.textContent = !isMixed ? '回復時機：' + cooldownValues[0] : '';
+    const title = document.createElement('div');
+    title.appendChild(name);
+    if (!isMixed) title.appendChild(cooldownSummary);
+    header.append(title, source);
     const body = document.createElement('div');
     body.className = 'card-body';
     items.forEach(function (item) {
-      const row = createResourceRow(item.resource, item.index);
+      const row = createResourceRow(item.resource, item.index, isMixed);
       row.classList.add('mb-2');
       body.appendChild(row);
     });
     card.append(header, body);
+    const states = items.map(function (item) { return resourceState(item.resource); });
+    const allDepleted = states.length > 0 && states.every(function (value) { return value.depleted; });
+    const allLowOrDepleted = states.length > 0 && states.every(function (value) { return value.low || value.depleted; });
+    card.classList.toggle('resource-depleted', allDepleted);
+    card.classList.toggle('resource-low', allLowOrDepleted && !allDepleted);
+    card.classList.toggle('resource-over-max', states.length > 0 && states.every(function (value) { return value.overMax; }) && !allDepleted);
     column.appendChild(card);
     return column;
   }
@@ -277,20 +309,23 @@
   }
 
   function applyResourceStatus(card, resource) {
-    const current = Number(resource.current);
-    const max = Number(resource.max);
-    const overMax = current > max;
-    const depleted = current === 0;
-    const low = current > 0 && max > 0 && current / max <= 0.5;
+    const stateInfo = resourceState(resource);
+    const overMax = stateInfo.overMax;
+    const depleted = stateInfo.depleted;
+    const low = stateInfo.low;
     card.classList.toggle('resource-depleted', depleted);
     card.classList.toggle('resource-low', low);
     card.classList.toggle('resource-over-max', overMax);
-    const warning = card.querySelector('.resource-warning');
-    warning.classList.toggle('d-none', !overMax);
-    warning.title = overMax ? '目前可用次數高於新上限，請重置此資源。' : '';
-    warning.setAttribute('aria-label', overMax ? '目前可用次數高於新上限，請重置此資源' : '');
-    const status = card.querySelector('.resource-status');
-    status.textContent = overMax ? '注意：目前次數高於上限，請重置' : depleted ? '狀態：已用盡' : low ? '狀態：剩餘偏低' : '狀態：可用';
+    const warning = card.querySelector ? card.querySelector('.resource-warning') : null;
+    if (warning) {
+      warning.classList.toggle('d-none', !overMax);
+      warning.title = overMax ? '目前可用次數高於新上限，請重置此資源。' : '';
+      warning.setAttribute('aria-label', overMax ? '目前可用次數高於新上限，請重置此資源' : '');
+    }
+    const status = card.querySelector ? card.querySelector('.resource-status') : null;
+    if (status) {
+      status.textContent = overMax ? '注意：目前次數高於上限，請重置' : depleted ? '狀態：已用盡' : low ? '狀態：剩餘偏低' : '狀態：可用';
+    }
   }
 
   function renderResources() {
@@ -318,13 +353,27 @@
     const list = document.getElementById('skillList');
     const matches = list.querySelectorAll('[data-resource-index="' + index + '"]');
     if (!matches.length) return;
-    matches.forEach(function (row) {
-      const card = row.closest('.card');
-      const count = row.querySelector('.resource-count') || (card && card.querySelector('.resource-count'));
+    matches.forEach(function (match) {
+      const row = match.classList.contains('resource-row') ? match : match.querySelector('.card') || match;
+      const count = row.querySelector('.resource-count');
       if (count) count.textContent = '使用次數：' + resource.current + ' / ' + resource.max;
-      const useButton = row.querySelector('[data-action="use-resource"]') || (card && card.querySelector('[data-action="use-resource"]'));
+      const useButton = row.querySelector('[data-action="use-resource"]');
       if (useButton) useButton.disabled = Number(resource.current) <= 0;
-      if (card) applyResourceStatus(card, resource);
+      applyResourceStatus(row, resource);
+      const card = row.classList.contains('card') ? row : row.closest('.card');
+      if (card && card.querySelectorAll('.resource-row').length > 1) {
+        const groupRows = Array.from(card.querySelectorAll('.resource-row'));
+        const states = groupRows.map(function (item) {
+          const itemIndex = Number(item.dataset.resourceIndex);
+          return resourceState(currentResources()[itemIndex]);
+        });
+        const allDepleted = states.length > 0 && states.every(function (value) { return value.depleted; });
+        const allLowOrDepleted = states.length > 0 && states.every(function (value) { return value.low || value.depleted; });
+        const allOverMax = states.length > 0 && states.every(function (value) { return value.overMax; });
+        card.classList.toggle('resource-depleted', allDepleted);
+        card.classList.toggle('resource-low', allLowOrDepleted && !allDepleted);
+        card.classList.toggle('resource-over-max', allOverMax && !allDepleted);
+      }
     });
   }
 
@@ -547,12 +596,13 @@
         existing.name = '生命骰（' + die + '）';
         existing.current = matches.reduce(function (total, resource) { return total + Number(resource.current); }, 0) + count;
         existing.max = matches.reduce(function (total, resource) { return total + Number(resource.max); }, 0) + count;
+        existing.cooldown = '長休';
         if (!existing.generatedClass) existing.generatedClass = { generator: 'quick-hit-dice', kind: 'hit-dice', hitDie: die };
         matches.filter(function (resource) { return resource !== existing; }).forEach(function (resource) {
           resources.splice(resources.indexOf(resource), 1);
         });
       } else {
-        resources.push({ name: '生命骰（' + die + '）', current: count, max: count, cooldown: '手動', source: '角色職業', generatedClass: { generator: 'quick-hit-dice', kind: 'hit-dice', hitDie: die } });
+        resources.push({ name: '生命骰（' + die + '）', current: count, max: count, cooldown: '長休', source: '角色職業', generatedClass: { generator: 'quick-hit-dice', kind: 'hit-dice', hitDie: die } });
       }
       state.hitDiceAccumulator[die] = 0;
     });
@@ -785,7 +835,7 @@
       const count = hitDieCounts[die];
       if (!count) return;
       const metadata = { generator: 'class-levels', kind: 'hit-dice', hitDie: die, classConfigs: configSnapshot };
-      generated.push({ name: '生命骰（' + die + '）', current: count, max: count, cooldown: '手動', source: '角色職業', generatedClass: metadata });
+      generated.push({ name: '生命骰（' + die + '）', current: count, max: count, cooldown: '長休', source: '角色職業', generatedClass: metadata });
     });
     const cappedCasterLevel = Math.min(20, casterLevel);
     const table = regularSlots[cappedCasterLevel] || [];
@@ -843,7 +893,12 @@
     const changedIndexes = [];
     currentResources().forEach(function (resource, index) {
       if (tiers[resource.cooldown] !== undefined && tiers[resource.cooldown] <= tier) {
-        resource.current = resource.max;
+        if (isHitDieResource(resource)) {
+          const restored = Math.min(Number(resource.max), Number(resource.current) + Math.floor(Number(resource.max) / 2));
+          resource.current = restored;
+        } else {
+          resource.current = resource.max;
+        }
         changedIndexes.push(index);
       }
     });

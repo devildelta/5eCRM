@@ -23,6 +23,21 @@ body {
   box-shadow: 0 0 0 1px rgba(166, 79, 82, 0.18);
 }
 
+.resource-row.resource-depleted {
+  background-color: #382a2b;
+  border-color: #755154;
+}
+
+.resource-row.resource-low {
+  background-color: #393528;
+  border-color: #756a43;
+}
+
+.resource-row.resource-over-max {
+  border: 2px solid #a64f52;
+  box-shadow: 0 0 0 1px rgba(166, 79, 82, 0.18);
+}
+
 .resource-warning {
   color: #e6b95f;
   font-size: 1.15rem;
