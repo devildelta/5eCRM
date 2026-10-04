@@ -8,6 +8,77 @@ body {
   color: #f8f8f8;
 }
 
+.card.resource-depleted {
+  background-color: #382a2b;
+  border-color: #755154;
+}
+
+.card.resource-low {
+  background-color: #393528;
+  border-color: #756a43;
+}
+
+.card.resource-over-max {
+  border: 2px solid #a64f52;
+  box-shadow: 0 0 0 1px rgba(166, 79, 82, 0.18);
+}
+
+.resource-warning {
+  color: #e6b95f;
+  font-size: 1.15rem;
+}
+
+.resource-status {
+  color: #d1d1d1;
+}
+
+.resource-depleted .resource-status {
+  color: #e4aaaa;
+}
+
+.resource-low .resource-status {
+  color: #e4d49a;
+}
+
+.cr-modal {
+  background-color: #242424;
+  color: #f1f1f1;
+}
+
+.cr-modal .nav-tabs {
+  border-bottom-color: #555;
+}
+
+.cr-modal .nav-link {
+  color: #ddd;
+}
+
+.cr-modal .nav-link.active {
+  background-color: #2c2c2c;
+  border-color: #555 #555 #2c2c2c;
+  color: #fff;
+}
+
+.cr-modal .list-group-item {
+  background-color: #2c2c2c;
+  border-color: #555;
+  color: #f1f1f1;
+}
+
+.resource-name {
+  overflow-wrap: anywhere;
+}
+
+.resource-count {
+  color: #ffe082;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.role-create {
+  max-width: 36rem;
+}
+
 .form-control,
 .form-select {
   background-color: #2c2c2c;
@@ -17,6 +88,42 @@ body {
 
 .form-control::placeholder {
   color: #aaa;
+}
+
+.btn.btn:disabled,
+.btn.btn.disabled,
+.form-control.form-control:disabled,
+.form-select.form-select:disabled {
+  color: #f1f1f1;
+  background-color: #414141;
+  border-color: #777;
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.class-row {
+  border-color: #555 !important;
+}
+
+.class-row .form-label {
+  margin-bottom: 0.25rem;
+}
+
+.class-row-applied {
+  animation: class-row-applied-glow 1s ease-out;
+}
+
+@keyframes class-row-applied-glow {
+  0%, 45% { box-shadow: 0 0 0 3px rgba(222, 190, 95, 0.8); }
+  100% { box-shadow: 0 0 0 0 rgba(222, 190, 95, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .class-row-applied { animation: none; outline: 2px solid #debe5f; }
+}
+
+.cr-modal .form-text {
+  color: #b8b8b8;
 }
 
 .btn {

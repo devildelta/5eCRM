@@ -2,101 +2,173 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>D&D 5E 技能管理器</title>
+  <title>D&amp;D 5E 角色資源管理</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="src/cr.css" rel="stylesheet" />
 </head>
 <body>
-  <div class="container py-4">
-    <h1 class="text-center mb-2">D&D 5E 技能管理器</h1>
-    <h5 id="currentLabel" class="text-info text-center mb-4">目前角色：尚未選擇</h5>
-
-    <!-- Export / Import -->
-    <div class="row g-2 mb-4">
-      <div class="col-md-6">
-        <button class="btn btn-outline-info w-100" onclick="exportData()">📤 匯出所有角色設定</button>
+  <main class="container py-4" id="crApp">
+    <header class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+      <div>
+        <h1 class="h2 mb-1">D&amp;D 5E 角色資源</h1>
+        <p id="currentLabel" class="text-info mb-0">目前角色：尚未選擇</p>
       </div>
-      <div class="col-md-6">
-        <button class="btn btn-outline-success w-100" onclick="importPrompt()">📥 匯入角色設定</button>
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <label class="visually-hidden" for="characterSelect">選擇角色</label>
+        <select id="characterSelect" class="form-select" aria-label="選擇角色"></select>
+        <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#roleCreateModal">建立角色</button>
+        <button class="btn btn-outline-light" type="button" data-action="open-management">管理</button>
+      </div>
+    </header>
+
+    <section aria-labelledby="restHeading" class="mb-4">
+      <h2 id="restHeading" class="h5">休息回復</h2>
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-outline-light" type="button" data-action="reset-cooldown" data-level="每回合">每回合</button>
+        <button class="btn btn-outline-warning" type="button" data-action="reset-cooldown" data-level="短休">短休</button>
+        <button class="btn btn-outline-danger" type="button" data-action="reset-cooldown" data-level="長休">長休</button>
+      </div>
+    </section>
+
+    <section aria-labelledby="resourceHeading">
+      <h2 id="resourceHeading" class="h5">角色資源</h2>
+      <div id="emptyState" class="text-secondary py-3">請先選擇角色，或建立一個新角色。</div>
+      <div id="skillList" class="row g-3"></div>
+    </section>
+
+    <div class="modal fade" id="managementModal" tabindex="-1" aria-labelledby="managementTitle" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content cr-modal">
+          <div class="modal-header">
+            <h2 class="modal-title fs-5" id="managementTitle">角色管理</h2>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="關閉"></button>
+          </div>
+          <div class="modal-body">
+            <div id="managementSections">
+              <ul class="nav nav-tabs mb-3" role="tablist">
+                <li class="nav-item" role="presentation"><button class="nav-link active" type="button" data-section="resources" role="tab">資源</button></li>
+                <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-section="characters" role="tab">角色</button></li>
+                <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-section="backup" role="tab">備份</button></li>
+              </ul>
+
+              <section class="management-section" data-section-panel="resources">
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                  <button class="btn btn-success" type="button" data-action="new-resource">新增資源</button>
+                  <button class="btn btn-outline-light" type="button" data-action="copy-resource">複製</button>
+                  <button class="btn btn-outline-primary" type="button" data-action="edit-resource">修改</button>
+                  <button class="btn btn-outline-danger" type="button" data-action="delete-resource">刪除</button>
+                </div>
+                <div class="hit-dice-accumulator mb-3" aria-label="暫存生命骰">
+                  <p class="small text-secondary mb-2">先累積生命骰數量，再一次加入資源列表。</p>
+                  <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <button class="btn btn-sm btn-outline-light hit-die-add" type="button" data-action="accumulate-hit-die" data-die="d6">d6 <span class="badge text-bg-secondary" data-die-count="d6">0</span></button>
+                    <button class="btn btn-sm btn-outline-light hit-die-add" type="button" data-action="accumulate-hit-die" data-die="d8">d8 <span class="badge text-bg-secondary" data-die-count="d8">0</span></button>
+                    <button class="btn btn-sm btn-outline-light hit-die-add" type="button" data-action="accumulate-hit-die" data-die="d10">d10 <span class="badge text-bg-secondary" data-die-count="d10">0</span></button>
+                    <button class="btn btn-sm btn-outline-light hit-die-add" type="button" data-action="accumulate-hit-die" data-die="d12">d12 <span class="badge text-bg-secondary" data-die-count="d12">0</span></button>
+                    <button class="btn btn-sm btn-primary" type="button" data-action="commit-hit-dice">加入生命骰</button>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" data-action="clear-hit-dice">清除暫存</button>
+                  </div>
+                </div>
+                <p id="resourceSelectionHint" class="small text-secondary">選擇一項資源以複製、修改或刪除。</p>
+                <div id="managementResourceList" class="list-group" role="radiogroup" aria-label="選擇要管理的資源"></div>
+                <hr>
+                <section aria-labelledby="classBuilderTitle">
+                  <h3 id="classBuilderTitle" class="h6">職業等級計算</h3>
+                  <p class="small text-secondary">可自行選擇多職業施法進程；Artificer 可選向上取整。自訂法術位數量適用於自製職業。套用會以職業設定完整重建所有生命骰及法術位。</p>
+                  <div id="classRows" class="vstack gap-3"></div>
+                  <div class="d-flex flex-wrap gap-2 mt-3">
+                    <button class="btn btn-sm btn-outline-light" type="button" data-action="add-class-row">新增職業</button>
+                    <button class="btn btn-sm btn-primary" type="button" data-action="apply-class-levels">預覽並套用職業資源</button>
+                  </div>
+                  <p id="classBuilderError" class="small text-warning mt-2 mb-0" role="status" aria-live="polite"></p>
+                </section>
+              </section>
+
+              <section class="management-section d-none" data-section-panel="characters">
+                <p id="managementCharacterLabel" class="mb-3"></p>
+                <div class="mb-3"><label for="copyCharacterName" class="form-label">複製為新角色名稱</label><input id="copyCharacterName" class="form-control" maxlength="120"></div>
+                <div class="d-flex flex-wrap gap-2">
+                  <button class="btn btn-outline-light" type="button" data-action="copy-character">複製目前角色</button>
+                  <button class="btn btn-outline-danger" type="button" data-action="delete-character">刪除目前角色</button>
+                </div>
+              </section>
+
+              <section class="management-section d-none" data-section-panel="backup">
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                  <button class="btn btn-outline-info" type="button" data-action="export">匯出所有角色</button>
+                  <button class="btn btn-outline-success" type="button" data-action="import">匯入角色設定</button>
+                </div>
+                <label for="importBox" class="form-label">Base64 匯入字串</label>
+                <textarea id="importBox" class="form-control mb-3" rows="4" spellcheck="false"></textarea>
+                <div id="exportActions" class="d-none mb-2">
+                  <label for="exportBox" class="form-label">Base64 匯出字串</label>
+                  <button class="btn btn-sm btn-outline-light ms-2" type="button" data-action="copy-export">複製設定</button>
+                  <textarea id="exportBox" class="form-control mt-2" rows="4" readonly spellcheck="false"></textarea>
+                </div>
+                <p id="backupStatus" class="small mb-0" aria-live="polite"></p>
+              </section>
+            </div>
+
+            <section id="resourceEditor" class="d-none" aria-labelledby="resourceEditorTitle">
+              <h3 id="resourceEditorTitle" class="h5 mb-3"></h3>
+              <form id="resourceForm">
+                <div class="mb-3"><label for="resourceName" class="form-label">資源名稱</label><input id="resourceName" class="form-control" required maxlength="120"></div>
+                <div class="row g-3">
+                  <div class="col-sm-6"><label for="resourceMax" class="form-label">最大次數</label><input id="resourceMax" type="number" class="form-control" min="1" required></div>
+                  <div class="col-sm-6"><label for="resourceCooldown" class="form-label">回復時機</label><select id="resourceCooldown" class="form-select"><option>每回合</option><option>短休</option><option>長休</option><option>日出</option><option>每24小時</option><option>手動</option></select></div>
+                  <div class="col-sm-6"><label for="resourceSource" class="form-label">來源</label><select id="resourceSource" class="form-select" aria-describedby="resourceSourceHelp"><option>角色職業</option><option>角色特徵</option><option>魔法物品</option><option>其他</option></select><div id="resourceSourceHelp" class="form-text">角色職業 Class：職業等級與職業特性。</div></div>
+                </div>
+                <div class="d-flex gap-2 mt-4">
+                  <button class="btn btn-primary" type="submit">檢視並確認</button>
+                  <button class="btn btn-outline-light" type="button" data-action="cancel-editor">取消</button>
+                </div>
+              </form>
+            </section>
+
+            <section id="managementConfirm" class="d-none" aria-live="polite">
+              <h3 id="confirmTitle" class="h5"></h3>
+              <p id="confirmDetails" class="mb-4"></p>
+              <div class="d-flex gap-2">
+                <button class="btn btn-danger" type="button" data-action="confirm-management">確認</button>
+                <button class="btn btn-outline-light" type="button" data-action="cancel-confirm">取消</button>
+              </div>
+            </section>
+          </div>
+        </div>
       </div>
     </div>
-    <div id="exportActions" class="d-none">
-      <strong class="text-info">Base64 設定字串：</strong>
-      <button class="btn btn-sm btn-outline-light" onclick="copyExport()">📋 複製設定</button>
-    </div>
-    <pre id="exportBox" class="d-none"></pre>
-    <div id="copyAlert" class="d-none">✅ 已複製到剪貼簿！</div>
+  </main>
 
-    <!-- 角色控制列：選擇 + 建立 -->
-    <div class="row g-2 mb-2 align-items-end flex-wrap">
-      <div class="col-md-4">
-        <select id="characterSelect" class="form-select"></select>
-      </div>
-      <div class="col-md-4">
-        <input id="characterInput" class="form-control" placeholder="輸入新角色名稱">
-      </div>
-      <div class="col-md-4">
-        <button class="btn btn-primary w-100" onclick="switchCharacter()">切換 / 建立角色</button>
-      </div>
-    </div>
-
-    <!-- 角色操作列 -->
-    <div class="row g-2 mb-2">
-      <div class="col-md-6">
-        <button class="btn btn-outline-secondary w-100" onclick="copyCharacter()">複製角色</button>
-      </div>
-      <div class="col-md-6">
-        <button class="btn btn-outline-danger w-100" onclick="deleteCharacter()">刪除角色</button>
+  <div class="modal fade" id="roleCreateModal" tabindex="-1" aria-labelledby="roleCreateTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content cr-modal">
+        <div class="modal-header">
+          <h2 class="modal-title fs-5" id="roleCreateTitle">建立角色</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="關閉"></button>
+        </div>
+        <form id="roleCreateForm">
+          <div class="modal-body">
+            <label for="roleName" class="form-label">角色名稱</label>
+            <input id="roleName" class="form-control" maxlength="120" required autocomplete="off">
+            <p id="roleCreateError" class="small text-warning mt-2 mb-0" role="status" aria-live="polite"></p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-primary" type="submit">建立角色</button>
+            <button class="btn btn-outline-light" type="button" data-bs-dismiss="modal">取消</button>
+          </div>
+        </form>
       </div>
     </div>
-
-    <!-- 冷卻重置列 -->
-    <div class="row g-2 mb-3">
-      <div class="col-md-12 d-flex flex-wrap gap-2">
-        <button class="btn btn-outline-light" onclick="resetCooldown('每回合')">🔄 每回合</button>
-        <button class="btn btn-outline-warning" onclick="resetCooldown('短休')">😌 短休</button>
-        <button class="btn btn-outline-danger" onclick="resetCooldown('長休')">🛌 長休</button>
-      </div>
-    </div>
-
-    <!-- 技能新增表單 -->
-    <div class="row g-2 mb-4">
-      <div class="col-md-2">
-        <input id="name" class="form-control" placeholder="技能名稱" />
-      </div>
-      <div class="col-md-1">
-        <input id="uses" type="number" class="form-control" placeholder="可用" min="0" />
-      </div>
-      <div class="col-md-1">
-        <input id="max" type="number" class="form-control" placeholder="最大" min="1" />
-      </div>
-      <div class="col-md-2">
-        <select id="cooldown" class="form-select">
-          <option value="每回合">每回合</option>
-          <option value="短休">短休</option>
-          <option value="長休">長休</option>
-          <option value="日出">日出</option>
-          <option value="每24小時">每24小時</option>
-        </select>
-      </div>
-      <div class="col-md-2">
-        <select id="sourceType" class="form-select">
-          <option value="角色職業">角色職業</option>
-          <option value="角色特徵">角色特徵</option>
-          <option value="魔法物品">魔法物品</option>
-          <option value="其他">其他</option>
-        </select>
-      </div>
-      <div class="col-md-2 d-grid">
-        <button class="btn btn-success" onclick="addSkill()">新增技能</button>
-      </div>
-    </div>
-
-    <!-- 技能清單顯示 -->
-    <div id="skillList"></div>
   </div>
 
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="crToast" class="toast text-bg-dark" role="status" aria-live="polite" aria-atomic="true">
+      <div class="d-flex"><div id="crToastMessage" class="toast-body"></div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="關閉"></button></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="src/cr.js"></script>
 </body>
 </html>
