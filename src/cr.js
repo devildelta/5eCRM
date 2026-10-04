@@ -71,55 +71,102 @@
     return state.character ? state.db[state.character] || [] : [];
   }
 
-  function setText(element, value) {
-    element.textContent = value == null ? '' : String(value);
+  function resourceSlotLevel(resource) {
+    if (resource && resource.generatedClass && Number.isInteger(resource.generatedClass.slotLevel)) {
+      return Number(resource.generatedClass.slotLevel);
+    }
+    const match = resource && typeof resource.name === 'string' ? resource.name.match(/(\d+)\s*環/) : null;
+    return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
   }
 
-  function updateCharacters() {
-    const select = document.getElementById('characterSelect');
-    select.replaceChildren();
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = Object.keys(state.db).length ? '選擇角色' : '尚無角色';
-    select.appendChild(placeholder);
-    Object.keys(state.db).forEach(function (name) {
-      const option = document.createElement('option');
-      option.value = name;
-      option.textContent = name;
-      select.appendChild(option);
-    });
-    select.value = state.character;
-    setText(document.getElementById('currentLabel'), state.character ? '目前角色：' + state.character : '目前角色：尚未選擇');
-    setText(document.getElementById('managementCharacterLabel'), state.character ? '目前角色：' + state.character : '尚未選擇角色。');
-    document.querySelectorAll('[data-action="copy-character"], [data-action="delete-character"]').forEach(function (button) {
-      button.disabled = !state.character;
-    });
-    document.querySelectorAll('[data-action="reset-cooldown"], [data-action="new-resource"], [data-action="accumulate-hit-die"], [data-action="commit-hit-dice"], [data-action="add-class-row"], [data-action="apply-class-levels"]').forEach(function (button) {
-      button.disabled = !state.character;
-    });
-    renderHitDiceAccumulator();
+  function resourceSortGroup(resource) {
+    if (isHitDieResource(resource)) return 0;
+    if (isSpellSlotResource(resource)) {
+      if (resource && resource.generatedClass && resource.generatedClass.kind === 'pact-slot') return 3;
+      const slotLevel = resourceSlotLevel(resource);
+      return slotLevel <= 5 ? 1 : 2;
+    }
+    return 4;
   }
 
-  function applyResourceStatus(card, resource) {
-    const current = Number(resource.current);
-    const max = Number(resource.max);
-    const overMax = current > max;
-    const depleted = current === 0;
-    const low = current > 0 && max > 0 && current / max <= 0.5;
-    card.classList.toggle('resource-depleted', depleted);
-    card.classList.toggle('resource-low', low);
-    card.classList.toggle('resource-over-max', overMax);
-    const warning = card.querySelector('.resource-warning');
-    warning.classList.toggle('d-none', !overMax);
-    warning.title = overMax ? '目前可用次數高於新上限，請重置此資源。' : '';
-    warning.setAttribute('aria-label', overMax ? '目前可用次數高於新上限，請重置此資源' : '');
-    const status = card.querySelector('.resource-status');
-    status.textContent = overMax ? '注意：目前次數高於上限，請重置' : depleted ? '狀態：已用盡' : low ? '狀態：剩餘偏低' : '狀態：可用';
+  function sortResourcesForDisplay(resources) {
+    return resources.map(function (resource, index) { return { resource: resource, index: index }; }).sort(function (left, right) {
+      const groupDelta = resourceSortGroup(left.resource) - resourceSortGroup(right.resource);
+      if (groupDelta !== 0) return groupDelta;
+      const slotDelta = resourceSlotLevel(left.resource) - resourceSlotLevel(right.resource);
+      if (slotDelta !== 0) return slotDelta;
+      return (left.resource.name || '').localeCompare(right.resource.name || '', 'zh-Hant');
+    });
+  }
+
+  function resourceSummaryText(resource) {
+    const details = [resource && resource.source ? resource.source : '其他', resource && resource.cooldown ? resource.cooldown : '手動', '上限 ' + (Number(resource && resource.max) || 0) + ' 次'];
+    return details.join('，');
+  }
+
+  function createResourceRow(resource, index) {
+    const row = document.createElement('div');
+    row.className = 'resource-row p-2 border rounded';
+    row.dataset.resourceIndex = String(index);
+    const summary = document.createElement('div');
+    summary.className = 'd-flex justify-content-between align-items-start gap-2';
+    const name = document.createElement('div');
+    name.className = 'fw-semibold';
+    name.textContent = resource.name;
+    const meta = document.createElement('div');
+    meta.className = 'small text-secondary text-end resource-count';
+    meta.textContent = resource.current + ' / ' + resource.max;
+    summary.append(name, meta);
+    const actions = document.createElement('div');
+    actions.className = 'd-flex gap-2 mt-2';
+    const useButton = document.createElement('button');
+    useButton.className = 'btn btn-light btn-sm flex-fill';
+    useButton.type = 'button';
+    useButton.dataset.action = 'use-resource';
+    useButton.dataset.index = index;
+    useButton.textContent = '使用';
+    useButton.disabled = !state.character || Number(resource.current) <= 0;
+    const resetButton = document.createElement('button');
+    resetButton.className = 'btn btn-warning btn-sm flex-fill';
+    resetButton.type = 'button';
+    resetButton.dataset.action = 'reset-resource';
+    resetButton.dataset.index = index;
+    resetButton.textContent = '重置';
+    resetButton.disabled = !state.character;
+    actions.append(useButton, resetButton);
+    row.append(summary, actions);
+    return row;
+  }
+
+  function createGroupedResourceCard(label, items) {
+    const column = document.createElement('div');
+    column.className = 'col-12 col-md-6 col-xl-4';
+    const card = document.createElement('article');
+    card.className = 'card h-100';
+    const header = document.createElement('div');
+    header.className = 'card-header d-flex justify-content-between align-items-start gap-2';
+    const name = document.createElement('strong');
+    name.textContent = label;
+    const source = document.createElement('span');
+    source.className = 'tag-source';
+    source.textContent = items.length > 1 ? '群組' : items[0].resource.source;
+    header.append(name, source);
+    const body = document.createElement('div');
+    body.className = 'card-body';
+    items.forEach(function (item) {
+      const row = createResourceRow(item.resource, item.index);
+      row.classList.add('mb-2');
+      body.appendChild(row);
+    });
+    card.append(header, body);
+    column.appendChild(card);
+    return column;
   }
 
   function createResourceCard(resource, index) {
     const column = document.createElement('div');
     column.className = 'col-12 col-md-6 col-xl-4';
+    column.dataset.resourceIndex = String(index);
     const card = document.createElement('article');
     card.className = 'card h-100';
     const header = document.createElement('div');
@@ -172,13 +219,92 @@
     return column;
   }
 
+  function groupResourcesForDisplay(entries) {
+    const groups = [
+      { label: '生命骰', type: 'hit-dice', items: [] },
+      { label: '法術位（1–5 環）', type: 'spell-1-5', items: [] },
+      { label: '法術位（6–9 環）', type: 'spell-6-9', items: [] },
+      { label: '契約魔法', type: 'pact', items: [] },
+      { label: '其他資源', type: 'other', items: [] }
+    ];
+    entries.forEach(function (entry) {
+      const resource = entry.resource;
+      if (isHitDieResource(resource)) {
+        groups[0].items.push({ resource: resource, index: entry.index });
+      } else if (isSpellSlotResource(resource)) {
+        if (resource && resource.generatedClass && resource.generatedClass.kind === 'pact-slot') groups[3].items.push({ resource: resource, index: entry.index });
+        else {
+          const slotLevel = resourceSlotLevel(resource);
+          const target = slotLevel <= 5 ? groups[1] : groups[2];
+          target.items.push({ resource: resource, index: entry.index });
+        }
+      } else {
+        groups[4].items.push({ resource: resource, index: entry.index });
+      }
+    });
+    return groups.filter(function (group) { return group.items.length > 0; });
+  }
+
+  function setText(element, value) {
+    element.textContent = value == null ? '' : String(value);
+  }
+
+  function updateCharacters() {
+    const select = document.getElementById('characterSelect');
+    select.replaceChildren();
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = Object.keys(state.db).length ? '選擇角色' : '尚無角色';
+    select.appendChild(placeholder);
+    Object.keys(state.db).forEach(function (name) {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name;
+      select.appendChild(option);
+    });
+    select.value = state.character;
+    setText(document.getElementById('currentLabel'), state.character ? '目前角色：' + state.character : '目前角色：尚未選擇');
+    setText(document.getElementById('managementCharacterLabel'), state.character ? '目前角色：' + state.character : '尚未選擇角色。');
+    document.querySelectorAll('[data-action="copy-character"], [data-action="delete-character"]').forEach(function (button) {
+      button.disabled = !state.character;
+    });
+    document.querySelectorAll('[data-action="reset-cooldown"], [data-action="new-resource"], [data-action="accumulate-hit-die"], [data-action="commit-hit-dice"], [data-action="add-class-row"], [data-action="apply-class-levels"]').forEach(function (button) {
+      button.disabled = !state.character;
+    });
+    renderHitDiceAccumulator();
+  }
+
+  function applyResourceStatus(card, resource) {
+    const current = Number(resource.current);
+    const max = Number(resource.max);
+    const overMax = current > max;
+    const depleted = current === 0;
+    const low = current > 0 && max > 0 && current / max <= 0.5;
+    card.classList.toggle('resource-depleted', depleted);
+    card.classList.toggle('resource-low', low);
+    card.classList.toggle('resource-over-max', overMax);
+    const warning = card.querySelector('.resource-warning');
+    warning.classList.toggle('d-none', !overMax);
+    warning.title = overMax ? '目前可用次數高於新上限，請重置此資源。' : '';
+    warning.setAttribute('aria-label', overMax ? '目前可用次數高於新上限，請重置此資源' : '');
+    const status = card.querySelector('.resource-status');
+    status.textContent = overMax ? '注意：目前次數高於上限，請重置' : depleted ? '狀態：已用盡' : low ? '狀態：剩餘偏低' : '狀態：可用';
+  }
+
   function renderResources() {
     const list = document.getElementById('skillList');
-    const resources = currentResources();
+    const entries = sortResourcesForDisplay(currentResources());
     list.replaceChildren();
-    resources.forEach(function (resource, index) {
-      list.appendChild(createResourceCard(resource, index));
+    const grouped = groupResourcesForDisplay(entries);
+    grouped.forEach(function (group) {
+      if (group.items.length === 1) {
+        const item = group.items[0];
+        list.appendChild(createResourceCard(item.resource, item.index));
+      } else {
+        list.appendChild(createGroupedResourceCard(group.label, group.items));
+      }
     });
+    const resources = currentResources();
     document.getElementById('emptyState').classList.toggle('d-none', resources.length > 0);
     if (!state.character) setText(document.getElementById('emptyState'), '請先選擇角色，或建立一個新角色。');
     else if (!resources.length) setText(document.getElementById('emptyState'), '此角色尚無資源。請從「管理」新增資源。');
@@ -186,19 +312,28 @@
 
   function refreshResourceAt(index) {
     const resource = currentResources()[index];
-    const column = document.getElementById('skillList').children[index];
-    const card = column && column.querySelector('.card');
-    if (!resource || !card) return;
-    card.querySelector('.resource-count').textContent = '使用次數：' + resource.current + ' / ' + resource.max;
-    card.querySelector('[data-action="use-resource"]').disabled = Number(resource.current) <= 0;
-    applyResourceStatus(card, resource);
+    if (!resource) return;
+    const list = document.getElementById('skillList');
+    const matches = list.querySelectorAll('[data-resource-index="' + index + '"]');
+    if (!matches.length) return;
+    matches.forEach(function (row) {
+      const card = row.closest('.card');
+      const count = row.querySelector('.resource-count') || (card && card.querySelector('.resource-count'));
+      if (count) count.textContent = '使用次數：' + resource.current + ' / ' + resource.max;
+      const useButton = row.querySelector('[data-action="use-resource"]') || (card && card.querySelector('[data-action="use-resource"]'));
+      if (useButton) useButton.disabled = Number(resource.current) <= 0;
+      if (card) applyResourceStatus(card, resource);
+    });
   }
 
   function renderManagementResources() {
     const list = document.getElementById('managementResourceList');
     const resources = currentResources();
+    const entries = sortResourcesForDisplay(resources);
     list.replaceChildren();
-    resources.forEach(function (resource, index) {
+    entries.forEach(function (entry) {
+      const resource = entry.resource;
+      const index = entry.index;
       const label = document.createElement('label');
       label.className = 'list-group-item d-flex align-items-center gap-3';
       const radio = document.createElement('input');
@@ -840,13 +975,13 @@
         const oldName = oldResource ? oldResource.name : resource.name;
         title = '確認修改資源';
         const overMax = resource.current > resource.max;
-        details = '將修改「' + oldName + '」' + (resource.name !== oldName ? '為「' + resource.name + '」' : '') + '：來源為' + resource.source + '，調整為' + availabilityText(resource) + '（目前 ' + resource.current + ' / 上限 ' + resource.max + '）。' + (overMax ? '目前次數會高於新上限，主頁將標示提醒；請使用重置恢復。' : '');
+        details = '將修改「' + oldName + '」' + (resource.name !== oldName ? '為「' + resource.name + '」' : '') + '：' + resourceSummaryText(resource) + (overMax ? '。目前次數會高於新上限，主頁將標示提醒；請使用重置恢復。' : '。');
       } else if (state.editorMode === 'copy') {
         title = '確認複製資源';
-        details = '將以「' + state.editorSourceName + '」為範本，新增「' + resource.name + '」（來源：' + resource.source + '），' + availabilityText(resource) + '。';
+        details = '將以「' + state.editorSourceName + '」為範本，新增「' + resource.name + '」：' + resourceSummaryText(resource) + '。';
       } else {
         title = '確認新增資源';
-        details = '將新增「' + resource.name + '」（來源：' + resource.source + '），' + availabilityText(resource) + '。';
+        details = '將新增「' + resource.name + '」：' + resourceSummaryText(resource) + '。';
       }
       showConfirmation(title, details, {
         type: 'save-resource',
