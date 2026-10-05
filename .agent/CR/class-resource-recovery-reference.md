@@ -2,7 +2,7 @@
 
 - **用途**：作為 CR 後續建立職業 / subclass 專用資源疊、設定回復周期、設計生成與重算規則的參考；不是目前程式已支援功能清單。
 - **規則基準**：D&D 5e 2014 版（含 2014 規則相容的後續選項），不混用 2024 新版規則。
-- **盤點範圍**：PHB、DMG、SCAG、XGE、Guildmasters' Guide to Ravnica、Eberron: Rising from the Last War、Explorer's Guide to Wildemount、Tasha's Cauldron of Everything、Van Richten's Guide to Ravenloft、Fizban's Treasury of Dragons。
+- **盤點範圍**：PHB、DMG、SCAG、XGE、Guildmasters' Guide to Ravnica、Eberron: Rising from the Last War、Explorer's Guide to Wildemount、Tasha's Cauldron of Everything、Van Richten's Guide to Ravenloft、Fizban's Treasury of Dragons、Bigby Presents: Glory of the Giants（BGG）、The Book of Many Things（BMT）。
 - **完整性界線**：列出上述來源範圍內的職業級資源池、具有限次 / 充能的資源型 subclass 能力，以及會支付資源的常見能力。官方資料還有其他冒險、設定、數位及短篇出版物；不在上述清單的出版內容未逐項核驗，不能將本文件當作所有官方 2014 相容出版物的絕對全集。UA、第三方與 homebrew 不在範圍。
 - **摘要方式**：以下用自己的話整理規則，不複製規則原文。子職業能力若消耗既有職業池，記在「消耗既有池」，不另外虛構一個使用次數池。
 
@@ -194,6 +194,44 @@
 - **Sorcerer：Magical Guidance**：每次花 1 Sorcery Point；Sorcerous Restoration 為 SR 恢復 4 點。
 - 其他可選法術表、武器 / 專精 / 靈活替換特性若沒有明文次數池，不建立資源疊。
 
+## BGG / BMT 玩家選項
+
+以下依 5e.tools 的 BGG / BMT 書籍資料、職業、專長與背景索引整理；僅列能形成可追蹤使用次數、免費施法或恢復條件的角色選項。這兩本書沒有額外通用職業資源池；背景本身通常授予專長，資源規則由被選到的專長提供。
+
+### BGG：Path of the Giant（Barbarian，p. 11–12）
+
+- Giant's Havoc、Elemental Cleaver、Mighty Impel、Demiurgic Colossus 的限制依賴 Rage、回合 / 動作或持續時間；沒有獨立的 subclass 使用次數池，Rage 次數沿用 Barbarian 共用池。
+- 巨人形態的尺寸、額外傷害、傷害類型切換與投擲目標都不是可另行恢復的充能資源。專用疊應記為「使用 Rage」的條件 / 效果，不要再複製一份 Rage 次數。
+
+### BGG：巨人專長
+
+- **Rune Shaper（p. 18）**：知道的符文數等於 PB 一半向下取整；每次 LR 後可將知道的符文刻在物件上，並暫時取得對應的一環法術。可用法術位施放；另有一次 / LR 的不花法術位施放（任一已刻符文法術），用後直到 LR 不能再用此免費施放。模型上是「符文選擇 / 長休重設」加「免費施法 1 次 / LR」，不是每個符文各有一次免費施放。
+- **Ember of the Fire Giant：Searing Ignition（p. 17）**：PB 次 / LR；每回合最多一次。
+- **Fury of the Frost Giant：Frigid Retaliation（p. 17）**：PB 次 / LR，以反應觸發。
+- **Guile of the Cloud Giant：Cloudy Escape（p. 18）**：PB 次 / LR，以反應觸發。
+- **Keenness of the Stone Giant：Stone Throw（p. 18）**：PB 次 / LR，以附贈動作使用。
+- **Soul of the Storm Giant：Maelstrom Aura（p. 19）**：PB 次 / LR，以附贈動作啟動；效果持續至下回合開始或失能。
+- **Vigor of the Hill Giant：Bulwark / Iron Stomach（p. 19）**：無獨立有限次數池；反應免疫移動 / 倒地依觸發條件，Iron Stomach 在短休花生命骰恢復 HP 時生效。
+- **Strike of the Giants（p. 19）**：六種 strike 共用「每回合一次」觸發，不因這個頻率本身建立可休息恢復的次數池。5e.tools 結構資料將 PB 次 / LR 的明文放在 Storm Strike 子項；實作 Storm Strike 前應按採用版本的印刷頁面確認該限制的適用範圍，不要推廣到其他 strike 選項。
+
+### BGG：背景（p. 6、12）
+
+- **Giant Foundling（p. 6）**：可選 Strike of the Giants；資源 / 頻率按所選專長，不另有背景池。
+- **Rune Carver（p. 12）**：可選 Rune Shaper；免費施法與符文重設按 Rune Shaper 條目，不另有背景池。
+
+### BMT：Cartomancer 與背景
+
+- **Cartomancer（p. 49）**：每次完成 LR，選擇一個符合條件且有相應法術位的職業法術，注入一張牌；牌維持 8 小時，之後可用附贈動作施放一次並失去魔力。這是一個「準備 1 次 / LR、有效 8 小時、施放 1 次」的施法機會，不是額外法術位。5e.tools 條文沒有寫明施放時免耗法術位；實作應依採用的印刷規則判讀法術位成本，勿直接登記成確定免費施法。
+- **Rewarded（p. 57）**：背景可選 Lucky、Magic Initiate 或 Skilled。背景本身沒有恢復池；若選 Lucky，沿用該專長的 3 點 Luck / LR；若選 2014 Magic Initiate，所選法術可免費施放一次 / LR（若角色有相應法術位，亦可用法術位施放）。Skilled 不提供有限次數池。
+- **Ruined（p. 58）**：背景可選 Alert、Skilled 或 Tough，均不新增有限次數 / 恢復池。
+- 5e.tools 的 BMT 職業子類索引沒有 BMT 來源的 subclass 條目；本輪 BMT 角色資源增補因此集中在 Cartomancer 與背景授予的專長，不把 Deck of Many Things 魔法物品充能誤列成職業資源。
+
+### 5e.tools 資料索引
+
+- [BGG 書籍資料](https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data/book/book-bgg.json)、[BMT 書籍資料](https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data/book/book-bmt.json)
+- [Barbarian 職業 / 子職業資料](https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data/class/class-barbarian.json)、[專長資料](https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data/feats.json)、[背景資料](https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/main/data/backgrounds.json)
+- 已查詢 13 個職業索引的 subclass source：本兩書只有 BGG Path of the Giant；未找到 BMT subclass。
+
 ## 版本 / 多職業 / 疊放規則
 
 - **Bladesinger 來源差異**：SCAG 原始版本為 2 次 / SR/LR；TCE 重印版本為 PB 次 / LR。角色資料需記錄採用版本或全專案指定單一版本，不能同時疊加。
@@ -234,3 +272,5 @@
 - **TCE**：Tasha's Cauldron of Everything
 - **VRGtR**：Van Richten's Guide to Ravenloft
 - **FToD**：Fizban's Treasury of Dragons
+- **BGG**：Bigby Presents: Glory of the Giants
+- **BMT**：The Book of Many Things
