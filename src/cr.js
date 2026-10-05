@@ -640,7 +640,7 @@
     [['', '選擇職業範本'], ['custom', '自訂職業'], ...Object.keys(classPresets).map(function (key) { return [key, classPresets[key].name]; })].forEach(function (item) {
       const option = createElement('option', '', item[1]); option.value = item[0]; preset.appendChild(option);
     });
-    preset.value = config && config.preset === 'custom' ? 'custom' : '';
+    preset.value = presetKey;
     presetWrap.append(presetLabel, preset);
     const nameWrap = createElement('div', 'col-12 col-md-3');
     const nameLabel = createElement('label', 'form-label small', '職業名稱');
@@ -648,7 +648,9 @@
     name.id = row.dataset.classId + '-name'; nameLabel.htmlFor = name.id;
     name.type = 'text'; name.maxLength = 80; name.required = true; name.value = config ? config.name : '';
     name.dataset.className = 'true';
-    nameWrap.append(nameLabel, name);
+    const nameDisplay = createElement('div', 'class-field-display d-none');
+    nameDisplay.dataset.classNameDisplay = 'true';
+    nameWrap.append(nameLabel, name, nameDisplay);
     const levelWrap = createElement('div', 'col-6 col-md-2');
     const levelLabel = createElement('label', 'form-label small', '等級（0 移除）');
     const level = createElement('input', 'form-control form-control-sm');
@@ -660,24 +662,30 @@
     const die = createElement('select', 'form-select form-select-sm'); die.dataset.classDie = 'true';
     die.id = row.dataset.classId + '-die'; dieLabel.htmlFor = die.id;
     hitDice.forEach(function (value) { const option = createElement('option', '', value); option.value = value; die.appendChild(option); });
-    die.value = config && hitDice.includes(config.hitDie) ? config.hitDie : 'd8'; dieWrap.append(dieLabel, die);
+    die.value = config && hitDice.includes(config.hitDie) ? config.hitDie : 'd8';
+    const dieDisplay = createElement('div', 'class-field-display d-none');
+    dieDisplay.dataset.classDieDisplay = 'true';
+    dieWrap.append(dieLabel, die, dieDisplay);
     const progressionWrap = createElement('div', 'col-12 col-md-2');
     const progressionLabel = createElement('label', 'form-label small', '施法進程');
     const progression = createElement('select', 'form-select form-select-sm'); progression.dataset.classProgression = 'true';
     progression.id = row.dataset.classId + '-progression'; progressionLabel.htmlFor = progression.id;
-    progressionWrap.append(progressionLabel, progression);
+    const progressionDisplay = createElement('div', 'class-field-display d-none');
+    progressionDisplay.dataset.classProgressionDisplay = 'true';
+    progressionWrap.append(progressionLabel, progression, progressionDisplay);
     fields.append(presetWrap, nameWrap, levelWrap, dieWrap, progressionWrap);
     row.appendChild(fields);
-    renderProgressionOptions(row, config && progressions.includes(config.progression) ? config.progression : 'none');
-    if (presetKey !== 'custom') {
-      name.disabled = true;
-      die.disabled = true;
-    }
+    const presetData = classPresets[presetKey];
+    const initialProgression = config && progressions.includes(config.progression)
+      ? config.progression
+      : presetData ? presetData.progression : 'none';
+    renderProgressionOptions(row, initialProgression);
     const manual = createElement('div', 'manual-slots row g-2 mt-1 d-none');
     manual.dataset.manualSlots = 'true';
     row.appendChild(manual);
     document.getElementById('classRows').appendChild(row);
     renderManualSlotInputs(row, config ? config.manualSlots : []);
+    updateClassRowFields(row);
     updateClassPresetOptions();
   }
 
@@ -693,6 +701,8 @@
       progression.appendChild(option);
     });
     progression.value = allowed.includes(selectedValue) ? selectedValue : allowed[0];
+    const display = row.querySelector('[data-class-progression-display]');
+    if (display) display.textContent = labels[progression.value] || progression.value;
   }
 
   function updateClassPresetOptions() {
@@ -710,18 +720,16 @@
     const presetData = classPresets[presetKey];
     if (rowsHaveClassKey(presetKey, row)) {
       setText(document.getElementById('classBuilderError'), '此職業已在其他列選擇，請先移除重複項目。');
-      row.querySelector('[data-class-preset]').value = '';
+      row.querySelector('[data-class-preset]').value = row.dataset.classKey;
       return;
     }
     row.dataset.classKey = presetKey;
     row.querySelector('[data-class-name]').value = presetData.name;
-    row.querySelector('[data-class-name]').disabled = true;
     row.querySelector('[data-class-die]').value = presetData.die;
-    row.querySelector('[data-class-die]').disabled = true;
-    const progression = row.querySelector('[data-class-progression]');
     renderProgressionOptions(row, presetData.progression);
-    row.querySelector('[data-class-preset]').value = '';
+    row.querySelector('[data-class-preset]').value = presetKey;
     renderManualSlotInputs(row, []);
+    updateClassRowFields(row);
     updateClassPresetOptions();
     setText(document.getElementById('classBuilderError'), '');
     row.classList.remove('class-row-applied');
@@ -740,11 +748,26 @@
 
   function unlockCustomClass(row) {
     row.dataset.classKey = 'custom';
-    row.querySelector('[data-class-name]').disabled = false;
-    row.querySelector('[data-class-die]').disabled = false;
     const progression = row.querySelector('[data-class-progression]').value;
     renderProgressionOptions(row, progression);
+    updateClassRowFields(row);
     updateClassPresetOptions();
+  }
+
+  function updateClassRowFields(row) {
+    const custom = rowIsCustom(row);
+    ['name', 'die', 'progression'].forEach(function (field) {
+      const input = row.querySelector('[data-class-' + field + ']');
+      const display = row.querySelector('[data-class-' + field + '-display]');
+      input.classList.toggle('d-none', !custom);
+      display.classList.toggle('d-none', custom);
+      if (!custom) {
+        const value = field === 'progression'
+          ? input.options[input.selectedIndex].textContent
+          : input.value;
+        display.textContent = value;
+      }
+    });
   }
 
   function renderManualSlotInputs(row, values) {
@@ -1029,6 +1052,7 @@
       const row = event.target.closest('.class-row');
       const values = Array.from(row.querySelectorAll('[data-manual-slot]')).map(function (input) { return Number(input.value) || 0; });
       renderManualSlotInputs(row, values);
+      updateClassRowFields(row);
     }
   });
 
@@ -1093,4 +1117,3 @@
   render();
   renderHitDiceAccumulator();
 })();
-
