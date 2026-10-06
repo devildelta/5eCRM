@@ -316,6 +316,8 @@ input {
 }
 
 .class-field-display {
+  display: flex;
+  align-items: center;
   min-height: 2.5rem;
   padding: 0.35rem 0.65rem;
   border: 1px solid #555f6c;
