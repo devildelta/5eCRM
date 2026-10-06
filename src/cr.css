@@ -146,18 +146,6 @@ header {
   flex-shrink: 0;
 }
 
-.resource-status {
-  color: #dfe5ec;
-}
-
-.resource-depleted .resource-status {
-  color: #e8b0b0;
-}
-
-.resource-low .resource-status {
-  color: #ead89b;
-}
-
 .card-body p {
   margin: 0 0 0.42rem;
   font-size: 0.98rem;
@@ -328,13 +316,30 @@ input {
 }
 
 .class-field-display {
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid #555f6c;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.04);
   color: #f1f4f8;
-  line-height: 1.5;
+  font-size: 1rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.hit-dice-accumulator {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #4a5360;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.hit-dice-accumulator p {
+  max-width: 100%;
+  white-space: normal;
   overflow-wrap: anywhere;
 }
 
@@ -378,6 +383,14 @@ input {
 
 .class-row .form-label {
   margin-bottom: 0.25rem;
+}
+
+.class-row .form-control-sm,
+.class-row .form-select-sm {
+  min-height: 2.5rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 1rem;
+  line-height: 1.3;
 }
 
 .class-row-applied {
@@ -511,7 +524,6 @@ input {
     font-size: 1.1rem;
   }
 
-  #skillList .resource-status,
   #skillList .resource-cooldown {
     font-size: 1.05rem !important;
   }
@@ -564,6 +576,21 @@ input {
   #managementResourceList {
     max-height: none;
     overflow: visible;
+  }
+
+  .resource-management-actions {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem !important;
+  }
+
+  .resource-management-actions .btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 3rem;
+    padding-left: 0.3rem;
+    padding-right: 0.3rem;
+    white-space: nowrap;
   }
 }
 

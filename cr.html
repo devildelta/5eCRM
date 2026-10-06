@@ -5,7 +5,7 @@
   <title>D&amp;D 5E 角色資源管理</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link href="src/cr.css?v=20261006-3" rel="stylesheet" />
+  <link href="src/cr.css?v=20261006-7" rel="stylesheet" />
 </head>
 <body>
   <main class="container py-4" id="crApp">
@@ -53,21 +53,23 @@
               </ul>
 
               <section class="management-section" data-section-panel="resources">
-                <div class="d-flex flex-wrap gap-2 mb-3">
-                  <button class="btn btn-success" type="button" data-action="new-resource">新增資源</button>
+                <div class="resource-management-actions d-flex flex-wrap gap-2 mb-3">
+                  <button class="btn btn-success" type="button" data-action="new-resource">新增</button>
+                  <!-- Resource-copy JS handling is retained while its control is hidden.
                   <button class="btn btn-outline-light" type="button" data-action="copy-resource">複製</button>
+                  -->
                   <button class="btn btn-outline-primary" type="button" data-action="edit-resource">修改</button>
                   <button class="btn btn-outline-danger" type="button" data-action="delete-resource">刪除</button>
                 </div>
-                <p id="resourceSelectionHint" class="small text-secondary">選擇一項資源以複製、修改或刪除。</p>
+                <p id="resourceSelectionHint" class="small text-secondary">選擇一項資源以修改或刪除。</p>
                 <div id="managementResourceList" class="list-group" role="radiogroup" aria-label="選擇要管理的資源"></div>
                 <div class="hit-dice-accumulator my-3" aria-label="暫存生命骰">
                   <p class="small text-secondary mb-2">先累積生命骰數量，再一次加入資源列表。</p>
                   <div class="hit-die-options">
-                    <button class="btn btn-sm btn-outline-light hit-die-add" type="button" data-action="accumulate-hit-die" data-die="d6">D6 <span class="badge text-bg-secondary" data-die-count="d6">0</span></button>
-                    <button class="btn btn-sm btn-outline-light hit-die-add" type="button" data-action="accumulate-hit-die" data-die="d8">D8 <span class="badge text-bg-secondary" data-die-count="d8">0</span></button>
-                    <button class="btn btn-sm btn-outline-light hit-die-add" type="button" data-action="accumulate-hit-die" data-die="d10">D10 <span class="badge text-bg-secondary" data-die-count="d10">0</span></button>
-                    <button class="btn btn-sm btn-outline-light hit-die-add" type="button" data-action="accumulate-hit-die" data-die="d12">D12 <span class="badge text-bg-secondary" data-die-count="d12">0</span></button>
+                    <button class="btn btn-sm btn-outline-light hit-die-add d-inline-flex flex-column align-items-center" type="button" data-action="accumulate-hit-die" data-die="d6">D6 <span class="badge text-bg-secondary" data-die-count="d6">0</span></button>
+                    <button class="btn btn-sm btn-outline-light hit-die-add d-inline-flex flex-column align-items-center" type="button" data-action="accumulate-hit-die" data-die="d8">D8 <span class="badge text-bg-secondary" data-die-count="d8">0</span></button>
+                    <button class="btn btn-sm btn-outline-light hit-die-add d-inline-flex flex-column align-items-center" type="button" data-action="accumulate-hit-die" data-die="d10">D10 <span class="badge text-bg-secondary" data-die-count="d10">0</span></button>
+                    <button class="btn btn-sm btn-outline-light hit-die-add d-inline-flex flex-column align-items-center" type="button" data-action="accumulate-hit-die" data-die="d12">D12 <span class="badge text-bg-secondary" data-die-count="d12">0</span></button>
                   </div>
                   <div class="hit-die-actions mt-2">
                     <button class="btn btn-sm btn-primary" type="button" data-action="commit-hit-dice">加入生命骰</button>
@@ -171,6 +173,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="src/cr.js?v=20261006-3"></script>
+  <script src="src/cr.js?v=20261006-7"></script>
 </body>
 </html>

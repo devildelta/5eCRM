@@ -49,13 +49,15 @@
     roleModal: null,
     toast: null,
     classRowId: 0,
+    openManagementAfterRoleCreate: false,
     hitDiceAccumulator: { d6: 0, d8: 0, d10: 0, d12: 0 }
   };
 
   const app = document.getElementById('crApp');
   const modalElement = document.getElementById('managementModal');
+  const roleModalElement = document.getElementById('roleCreateModal');
   state.modal = bootstrap.Modal.getOrCreateInstance(modalElement);
-  state.roleModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('roleCreateModal'));
+  state.roleModal = bootstrap.Modal.getOrCreateInstance(roleModalElement);
   state.toast = bootstrap.Toast.getOrCreateInstance(document.getElementById('crToast'));
 
   function notify(message) {
@@ -105,6 +107,10 @@
     return details.join('，');
   }
 
+  function displayResourceName(name) {
+    return String(name).replace(/\bd(6|8|10|12)\b/gi, function (_, die) { return 'D' + die; });
+  }
+
   function resourceState(resource) {
     const current = Number(resource.current);
     const max = Number(resource.max);
@@ -123,14 +129,11 @@
     summary.className = 'd-flex justify-content-between align-items-start gap-2';
     const name = document.createElement('div');
     name.className = 'fw-semibold';
-    name.textContent = resource.name;
+    name.textContent = displayResourceName(resource.name);
     const meta = document.createElement('div');
     meta.className = 'small text-secondary text-end resource-count';
     meta.textContent = '使用次數：' + resource.current + ' / ' + resource.max;
     summary.append(name, meta);
-    const status = document.createElement('div');
-    status.className = 'small resource-status';
-    status.textContent = '狀態：可用';
     const cooldown = document.createElement('div');
     cooldown.className = 'small text-secondary resource-cooldown';
     cooldown.textContent = '回復時機：' + resource.cooldown;
@@ -152,7 +155,7 @@
     resetButton.textContent = '重置';
     resetButton.disabled = !state.character;
     actions.append(useButton, resetButton);
-    row.append(summary, status, cooldown, actions);
+    row.append(summary, cooldown, actions);
     applyResourceStatus(row, resource);
     return row;
   }
@@ -206,7 +209,7 @@
     header.className = 'card-header d-flex justify-content-between align-items-start gap-2';
     const name = document.createElement('strong');
     name.className = 'resource-name';
-    name.textContent = resource.name;
+    name.textContent = displayResourceName(resource.name);
     const warning = document.createElement('span');
     warning.className = 'resource-warning d-none';
     warning.textContent = '⚠';
@@ -222,9 +225,6 @@
     const count = document.createElement('p');
     count.className = 'resource-count';
     count.textContent = '使用次數：' + resource.current + ' / ' + resource.max;
-    const status = document.createElement('p');
-    status.className = 'resource-status small mb-2';
-    status.setAttribute('aria-live', 'polite');
     const cooldown = document.createElement('p');
     cooldown.className = 'mb-3';
     cooldown.textContent = '回復時機：' + resource.cooldown;
@@ -245,7 +245,7 @@
     resetButton.textContent = '重置';
     resetButton.disabled = !state.character;
     actions.append(useButton, resetButton);
-    body.append(count, status, cooldown, actions);
+    body.append(count, cooldown, actions);
     card.append(header, body);
     applyResourceStatus(card, resource);
     column.appendChild(card);
@@ -324,10 +324,6 @@
       warning.title = overMax ? '目前可用次數高於新上限，請重置此資源。' : '';
       warning.setAttribute('aria-label', overMax ? '目前可用次數高於新上限，請重置此資源' : '');
     }
-    const status = card.querySelector ? card.querySelector('.resource-status') : null;
-    if (status) {
-      status.textContent = overMax ? '注意：目前次數高於上限，請重置' : depleted ? '狀態：已用盡' : low ? '狀態：剩餘偏低' : '狀態：可用';
-    }
   }
 
   function renderResources() {
@@ -399,7 +395,7 @@
       const description = document.createElement('span');
       description.className = 'flex-grow-1';
       const title = document.createElement('strong');
-      title.textContent = resource.name;
+      title.textContent = displayResourceName(resource.name);
       const detail = document.createElement('span');
       detail.className = 'd-block small text-secondary';
       const source = sourceInfo[resource.source] || sourceInfo['其他'];
@@ -411,7 +407,7 @@
     document.getElementById('resourceSelectionHint').classList.toggle('d-none', resources.length > 0);
     ['copy-resource', 'edit-resource', 'delete-resource'].forEach(function (action) {
       const button = document.querySelector('[data-action="' + action + '"]');
-      button.disabled = state.selectedResource === null || !resources[state.selectedResource];
+      if (button) button.disabled = state.selectedResource === null || !resources[state.selectedResource];
     });
   }
 
@@ -652,7 +648,7 @@
     nameDisplay.dataset.classNameDisplay = 'true';
     nameWrap.append(nameLabel, name, nameDisplay);
     const levelWrap = createElement('div', 'col-6 col-md-2');
-    const levelLabel = createElement('label', 'form-label small', '等級（0 移除）');
+    const levelLabel = createElement('label', 'form-label small', '等級');
     const level = createElement('input', 'form-control form-control-sm');
     level.id = row.dataset.classId + '-level'; levelLabel.htmlFor = level.id;
     level.type = 'number'; level.min = '0'; level.max = '20'; level.step = '1'; level.value = config ? config.level : '1';
@@ -661,7 +657,7 @@
     const dieLabel = createElement('label', 'form-label small', '生命骰');
     const die = createElement('select', 'form-select form-select-sm'); die.dataset.classDie = 'true';
     die.id = row.dataset.classId + '-die'; dieLabel.htmlFor = die.id;
-    hitDice.forEach(function (value) { const option = createElement('option', '', value); option.value = value; die.appendChild(option); });
+    hitDice.forEach(function (value) { const option = createElement('option', '', value.toUpperCase()); option.value = value; die.appendChild(option); });
     die.value = config && hitDice.includes(config.hitDie) ? config.hitDie : 'd8';
     const dieDisplay = createElement('div', 'class-field-display d-none');
     dieDisplay.dataset.classDieDisplay = 'true';
@@ -764,7 +760,7 @@
       if (!custom) {
         const value = field === 'progression'
           ? input.options[input.selectedIndex].textContent
-          : input.value;
+          : field === 'die' ? input.value.toUpperCase() : input.value;
         display.textContent = value;
       }
     });
@@ -1104,8 +1100,16 @@
     render();
     renderClassRowsFromResources();
     nameInput.value = '';
+    state.openManagementAfterRoleCreate = true;
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     state.roleModal.hide();
     notify('角色「' + name + '」已建立並選取。');
+  });
+
+  roleModalElement.addEventListener('hidden.bs.modal', function () {
+    if (!state.openManagementAfterRoleCreate) return;
+    state.openManagementAfterRoleCreate = false;
+    openManagement();
   });
 
   modalElement.addEventListener('hidden.bs.modal', function () {
