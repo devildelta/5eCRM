@@ -940,28 +940,63 @@
     setText(document.getElementById('backupStatus'), '角色設定已匯出。');
   }
 
+  function isValidImportData(data) {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+    return Object.keys(data).every(function (name) {
+      if (!name.trim() || !Array.isArray(data[name])) return false;
+      return data[name].every(function (resource) {
+        return Boolean(resource && typeof resource === 'object' && !Array.isArray(resource) &&
+          typeof resource.name === 'string' && resource.name.trim() &&
+          Number.isInteger(resource.current) && resource.current >= 0 &&
+          Number.isInteger(resource.max) && resource.max >= 1 &&
+          typeof resource.cooldown === 'string' &&
+          typeof resource.source === 'string');
+      });
+    });
+  }
+
   function importData() {
     const input = document.getElementById('importBox').value.trim();
     if (!input) {
       setText(document.getElementById('backupStatus'), '請先貼上 Base64 匯出字串。');
       return;
     }
+    let data;
     try {
-      const data = JSON.parse(decodeURIComponent(escape(atob(input))));
-      if (!data || typeof data !== 'object') throw new Error('Invalid import');
-      Object.keys(data).forEach(function (name) {
-        if (state.db[name] && !window.confirm('角色「' + name + '」已存在，是否覆蓋？')) return;
-        state.db[name] = data[name];
-      });
-      save();
-      if (!state.character && Object.keys(state.db).length) state.character = Object.keys(state.db)[0];
-      state.selectedResource = null;
-      render();
-      renderClassRowsFromResources();
-      setText(document.getElementById('backupStatus'), '匯入完成。');
+      data = JSON.parse(decodeURIComponent(escape(atob(input))));
     } catch (error) {
       setText(document.getElementById('backupStatus'), '資料格式錯誤，請確認為正確的 Base64 編碼 JSON。');
+      return;
     }
+    if (!isValidImportData(data)) {
+      setText(document.getElementById('backupStatus'), '匯入資料結構錯誤；現有資料未變更。');
+      return;
+    }
+
+    const accepted = [];
+    Object.keys(data).forEach(function (name) {
+      if (Object.prototype.hasOwnProperty.call(state.db, name) && !window.confirm('角色「' + name + '」已存在，是否覆蓋？')) return;
+      accepted.push(name);
+    });
+    const nextDb = Object.create(null);
+    Object.keys(state.db).forEach(function (name) {
+      Object.defineProperty(nextDb, name, { value: state.db[name], enumerable: true, configurable: true, writable: true });
+    });
+    accepted.forEach(function (name) {
+      Object.defineProperty(nextDb, name, { value: data[name], enumerable: true, configurable: true, writable: true });
+    });
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(nextDb));
+    } catch (error) {
+      setText(document.getElementById('backupStatus'), '無法儲存匯入資料，現有資料未變更。');
+      throw error;
+    }
+    state.db = nextDb;
+    if (!state.character && Object.keys(state.db).length) state.character = Object.keys(state.db)[0];
+    state.selectedResource = null;
+    render();
+    renderClassRowsFromResources();
+    setText(document.getElementById('backupStatus'), '匯入完成。');
   }
 
   function handleAction(actionElement) {

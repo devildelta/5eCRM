@@ -16,3 +16,8 @@
   1. 該輪任務的所有 TODO 項目已全部標記為完成（Status: Done）。
   2. 修正後的 Clean Code 已成功寫入或輸出給使用者。
 * **清理執行動作**：大掃除啟動時，Agent 必須「Drop / 清除」所有歷史回傳的肥大 HTML/CSS 樣板文字與中間測試日誌，只在 Context 中留下 `[Current State Base]`（即最終版 JSON Schema 與核心 JS 函式特徵）。
+
+# Model Orchestration Rules
+- Primary Orchestrator MUST be the cloud-hosted frontier model (e.g., GPT-6 / Claude).
+- The local endpoint (Strata) is STRICTLY restricted to child code generation tasks.
+- NEVER route system planning, task breakdown, or architectural decisions to the local provider.
