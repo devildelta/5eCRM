@@ -1055,8 +1055,9 @@
     currentResources().forEach(function (resource, index) {
       if (tiers[resource.cooldown] !== undefined && tiers[resource.cooldown] <= tier) {
         const previous = Number(resource.current);
-        if (isHitDieResource(resource)) {
-          const restored = Math.min(Number(resource.max), Number(resource.current) + Math.floor(Number(resource.max) / 2));
+        if (isHitDieResource(resource) && level === '長休') {
+          const recovery = Math.max(1, Math.floor(Number(resource.max) / 2));
+          const restored = Math.min(Number(resource.max), Number(resource.current) + recovery);
           resource.current = restored;
         } else {
           resource.current = resource.max;
