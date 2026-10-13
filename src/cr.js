@@ -114,10 +114,11 @@
   function resourceState(resource) {
     const current = Number(resource.current);
     const max = Number(resource.max);
+    const ratio = max > 0 ? current / max : 0;
     return {
       overMax: current > max,
       depleted: current === 0,
-      low: current > 0 && max > 0 && current / max <= 0.5
+      countBand: current === 0 ? 'zero' : ratio <= 0.25 ? 'red' : ratio <= 0.5 ? 'orange' : ratio <= 0.75 ? 'yellow' : 'green'
     };
   }
 
@@ -192,9 +193,6 @@
     card.append(header, body);
     const states = items.map(function (item) { return resourceState(item.resource); });
     const allDepleted = states.length > 0 && states.every(function (value) { return value.depleted; });
-    const allLowOrDepleted = states.length > 0 && states.every(function (value) { return value.low || value.depleted; });
-    card.classList.toggle('resource-depleted', allDepleted);
-    card.classList.toggle('resource-low', allLowOrDepleted && !allDepleted);
     card.classList.toggle('resource-over-max', states.length > 0 && states.every(function (value) { return value.overMax; }) && !allDepleted);
     column.appendChild(card);
     return column;
@@ -334,9 +332,9 @@
     const stateInfo = resourceState(resource);
     const overMax = stateInfo.overMax;
     const depleted = stateInfo.depleted;
-    const low = stateInfo.low;
-    card.classList.toggle('resource-depleted', depleted);
-    card.classList.toggle('resource-low', low);
+    ['green', 'yellow', 'orange', 'red', 'zero'].forEach(function (band) {
+      card.classList.toggle('resource-status-' + band, stateInfo.countBand === band);
+    });
     card.classList.toggle('resource-over-max', overMax);
     const warning = card.querySelector ? card.querySelector('.resource-warning') : null;
     if (warning) {
@@ -401,7 +399,9 @@
     matches.forEach(function (match) {
       const row = match.classList.contains('resource-row') ? match : match.querySelector('.card') || match;
       const count = row.querySelector('.resource-count');
-      if (count) count.textContent = '使用次數：' + resource.current + ' / ' + resource.max;
+      if (count) {
+        count.textContent = '使用次數：' + resource.current + ' / ' + resource.max;
+      }
       const useButton = row.querySelector('[data-action="use-resource"]');
       if (useButton) useButton.disabled = Number(resource.current) <= 0;
       applyResourceStatus(row, resource);
@@ -413,10 +413,7 @@
           return resourceState(currentResources()[itemIndex]);
         });
         const allDepleted = states.length > 0 && states.every(function (value) { return value.depleted; });
-        const allLowOrDepleted = states.length > 0 && states.every(function (value) { return value.low || value.depleted; });
         const allOverMax = states.length > 0 && states.every(function (value) { return value.overMax; });
-        card.classList.toggle('resource-depleted', allDepleted);
-        card.classList.toggle('resource-low', allLowOrDepleted && !allDepleted);
         card.classList.toggle('resource-over-max', allOverMax && !allDepleted);
       }
     });
@@ -654,7 +651,7 @@
       save();
       render();
       renderClassRowsFromResources();
-      setManagementView('sections');
+      state.modal.hide();
     } else if (action.type === 'copy-character') {
       state.db[action.target] = JSON.parse(JSON.stringify(state.db[action.source]));
       save();
@@ -1078,6 +1075,23 @@
     setText(document.getElementById('backupStatus'), '角色設定已匯出。');
   }
 
+  function copyExportText() {
+    const exportBox = document.getElementById('exportBox');
+    if (!exportBox.value) return;
+    if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+      setText(document.getElementById('backupStatus'), '此瀏覽器無法直接使用剪貼簿，請手動選取匯出字串。');
+      return;
+    }
+    navigator.clipboard.writeText(exportBox.value).then(function () {
+      exportBox.classList.remove('copied-glow');
+      void exportBox.offsetWidth;
+      exportBox.classList.add('copied-glow');
+      setText(document.getElementById('backupStatus'), '設定字串已複製。');
+    }).catch(function () {
+      setText(document.getElementById('backupStatus'), '無法使用剪貼簿，請確認瀏覽器權限後再試。');
+    });
+  }
+
   function isValidImportData(data) {
     if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
     return Object.keys(data).every(function (name) {
@@ -1169,13 +1183,7 @@
       showConfirmation('確認刪除角色', '將刪除角色「' + state.character + '」及其所有資源。此動作無法還原。', { type: 'delete-character', name: state.character });
     } else if (action === 'export') exportData();
     else if (action === 'import') importData();
-    else if (action === 'copy-export') {
-      navigator.clipboard.writeText(document.getElementById('exportBox').value).then(function () {
-        setText(document.getElementById('backupStatus'), '設定字串已複製。');
-      }).catch(function () {
-        setText(document.getElementById('backupStatus'), '無法使用剪貼簿，請手動複製匯出字串。');
-      });
-    } else if (action === 'confirm-management') performPendingAction();
+    else if (action === 'confirm-management') performPendingAction();
     else if (action === 'cancel-confirm') {
       state.pendingAction = null;
       setManagementView('sections');
@@ -1283,7 +1291,15 @@
     state.pendingAction = null;
     setManagementView('sections');
     setManagementSection('resources');
+    document.getElementById('copyCharacterName').value = '';
+    document.getElementById('importBox').value = '';
+    document.getElementById('exportBox').value = '';
+    document.getElementById('exportBox').classList.remove('copied-glow');
+    document.getElementById('exportActions').classList.add('d-none');
+    setText(document.getElementById('backupStatus'), '');
   });
+
+  document.getElementById('exportBox').addEventListener('click', copyExportText);
 
   render();
   renderHitDiceAccumulator();

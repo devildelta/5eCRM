@@ -1,5 +1,7 @@
 html {
   color-scheme: dark;
+  overflow-x: clip;
+  overscroll-behavior-x: none;
 }
 
 * {
@@ -11,12 +13,42 @@ body {
   color: #f3f5f7;
   font-size: 16px;
   line-height: 1.5;
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+}
+
+html,
+body {
+  max-width: 100%;
+}
+
+html {
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar {
+  display: none;
+}
+
+body,
+.modal-body,
+#managementResourceList,
+#exportBox {
+  scrollbar-width: none;
+}
+
+body::-webkit-scrollbar,
+.modal-body::-webkit-scrollbar,
+#managementResourceList::-webkit-scrollbar,
+#exportBox::-webkit-scrollbar {
+  display: none;
 }
 
 #crApp {
   max-width: 1200px;
   margin: 0 auto;
   padding: 1.5rem clamp(0.75rem, 2vw, 1.5rem) 2.5rem;
+  overflow-x: clip;
 }
 
 header {
@@ -65,29 +97,20 @@ header {
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
 }
 
-.card.resource-depleted {
-  background-color: #382a2b;
-  border-color: #755154;
-}
-
-.card.resource-low {
-  background-color: #393528;
-  border-color: #756a43;
-}
+.card.resource-status-green,
+.resource-row.resource-status-green { background-color: #294e35; }
+.card.resource-status-yellow,
+.resource-row.resource-status-yellow { background-color: #594f20; }
+.card.resource-status-orange,
+.resource-row.resource-status-orange { background-color: #633b1e; }
+.card.resource-status-red,
+.resource-row.resource-status-red { background-color: #632a2e; }
+.card.resource-status-zero,
+.resource-row.resource-status-zero { background-color: #1a1a1a; }
 
 .card.resource-over-max {
   border: 2px solid #a64f52;
   box-shadow: 0 0 0 1px rgba(166, 79, 82, 0.18);
-}
-
-.resource-row.resource-depleted {
-  background-color: #382a2b;
-  border-color: #755154;
-}
-
-.resource-row.resource-low {
-  background-color: #393528;
-  border-color: #756a43;
 }
 
 .resource-row.resource-over-max {
@@ -295,8 +318,16 @@ input {
 
 .cr-modal .modal-body {
   max-height: min(72vh, 760px);
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 1rem 1rem 1.2rem;
+  overscroll-behavior: contain;
+}
+
+.management-section,
+#managementResourceList {
+  max-height: none;
+  overflow: visible;
 }
 
 .modal-header,
@@ -425,6 +456,19 @@ input {
   overflow: auto;
 }
 
+#exportBox.copied-glow {
+  animation: export-copied-glow 1.2s ease-out;
+}
+
+@keyframes export-copied-glow {
+  0%, 35% { box-shadow: 0 0 0 3px rgba(85, 220, 131, 0.95), 0 0 22px rgba(85, 220, 131, 0.75); }
+  100% { box-shadow: 0 0 0 0 rgba(85, 220, 131, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #exportBox.copied-glow { animation: none; outline: 2px solid #55dc83; }
+}
+
 #exportActions {
   display: flex;
   justify-content: space-between;
@@ -455,7 +499,15 @@ input {
   }
 
   #characterSelect {
-    flex: 1 1 180px;
+    min-width: 0;
+  }
+
+  .character-controls {
+    width: 100%;
+    margin: 0;
+  }
+
+  .character-controls > * {
     min-width: 0;
   }
 
@@ -479,10 +531,6 @@ input {
     margin: 0.75rem auto;
   }
 
-  .management-section {
-    max-height: 60vh;
-  }
-
   #exportActions {
     flex-direction: column;
     align-items: flex-start;
@@ -493,6 +541,8 @@ input {
   #crApp {
     padding-left: 0.35rem;
     padding-right: 0.35rem;
+    width: 100%;
+    max-width: 100%;
   }
 
   body {
@@ -568,16 +618,6 @@ input {
   .modal-body {
     padding-left: 0.55rem;
     padding-right: 0.55rem;
-  }
-
-  .management-section {
-    max-height: none;
-    overflow: visible;
-  }
-
-  #managementResourceList {
-    max-height: none;
-    overflow: visible;
   }
 
   .resource-management-actions {
