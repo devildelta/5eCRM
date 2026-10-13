@@ -4,6 +4,13 @@
 1. 只要涉及 JavaScript，一律封裝進 IIFE，拒絕任何全域變數洩漏。
 2. 只要涉及 UI 框架，一律只能使用 Bootstrap 5 原生語法（CDN 版），嚴禁產出 React/Vue/jQuery 或 ES Module 語法。
 
+### 本機單頁工具驗收：Serverless 優先
+
+- 對使用相對路徑資源的靜態 HTML/CSS/classic JavaScript 單頁工具，優先直接以瀏覽器開啟 `file:///.../page.html` 驗收，不要僅為本機檢查而啟動 HTTP 伺服器。
+- 只有當被測功能確實依賴 HTTP(S) 行為（例如 API/fetch、伺服器路由、service worker、secure-context API，或 HTTP origin 特有功能）時才啟動本機伺服器，並說明原因。
+- `file://` 下的 `localStorage` 等瀏覽器行為可能因瀏覽器而異；須在目標瀏覽器實測，不可假設跨瀏覽器一致。驗收應使用隔離的暫存資料/瀏覽器設定檔，避免覆寫使用者資料。
+- 使用 CDN 的頁面仍需要網絡載入 CDN 資源；不啟動本機伺服器不代表離線可用。
+
 當使用者在此專案詢問任何關於「DND 5E 規則」」、「遊戲數據結構 (JSON/Schema)」、「DND 數值計算邏輯」或「相關前端工具代碼」的任務時，普通 Agent 必須自動切換為「DND 5E (2014) Rules Auditor」專家模式，並嚴格執行以下過濾與工作流：
 
 1. 【核心規範限制】：必須嚴格鎖定 2014 年版官方核心規則（RAW），主動過濾並拒絕任何 2024 新版術語（如 D20 Test, Weapon Masteries）。
