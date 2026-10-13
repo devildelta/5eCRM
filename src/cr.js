@@ -163,6 +163,7 @@
   function createGroupedResourceCard(label, items) {
     const column = document.createElement('div');
     column.className = 'col-12 col-md-6 col-xl-4';
+    column.dataset.resourceGroup = resourceGroupType(items[0].resource);
     const card = document.createElement('article');
     card.className = 'card h-100';
     const header = document.createElement('div');
@@ -203,6 +204,7 @@
     const column = document.createElement('div');
     column.className = 'col-12 col-md-6 col-xl-4';
     column.dataset.resourceIndex = String(index);
+    column.dataset.resourceGroup = resourceGroupType(resource);
     const card = document.createElement('article');
     card.className = 'card h-100';
     const header = document.createElement('div');
@@ -281,6 +283,24 @@
     return groups.filter(function (group) { return group.items.length > 0; });
   }
 
+  function resourceGroupType(resource) {
+    if (isHitDieResource(resource)) return 'hit-dice';
+    if (isMysticArcanumResource(resource)) return 'pact';
+    if (isSpellSlotResource(resource)) {
+      if (resource && resource.generatedClass && resource.generatedClass.kind === 'pact-slot') return 'pact';
+      return resourceSlotLevel(resource) <= 5 ? 'spell-1-5' : 'spell-6-9';
+    }
+    return 'other';
+  }
+
+  function createResourceGroupElement(group) {
+    if (group.items.length === 1) {
+      const item = group.items[0];
+      return createResourceCard(item.resource, item.index);
+    }
+    return createGroupedResourceCard(group.label, group.items);
+  }
+
   function setText(element, value) {
     element.textContent = value == null ? '' : String(value);
   }
@@ -332,17 +352,44 @@
     list.replaceChildren();
     const grouped = groupResourcesForDisplay(entries);
     grouped.forEach(function (group) {
-      if (group.items.length === 1) {
-        const item = group.items[0];
-        list.appendChild(createResourceCard(item.resource, item.index));
-      } else {
-        list.appendChild(createGroupedResourceCard(group.label, group.items));
-      }
+      list.appendChild(createResourceGroupElement(group));
     });
+    updateEmptyState();
+  }
+
+  function updateEmptyState() {
     const resources = currentResources();
     document.getElementById('emptyState').classList.toggle('d-none', resources.length > 0);
     if (!state.character) setText(document.getElementById('emptyState'), '請先選擇角色，或建立一個新角色。');
     else if (!resources.length) setText(document.getElementById('emptyState'), '此角色尚無資源。請從「管理」新增資源。');
+  }
+
+  function refreshResourceGroups(groupTypes) {
+    const list = document.getElementById('skillList');
+    const grouped = groupResourcesForDisplay(sortResourcesForDisplay(currentResources()));
+    const order = ['hit-dice', 'spell-1-5', 'spell-6-9', 'pact', 'other'];
+    Array.from(new Set(groupTypes)).sort(function (left, right) {
+      return order.indexOf(left) - order.indexOf(right);
+    }).forEach(function (type) {
+      const existing = Array.from(list.children).find(function (element) {
+        return element.dataset.resourceGroup === type;
+      });
+      const group = grouped.find(function (item) { return item.type === type; });
+      if (!group) {
+        if (existing) existing.remove();
+        return;
+      }
+      const replacement = createResourceGroupElement(group);
+      if (existing) {
+        list.replaceChild(replacement, existing);
+        return;
+      }
+      const nextGroup = Array.from(list.children).find(function (element) {
+        return order.indexOf(element.dataset.resourceGroup) > order.indexOf(type);
+      });
+      list.insertBefore(replacement, nextGroup || null);
+    });
+    updateEmptyState();
   }
 
   function refreshResourceAt(index) {
@@ -381,29 +428,85 @@
     const entries = sortResourcesForDisplay(resources);
     list.replaceChildren();
     entries.forEach(function (entry) {
-      const resource = entry.resource;
-      const index = entry.index;
-      const label = document.createElement('label');
-      label.className = 'list-group-item d-flex align-items-center gap-3';
-      const radio = document.createElement('input');
-      radio.className = 'form-check-input flex-shrink-0';
-      radio.type = 'radio';
-      radio.name = 'managedResource';
-      radio.value = index;
-      radio.dataset.resourceSelect = 'true';
-      radio.checked = state.selectedResource === index;
-      const description = document.createElement('span');
-      description.className = 'flex-grow-1';
-      const title = document.createElement('strong');
-      title.textContent = displayResourceName(resource.name);
-      const detail = document.createElement('span');
-      detail.className = 'd-block small text-secondary';
-      const source = sourceInfo[resource.source] || sourceInfo['其他'];
-      detail.textContent = resource.current + ' / ' + resource.max + '，' + resource.cooldown + '，' + resource.source + ' (' + source.english + ')：' + source.description;
-      description.append(title, detail);
-      label.append(radio, description);
-      list.appendChild(label);
+      list.appendChild(createManagementResourceItem(entry.resource, entry.index));
     });
+    syncManagementResourceControls();
+  }
+
+  function createManagementResourceItem(resource, index) {
+    const label = document.createElement('label');
+    label.className = 'list-group-item d-flex align-items-center gap-3';
+    label.dataset.resourceIndex = String(index);
+    const radio = document.createElement('input');
+    radio.className = 'form-check-input flex-shrink-0';
+    radio.type = 'radio';
+    radio.name = 'managedResource';
+    radio.value = index;
+    radio.dataset.resourceSelect = 'true';
+    radio.checked = state.selectedResource === index;
+    const description = document.createElement('span');
+    description.className = 'flex-grow-1';
+    const title = document.createElement('strong');
+    title.textContent = displayResourceName(resource.name);
+    const detail = document.createElement('span');
+    detail.className = 'd-block small text-secondary';
+    const source = sourceInfo[resource.source] || sourceInfo['其他'];
+    detail.textContent = resource.current + ' / ' + resource.max + '，' + resource.cooldown + '，' + resource.source + ' (' + source.english + ')：' + source.description;
+    description.append(title, detail);
+    label.append(radio, description);
+    return label;
+  }
+
+  function findManagementResourceItem(index) {
+    return Array.from(document.getElementById('managementResourceList').children).find(function (item) {
+      return Number(item.dataset.resourceIndex) === index;
+    }) || null;
+  }
+
+  function positionManagementResourceItem(item, index) {
+    const list = document.getElementById('managementResourceList');
+    const entries = sortResourcesForDisplay(currentResources());
+    const position = entries.findIndex(function (entry) { return entry.index === index; });
+    const nextItem = entries.slice(position + 1).map(function (entry) {
+      return findManagementResourceItem(entry.index);
+    }).find(function (candidate) { return candidate && candidate !== item; });
+    list.insertBefore(item, nextItem || null);
+  }
+
+  function updateManagementResourceAt(index) {
+    const list = document.getElementById('managementResourceList');
+    const existing = findManagementResourceItem(index);
+    const resource = currentResources()[index];
+    if (!resource) return;
+    const item = createManagementResourceItem(resource, index);
+    if (existing) list.replaceChild(item, existing);
+    positionManagementResourceItem(item, index);
+    syncManagementResourceControls();
+  }
+
+  function addManagementResourceAt(index) {
+    const resource = currentResources()[index];
+    if (!resource) return;
+    const item = createManagementResourceItem(resource, index);
+    positionManagementResourceItem(item, index);
+    syncManagementResourceControls();
+  }
+
+  function removeManagementResourceAt(index) {
+    const list = document.getElementById('managementResourceList');
+    const item = findManagementResourceItem(index);
+    if (item) item.remove();
+    Array.from(list.children).forEach(function (resourceItem) {
+      const itemIndex = Number(resourceItem.dataset.resourceIndex);
+      if (itemIndex <= index) return;
+      resourceItem.dataset.resourceIndex = String(itemIndex - 1);
+      resourceItem.querySelector('[data-resource-select]').value = String(itemIndex - 1);
+    });
+    syncManagementResourceControls();
+  }
+
+  function syncManagementResourceControls() {
+    const resources = currentResources();
     document.getElementById('resourceSelectionHint').classList.toggle('d-none', resources.length > 0);
     ['copy-resource', 'edit-resource', 'delete-resource'].forEach(function (action) {
       const button = document.querySelector('[data-action="' + action + '"]');
@@ -494,22 +597,55 @@
     setText(document.getElementById('resourceSourceHelp'), value + ' ' + source.english + '：' + source.description + '。');
   }
 
+  function shiftResourceIndexesAfterDelete(index) {
+    const list = document.getElementById('skillList');
+    list.querySelectorAll('[data-resource-index]').forEach(function (element) {
+      const value = Number(element.dataset.resourceIndex);
+      if (value > index) element.dataset.resourceIndex = String(value - 1);
+    });
+    list.querySelectorAll('[data-action="use-resource"], [data-action="reset-resource"]').forEach(function (button) {
+      const value = Number(button.dataset.index);
+      if (value > index) button.dataset.index = String(value - 1);
+    });
+  }
+
   function performPendingAction() {
     const action = state.pendingAction;
     if (!action) return;
     if (action.type === 'save-resource') {
       const resources = currentResources();
-      if (action.mode === 'edit') resources[action.index] = action.resource;
-      else resources.push(action.resource);
-      state.selectedResource = action.mode === 'edit' ? action.index : resources.length - 1;
+      let index;
+      let affectedGroups;
+      if (action.mode === 'edit') {
+        const previous = resources[action.index];
+        if (!previous) return;
+        index = action.index;
+        affectedGroups = [resourceGroupType(previous)];
+        resources[index] = Object.assign({}, previous, action.resource);
+        affectedGroups.push(resourceGroupType(resources[index]));
+      } else {
+        resources.push(action.resource);
+        index = resources.length - 1;
+        affectedGroups = [resourceGroupType(action.resource)];
+      }
+      state.selectedResource = index;
       save();
-      render();
+      refreshResourceGroups(affectedGroups);
+      if (action.mode === 'edit') updateManagementResourceAt(index);
+      else addManagementResourceAt(index);
       setManagementView('sections');
     } else if (action.type === 'delete-resource') {
-      currentResources().splice(action.index, 1);
-      state.selectedResource = null;
+      const resources = currentResources();
+      const deleted = resources[action.index];
+      if (!deleted) return;
+      const previousSelection = state.selectedResource;
+      resources.splice(action.index, 1);
+      if (previousSelection === action.index) state.selectedResource = null;
+      else if (previousSelection !== null && previousSelection > action.index) state.selectedResource = previousSelection - 1;
       save();
-      render();
+      shiftResourceIndexesAfterDelete(action.index);
+      refreshResourceGroups([resourceGroupType(deleted)]);
+      removeManagementResourceAt(action.index);
       setManagementView('sections');
     } else if (action.type === 'delete-character') {
       delete state.db[action.name];
@@ -918,13 +1054,14 @@
     const changedIndexes = [];
     currentResources().forEach(function (resource, index) {
       if (tiers[resource.cooldown] !== undefined && tiers[resource.cooldown] <= tier) {
+        const previous = Number(resource.current);
         if (isHitDieResource(resource)) {
           const restored = Math.min(Number(resource.max), Number(resource.current) + Math.floor(Number(resource.max) / 2));
           resource.current = restored;
         } else {
           resource.current = resource.max;
         }
-        changedIndexes.push(index);
+        if (Number(resource.current) !== previous) changedIndexes.push(index);
       }
     });
     if (changedIndexes.length) {
@@ -973,16 +1110,10 @@
       return;
     }
 
-    const accepted = [];
-    Object.keys(data).forEach(function (name) {
-      if (Object.prototype.hasOwnProperty.call(state.db, name) && !window.confirm('角色「' + name + '」已存在，是否覆蓋？')) return;
-      accepted.push(name);
-    });
+    if (!window.confirm('匯入將覆蓋所有現有角色資料，包括匯入檔中沒有的角色。此動作無法還原。是否繼續？')) return;
+
     const nextDb = Object.create(null);
-    Object.keys(state.db).forEach(function (name) {
-      Object.defineProperty(nextDb, name, { value: state.db[name], enumerable: true, configurable: true, writable: true });
-    });
-    accepted.forEach(function (name) {
+    Object.keys(data).forEach(function (name) {
       Object.defineProperty(nextDb, name, { value: data[name], enumerable: true, configurable: true, writable: true });
     });
     try {
@@ -992,7 +1123,7 @@
       throw error;
     }
     state.db = nextDb;
-    if (!state.character && Object.keys(state.db).length) state.character = Object.keys(state.db)[0];
+    if (!Object.prototype.hasOwnProperty.call(state.db, state.character)) state.character = Object.keys(state.db)[0] || '';
     state.selectedResource = null;
     render();
     renderClassRowsFromResources();
@@ -1070,7 +1201,7 @@
       renderClassRowsFromResources();
     } else if (event.target.matches('[data-resource-select]')) {
       state.selectedResource = Number.parseInt(event.target.value, 10);
-      renderManagementResources();
+      syncManagementResourceControls();
     } else if (event.target.id === 'resourceSource') {
       updateSourceHelp();
     } else if (event.target.matches('[data-class-preset]')) {
