@@ -1,0 +1,13 @@
+{
+  "resourceCountTemplate": "{prefix}{current} / {max}",
+  "dieNameTemplate": "D{size}",
+  "dieD6": "D6",
+  "dieD8": "D8",
+  "dieD10": "D10",
+  "dieD12": "D12",
+  "sourceClassEnglish": "Class",
+  "sourceFeatureEnglish": "Character Feature",
+  "sourceMagicItemEnglish": "Magic Item",
+  "sourceOtherEnglish": "Other",
+  "warningSymbol": "⚠"
+}

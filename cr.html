@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-HK">
 <head>
   <meta charset="UTF-8" />
-  <title>D&amp;D 5E 角色資源管理</title>
+  <title data-i18n="pageTitle"></title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="src/cr.css?v=20261014-2" rel="stylesheet" />
@@ -11,29 +11,29 @@
   <main class="container py-4" id="crApp">
     <header class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
       <div>
-        <h1 class="h2 mb-1">D&amp;D 5E 角色資源</h1>
-        <p id="currentLabel" class="text-info mb-0">目前角色：尚未選擇</p>
+        <h1 class="h2 mb-1" data-i18n="appHeading"></h1>
+        <p id="currentLabel" class="text-info mb-0"></p>
       </div>
       <div class="row g-2 align-items-center character-controls">
-        <label class="visually-hidden" for="characterSelect">選擇角色</label>
-        <div class="col-12 col-sm-auto character-select-col"><select id="characterSelect" class="form-select" aria-label="選擇角色"></select></div>
-        <div class="col-6 col-sm-auto character-action-col"><button class="btn btn-primary w-100" type="button" data-bs-toggle="modal" data-bs-target="#roleCreateModal">建立角色</button></div>
-        <div class="col-6 col-sm-auto character-action-col"><button class="btn btn-outline-light w-100" type="button" data-action="open-management">管理</button></div>
+        <label class="visually-hidden" for="characterSelect" data-i18n="characterSelectLabel"></label>
+        <div class="col-12 col-sm-auto character-select-col"><select id="characterSelect" class="form-select" data-i18n-aria-label="characterSelectLabel"></select></div>
+        <div class="col-6 col-sm-auto character-action-col"><button class="btn btn-primary w-100" type="button" data-bs-toggle="modal" data-bs-target="#roleCreateModal" data-i18n="createCharacter"></button></div>
+        <div class="col-6 col-sm-auto character-action-col"><button class="btn btn-outline-light w-100" type="button" data-action="open-management" data-i18n="openManagement"></button></div>
       </div>
     </header>
 
     <section aria-labelledby="restHeading" class="mb-4">
-      <h2 id="restHeading" class="h5">休息回復</h2>
+      <h2 id="restHeading" class="h5" data-i18n="restHeading"></h2>
       <div class="row g-2 rest-actions">
-        <div class="col-4"><button class="btn btn-outline-light w-100" type="button" data-action="reset-cooldown" data-level="每回合">每回合</button></div>
-        <div class="col-4"><button class="btn btn-outline-warning w-100" type="button" data-action="reset-cooldown" data-level="短休">短休</button></div>
-        <div class="col-4"><button class="btn btn-outline-danger w-100" type="button" data-action="reset-cooldown" data-level="長休">長休</button></div>
+        <div class="col-4"><button class="btn btn-outline-light w-100" type="button" data-action="reset-cooldown" data-level="每回合" data-i18n="cooldownEveryTurn"></button></div>
+        <div class="col-4"><button class="btn btn-outline-warning w-100" type="button" data-action="reset-cooldown" data-level="短休" data-i18n="cooldownShortRest"></button></div>
+        <div class="col-4"><button class="btn btn-outline-danger w-100" type="button" data-action="reset-cooldown" data-level="長休" data-i18n="cooldownLongRest"></button></div>
       </div>
     </section>
 
     <section aria-labelledby="resourceHeading">
-      <h2 id="resourceHeading" class="h5">角色資源</h2>
-      <div id="emptyState" class="text-secondary py-3">請先選擇角色，或建立一個新角色。</div>
+      <h2 id="resourceHeading" class="h5" data-i18n="resourceHeading"></h2>
+      <div id="emptyState" class="text-secondary py-3" data-i18n="emptySelectCharacter"></div>
       <div id="skillList" class="row g-3"></div>
     </section>
 
@@ -41,49 +41,49 @@
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content cr-modal">
           <div class="modal-header">
-            <h2 class="modal-title fs-5" id="managementTitle">角色管理</h2>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="關閉"></button>
+            <h2 class="modal-title fs-5" id="managementTitle" data-i18n="managementTitle"></h2>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-i18n-aria-label="close"></button>
           </div>
           <div class="modal-body">
             <div id="managementSections">
               <ul class="nav nav-tabs mb-3" role="tablist">
-                <li class="nav-item" role="presentation"><button class="nav-link active" type="button" data-section="resources" role="tab">資源</button></li>
-                <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-section="characters" role="tab">角色</button></li>
-                <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-section="backup" role="tab">備份</button></li>
+                <li class="nav-item" role="presentation"><button class="nav-link active" type="button" data-section="resources" role="tab" data-i18n="tabResources"></button></li>
+                <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-section="characters" role="tab" data-i18n="tabCharacters"></button></li>
+                <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-section="backup" role="tab" data-i18n="tabBackup"></button></li>
               </ul>
 
               <section class="management-section" data-section-panel="resources">
                 <div class="resource-management-actions d-flex flex-wrap gap-2 mb-3">
-                  <button class="btn btn-success" type="button" data-action="new-resource">新增</button>
+                  <button class="btn btn-success" type="button" data-action="new-resource" data-i18n="newResource"></button>
                   <!-- Resource-copy JS handling is retained while its control is hidden.
-                  <button class="btn btn-outline-light" type="button" data-action="copy-resource">複製</button>
+                  <button class="btn btn-outline-light" type="button" data-action="copy-resource" data-i18n="copyResource"></button>
                   -->
-                  <button class="btn btn-outline-primary" type="button" data-action="edit-resource">修改</button>
-                  <button class="btn btn-outline-danger" type="button" data-action="delete-resource">刪除</button>
+                  <button class="btn btn-outline-primary" type="button" data-action="edit-resource" data-i18n="editResource"></button>
+                  <button class="btn btn-outline-danger" type="button" data-action="delete-resource" data-i18n="deleteResource"></button>
                 </div>
-                <p id="resourceSelectionHint" class="small text-secondary">選擇一項資源以修改或刪除。</p>
-                <div id="managementResourceList" class="list-group" role="radiogroup" aria-label="選擇要管理的資源"></div>
-                <div class="hit-dice-accumulator my-3" aria-label="暫存生命骰">
-                  <p class="small text-secondary mb-2">先累積生命骰數量，再一次加入資源列表。</p>
+                <p id="resourceSelectionHint" class="small text-secondary" data-i18n="resourceSelectionHint"></p>
+                <div id="managementResourceList" class="list-group" role="radiogroup" data-i18n-aria-label="resourceListAria"></div>
+                <div class="hit-dice-accumulator my-3" data-i18n-aria-label="hitDiceAccumulatorAria">
+                  <p class="small text-secondary mb-2" data-i18n="hitDiceAccumulatorHelp"></p>
                   <div class="hit-die-options">
-                    <button class="btn btn-sm btn-outline-light hit-die-add d-inline-flex flex-column align-items-center" type="button" data-action="accumulate-hit-die" data-die="d6">D6 <span class="badge text-bg-secondary" data-die-count="d6">0</span></button>
-                    <button class="btn btn-sm btn-outline-light hit-die-add d-inline-flex flex-column align-items-center" type="button" data-action="accumulate-hit-die" data-die="d8">D8 <span class="badge text-bg-secondary" data-die-count="d8">0</span></button>
-                    <button class="btn btn-sm btn-outline-light hit-die-add d-inline-flex flex-column align-items-center" type="button" data-action="accumulate-hit-die" data-die="d10">D10 <span class="badge text-bg-secondary" data-die-count="d10">0</span></button>
-                    <button class="btn btn-sm btn-outline-light hit-die-add d-inline-flex flex-column align-items-center" type="button" data-action="accumulate-hit-die" data-die="d12">D12 <span class="badge text-bg-secondary" data-die-count="d12">0</span></button>
+                    <button class="btn btn-sm btn-outline-light hit-die-add d-inline-flex flex-column align-items-center" type="button" data-action="accumulate-hit-die" data-die="d6"><span data-i18n="common.dieD6"></span> <span class="badge text-bg-secondary" data-die-count="d6">0</span></button>
+                    <button class="btn btn-sm btn-outline-light hit-die-add d-inline-flex flex-column align-items-center" type="button" data-action="accumulate-hit-die" data-die="d8"><span data-i18n="common.dieD8"></span> <span class="badge text-bg-secondary" data-die-count="d8">0</span></button>
+                    <button class="btn btn-sm btn-outline-light hit-die-add d-inline-flex flex-column align-items-center" type="button" data-action="accumulate-hit-die" data-die="d10"><span data-i18n="common.dieD10"></span> <span class="badge text-bg-secondary" data-die-count="d10">0</span></button>
+                    <button class="btn btn-sm btn-outline-light hit-die-add d-inline-flex flex-column align-items-center" type="button" data-action="accumulate-hit-die" data-die="d12"><span data-i18n="common.dieD12"></span> <span class="badge text-bg-secondary" data-die-count="d12">0</span></button>
                   </div>
                   <div class="hit-die-actions mt-2">
-                    <button class="btn btn-sm btn-primary" type="button" data-action="commit-hit-dice">加入生命骰</button>
-                    <button class="btn btn-sm btn-outline-secondary" type="button" data-action="clear-hit-dice">清除暫存</button>
+                    <button class="btn btn-sm btn-primary" type="button" data-action="commit-hit-dice" data-i18n="hitDiceAdd"></button>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" data-action="clear-hit-dice" data-i18n="hitDiceClear"></button>
                   </div>
                 </div>
                 <hr>
                 <section aria-labelledby="classBuilderTitle">
-                  <h3 id="classBuilderTitle" class="h6">職業等級計算</h3>
-                  <p class="small text-secondary">可自行選擇多職業施法進程；Artificer 可選向上取整。自訂法術位數量適用於自製職業。套用會以職業設定完整重建所有生命骰及法術位。</p>
+                  <h3 id="classBuilderTitle" class="h6" data-i18n="classBuilderTitle"></h3>
+                  <p id="classBuilderHelp" class="small text-secondary"></p>
                   <div id="classRows" class="vstack gap-3"></div>
                   <div class="d-flex flex-wrap gap-2 mt-3">
-                    <button class="btn btn-sm btn-outline-light" type="button" data-action="add-class-row">新增職業</button>
-                    <button class="btn btn-sm btn-primary" type="button" data-action="apply-class-levels">預覽並套用職業資源</button>
+                    <button class="btn btn-sm btn-outline-light" type="button" data-action="add-class-row" data-i18n="classAdd"></button>
+                    <button class="btn btn-sm btn-primary" type="button" data-action="apply-class-levels" data-i18n="classApply"></button>
                   </div>
                   <p id="classBuilderError" class="small text-warning mt-2 mb-0" role="status" aria-live="polite"></p>
                 </section>
@@ -91,23 +91,23 @@
 
               <section class="management-section d-none" data-section-panel="characters">
                 <p id="managementCharacterLabel" class="mb-3"></p>
-                <div class="mb-3"><label for="copyCharacterName" class="form-label">複製為新角色名稱</label><input id="copyCharacterName" class="form-control" maxlength="120"></div>
+                <div class="mb-3"><label for="copyCharacterName" class="form-label" data-i18n="copyCharacterNameLabel"></label><input id="copyCharacterName" class="form-control" maxlength="120"></div>
                 <div class="d-flex flex-wrap gap-2">
-                  <button class="btn btn-outline-light" type="button" data-action="copy-character">複製目前角色</button>
-                  <button class="btn btn-outline-danger" type="button" data-action="delete-character">刪除目前角色</button>
+                  <button class="btn btn-outline-light" type="button" data-action="copy-character" data-i18n="copyCharacter"></button>
+                  <button class="btn btn-outline-danger" type="button" data-action="delete-character" data-i18n="deleteCharacter"></button>
                 </div>
               </section>
 
               <section class="management-section d-none" data-section-panel="backup">
                 <div class="d-flex flex-wrap gap-2 mb-3">
-                  <button class="btn btn-outline-info" type="button" data-action="export">匯出所有角色</button>
-                  <button class="btn btn-outline-success" type="button" data-action="import">匯入角色設定</button>
+                  <button class="btn btn-outline-info" type="button" data-action="export" data-i18n="exportCharacters"></button>
+                  <button class="btn btn-outline-success" type="button" data-action="import" data-i18n="importCharacters"></button>
                 </div>
-                <label for="importBox" class="form-label">Base64 匯入字串</label>
+                <label for="importBox" class="form-label" data-i18n="importLabel"></label>
                 <textarea id="importBox" class="form-control mb-3" rows="4" spellcheck="false"></textarea>
                 <div id="exportActions" class="d-none mb-2">
-                  <label for="exportBox" class="form-label">Base64 匯出字串</label>
-                  <textarea id="exportBox" class="form-control mt-2" rows="4" readonly spellcheck="false" aria-label="點擊複製 Base64 匯出字串"></textarea>
+                  <label for="exportBox" class="form-label" data-i18n="exportLabel"></label>
+                  <textarea id="exportBox" class="form-control mt-2" rows="4" readonly spellcheck="false" data-i18n-aria-label="exportAria"></textarea>
                 </div>
                 <p id="backupStatus" class="small mb-0" aria-live="polite"></p>
               </section>
@@ -116,15 +116,15 @@
             <section id="resourceEditor" class="d-none" aria-labelledby="resourceEditorTitle">
               <h3 id="resourceEditorTitle" class="h5 mb-3"></h3>
               <form id="resourceForm">
-                <div class="mb-3"><label for="resourceName" class="form-label">資源名稱</label><input id="resourceName" class="form-control" required maxlength="120"></div>
+                <div class="mb-3"><label for="resourceName" class="form-label" data-i18n="resourceNameLabel"></label><input id="resourceName" class="form-control" required maxlength="120"></div>
                 <div class="row g-3">
-                  <div class="col-sm-6"><label for="resourceMax" class="form-label">最大次數</label><input id="resourceMax" type="number" class="form-control" min="1" required></div>
-                  <div class="col-sm-6"><label for="resourceCooldown" class="form-label">回復時機</label><select id="resourceCooldown" class="form-select"><option>每回合</option><option>短休</option><option>長休</option><option>日出</option><option>每24小時</option><option>手動</option></select></div>
-                  <div class="col-sm-6"><label for="resourceSource" class="form-label">來源</label><select id="resourceSource" class="form-select" aria-describedby="resourceSourceHelp"><option>角色職業</option><option>角色特徵</option><option>魔法物品</option><option>其他</option></select><div id="resourceSourceHelp" class="form-text">角色職業 Class：職業等級與職業特性。</div></div>
+                  <div class="col-sm-6"><label for="resourceMax" class="form-label" data-i18n="resourceMaxLabel"></label><input id="resourceMax" type="number" class="form-control" min="1" required></div>
+                  <div class="col-sm-6"><label for="resourceCooldown" class="form-label" data-i18n="resourceCooldownLabel"></label><select id="resourceCooldown" class="form-select"><option value="每回合" data-i18n="cooldownEveryTurn"></option><option value="短休" data-i18n="cooldownShortRest"></option><option value="長休" data-i18n="cooldownLongRest"></option><option value="日出" data-i18n="cooldownSunrise"></option><option value="每24小時" data-i18n="cooldown24Hours"></option><option value="手動" data-i18n="cooldownManual"></option></select></div>
+                  <div class="col-sm-6"><label for="resourceSource" class="form-label" data-i18n="sourceLabel"></label><select id="resourceSource" class="form-select" aria-describedby="resourceSourceHelp"><option value="角色職業" data-i18n="sourceClassLabel"></option><option value="角色特徵" data-i18n="sourceFeatureLabel"></option><option value="魔法物品" data-i18n="sourceMagicItemLabel"></option><option value="其他" data-i18n="sourceOtherLabel"></option></select><div id="resourceSourceHelp" class="form-text"></div></div>
                 </div>
                 <div class="d-flex gap-2 mt-4">
-                  <button class="btn btn-primary" type="submit">檢視並確認</button>
-                  <button class="btn btn-outline-light" type="button" data-action="cancel-editor">取消</button>
+                  <button class="btn btn-primary" type="submit" data-i18n="resourceSubmit"></button>
+                  <button class="btn btn-outline-light" type="button" data-action="cancel-editor" data-i18n="cancel"></button>
                 </div>
               </form>
             </section>
@@ -133,8 +133,8 @@
               <h3 id="confirmTitle" class="h5"></h3>
               <p id="confirmDetails" class="mb-4"></p>
               <div class="d-flex gap-2">
-                <button class="btn btn-danger" type="button" data-action="confirm-management">確認</button>
-                <button class="btn btn-outline-light" type="button" data-action="cancel-confirm">取消</button>
+                <button class="btn btn-danger" type="button" data-action="confirm-management" data-i18n="confirm"></button>
+                <button class="btn btn-outline-light" type="button" data-action="cancel-confirm" data-i18n="cancel"></button>
               </div>
             </section>
           </div>
@@ -147,18 +147,18 @@
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content cr-modal">
         <div class="modal-header">
-          <h2 class="modal-title fs-5" id="roleCreateTitle">建立角色</h2>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="關閉"></button>
+          <h2 class="modal-title fs-5" id="roleCreateTitle" data-i18n="createCharacter"></h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-i18n-aria-label="close"></button>
         </div>
         <form id="roleCreateForm">
           <div class="modal-body">
-            <label for="roleName" class="form-label">角色名稱</label>
+            <label for="roleName" class="form-label" data-i18n="roleNameLabel"></label>
             <input id="roleName" class="form-control" maxlength="120" required autocomplete="off">
             <p id="roleCreateError" class="small text-warning mt-2 mb-0" role="status" aria-live="polite"></p>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-primary" type="submit">建立角色</button>
-            <button class="btn btn-outline-light" type="button" data-bs-dismiss="modal">取消</button>
+            <button class="btn btn-primary" type="submit" data-i18n="createCharacter"></button>
+            <button class="btn btn-outline-light" type="button" data-bs-dismiss="modal" data-i18n="cancel"></button>
           </div>
         </form>
       </div>
@@ -167,11 +167,11 @@
 
   <div class="toast-container position-fixed bottom-0 end-0 p-3">
     <div id="crToast" class="toast text-bg-dark" role="status" aria-live="polite" aria-atomic="true">
-      <div class="d-flex"><div id="crToastMessage" class="toast-body"></div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="關閉"></button></div>
+      <div class="d-flex"><div id="crToastMessage" class="toast-body"></div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" data-i18n-aria-label="close"></button></div>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="src/cr.js?v=20261014-1"></script>
+  <script src="src/cr.js?v=20261017-5"></script>
 </body>
 </html>

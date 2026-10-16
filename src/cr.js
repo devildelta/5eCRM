@@ -1,12 +1,58 @@
-(function () {
+(async function () {
   'use strict';
+
+  const scriptUrl = document.currentScript.src;
+  const locale = navigator.language.toLowerCase().replace('_', '-').split('-').indexOf('tw') !== -1 ? 'zh-TW' : 'zh-HK';
+  const responses = await Promise.all([
+    fetch(new URL('locales/common.json', scriptUrl)),
+    fetch(new URL('locales/' + locale + '.json', scriptUrl))
+  ]);
+  const commonResponse = responses[0];
+  const localeResponse = responses[1];
+  if (!commonResponse.ok) throw new Error('Unable to load shared locale resource.');
+  if (!localeResponse.ok) throw new Error('Unable to load locale resource: ' + locale);
+  const commonI18n = await commonResponse.json();
+  const i18n = await localeResponse.json();
+  if (!commonI18n || typeof commonI18n !== 'object' || Array.isArray(commonI18n)) throw new Error('Invalid shared locale resource.');
+  if (!i18n || typeof i18n !== 'object' || Array.isArray(i18n)) throw new Error('Invalid locale resource: ' + locale);
+
+  const localeTokens = {
+    character: 'characterNoun',
+    resource: 'resourceNoun',
+    'class': 'classNoun',
+    copy: 'copyResource',
+    delete: 'deleteResource',
+    edit: 'editResource',
+    create: 'newResource',
+    confirm: 'confirm'
+  };
+
+  function t(key, values) {
+    const sharedKeyPrefix = 'common.';
+    const template = key.indexOf(sharedKeyPrefix) === 0 ? commonI18n[key.slice(sharedKeyPrefix.length)] : i18n[key];
+    if (typeof template !== 'string') throw new Error('Missing locale key "' + key + '" in ' + locale);
+    return template.replace(/\{([a-zA-Z][a-zA-Z0-9]*)\}/g, function (match, name) {
+      if (values && Object.prototype.hasOwnProperty.call(values, name)) return String(values[name]);
+      const tokenKey = localeTokens[name];
+      if (tokenKey && typeof i18n[tokenKey] === 'string') return i18n[tokenKey];
+      throw new Error('Missing locale value "' + name + '" for key "' + key + '"');
+    });
+  }
 
   const storageKey = 'dnd_skills_db';
   const sourceInfo = {
-    '角色職業': { english: 'Class', description: '職業等級與職業特性' },
-    '角色特徵': { english: 'Character Feature', description: '種族特性、專長與背景特性' },
-    '魔法物品': { english: 'Magic Item', description: '魔法物品提供的資源' },
-    '其他': { english: 'Other', description: '其他來源' }
+    '角色職業': { label: 'sourceClassLabel', english: 'common.sourceClassEnglish', description: 'sourceClassDescription' },
+    '角色特徵': { label: 'sourceFeatureLabel', english: 'common.sourceFeatureEnglish', description: 'sourceFeatureDescription' },
+    '魔法物品': { label: 'sourceMagicItemLabel', english: 'common.sourceMagicItemEnglish', description: 'sourceMagicItemDescription' },
+    '其他': { label: 'sourceOtherLabel', english: 'common.sourceOtherEnglish', description: 'sourceOtherDescription' }
+  };
+  const cooldownInfo = {
+    '每回合': { label: 'cooldownEveryTurn', availabilityPeriod: 'cooldownEveryTurn' },
+    '短休': { label: 'cooldownShortRest', availabilityPeriod: 'availabilityPeriodShortRest' },
+    '長休': { label: 'cooldownLongRest', availabilityPeriod: 'availabilityPeriodLongRest' },
+    '日出': { label: 'cooldownSunrise', availabilityPeriod: 'availabilityPeriodSunrise' },
+    '每24小時': { label: 'cooldown24Hours', availabilityPeriod: 'cooldown24Hours' },
+    '手動': { label: 'cooldownManual', availabilityPeriod: 'availabilityPeriodManual' }
   };
   const hitDice = ['d6', 'd8', 'd10', 'd12'];
   const progressions = ['none', 'full', 'half-down', 'half-up', 'third', 'pact', 'manual'];
@@ -20,19 +66,19 @@
   const pactSlots = [null, [1, 1], [2, 1], [2, 2], [2, 2], [2, 3], [2, 3], [2, 4], [2, 4],
     [2, 5], [2, 5], [3, 5], [3, 5], [3, 5], [3, 5], [3, 5], [3, 5], [4, 5], [4, 5], [4, 5], [4, 5]];
   const classPresets = {
-    artificer: { name: 'Artificer', die: 'd8', progression: 'half-up', progressions: ['half-up'] },
-    barbarian: { name: 'Barbarian', die: 'd12', progression: 'none', progressions: ['none'] },
-    bard: { name: 'Bard', die: 'd8', progression: 'full', progressions: ['full'] },
-    cleric: { name: 'Cleric', die: 'd8', progression: 'full', progressions: ['full'] },
-    druid: { name: 'Druid', die: 'd8', progression: 'full', progressions: ['full'] },
-    fighter: { name: 'Fighter', die: 'd10', progression: 'none', progressions: ['none', 'third'] },
-    monk: { name: 'Monk', die: 'd8', progression: 'none', progressions: ['none'] },
-    paladin: { name: 'Paladin', die: 'd10', progression: 'half-down', progressions: ['half-down'] },
-    ranger: { name: 'Ranger', die: 'd10', progression: 'half-down', progressions: ['half-down'] },
-    rogue: { name: 'Rogue', die: 'd8', progression: 'none', progressions: ['none', 'third'] },
-    sorcerer: { name: 'Sorcerer', die: 'd6', progression: 'full', progressions: ['full'] },
-    warlock: { name: 'Warlock', die: 'd8', progression: 'pact', progressions: ['pact'] },
-    wizard: { name: 'Wizard', die: 'd6', progression: 'full', progressions: ['full'] }
+    artificer: { name: 'Artificer', label: 'classArtificer', die: 'd8', progression: 'half-up', progressions: ['half-up'] },
+    barbarian: { name: 'Barbarian', label: 'classBarbarian', die: 'd12', progression: 'none', progressions: ['none'] },
+    bard: { name: 'Bard', label: 'classBard', die: 'd8', progression: 'full', progressions: ['full'] },
+    cleric: { name: 'Cleric', label: 'classCleric', die: 'd8', progression: 'full', progressions: ['full'] },
+    druid: { name: 'Druid', label: 'classDruid', die: 'd8', progression: 'full', progressions: ['full'] },
+    fighter: { name: 'Fighter', label: 'classFighter', die: 'd10', progression: 'none', progressions: ['none', 'third'] },
+    monk: { name: 'Monk', label: 'classMonk', die: 'd8', progression: 'none', progressions: ['none'] },
+    paladin: { name: 'Paladin', label: 'classPaladin', die: 'd10', progression: 'half-down', progressions: ['half-down'] },
+    ranger: { name: 'Ranger', label: 'classRanger', die: 'd10', progression: 'half-down', progressions: ['half-down'] },
+    rogue: { name: 'Rogue', label: 'classRogue', die: 'd8', progression: 'none', progressions: ['none', 'third'] },
+    sorcerer: { name: 'Sorcerer', label: 'classSorcerer', die: 'd6', progression: 'full', progressions: ['full'] },
+    warlock: { name: 'Warlock', label: 'classWarlock', die: 'd8', progression: 'pact', progressions: ['pact'] },
+    wizard: { name: 'Wizard', label: 'classWizard', die: 'd6', progression: 'full', progressions: ['full'] }
   };
   const params = new URLSearchParams(window.location.search);
   const storedDb = JSON.parse(localStorage.getItem(storageKey) || '{}');
@@ -69,6 +115,20 @@
     localStorage.setItem(storageKey, JSON.stringify(state.db));
   }
 
+  function sourceLabel(value) {
+    const source = sourceInfo[value];
+    return source ? t(source.label) : String(value == null || value === '' ? t('sourceOtherLabel') : value);
+  }
+
+  function cooldownLabel(value) {
+    const cooldown = cooldownInfo[value];
+    return cooldown ? t(cooldown.label) : String(value == null ? '' : value);
+  }
+
+  function formatDieLabel(value) {
+    return t('common.dieNameTemplate', { size: String(value).replace(/^d/i, '') });
+  }
+
   function currentResources() {
     return state.character ? state.db[state.character] || [] : [];
   }
@@ -103,12 +163,32 @@
   }
 
   function resourceSummaryText(resource) {
-    const details = [resource && resource.source ? resource.source : '其他', resource && resource.cooldown ? resource.cooldown : '手動', '上限 ' + (Number(resource && resource.max) || 0) + ' 次'];
-    return details.join('，');
+    return t('resourceSummaryTemplate', {
+      source: sourceLabel(resource && resource.source ? resource.source : '其他'),
+      cooldown: cooldownLabel(resource && resource.cooldown ? resource.cooldown : '手動'),
+      max: Number(resource && resource.max) || 0
+    });
   }
 
-  function displayResourceName(name) {
-    return String(name).replace(/\bd(6|8|10|12)\b/gi, function (_, die) { return 'D' + die; });
+  function displayResourceName(resource) {
+    const name = String(resource && typeof resource === 'object' ? resource.name : resource);
+    const generated = resource && typeof resource === 'object' ? resource.generatedClass : null;
+    const kind = generated && generated.kind;
+    const hitDie = hitDieOf(resource);
+    if ((kind === 'hit-dice' || (!generated && isHitDieResource(resource))) && hitDie) {
+      return t('classHitDiceName', { die: formatDieLabel(hitDie) });
+    }
+    const slotLevel = resourceSlotLevel(resource);
+    if ((kind === 'mystic-arcanum' || (!generated && /^神秘奧秘（\d+\s*環）$/.test(name))) && slotLevel >= 1 && slotLevel <= 9) {
+      return t('classArcanumName', { level: slotLevel });
+    }
+    if ((kind === 'pact-slot' || (!generated && /^契約魔法（\d+\s*環）$/.test(name))) && slotLevel >= 1 && slotLevel <= 9) {
+      return t('classPactSlotName', { level: slotLevel });
+    }
+    if ((kind === 'spell-slot' || (!generated && /^\d+\s*環$/.test(name))) && slotLevel >= 1 && slotLevel <= 9) {
+      return t('slotLevelLabel', { level: slotLevel });
+    }
+    return name.replace(/\bd(6|8|10|12)\b/gi, function (_, die) { return formatDieLabel(die); });
   }
 
   function resourceState(resource) {
@@ -130,14 +210,14 @@
     summary.className = 'd-flex justify-content-between align-items-start gap-2';
     const name = document.createElement('div');
     name.className = 'fw-semibold';
-    name.textContent = displayResourceName(resource.name);
+    name.textContent = displayResourceName(resource);
     const meta = document.createElement('div');
     meta.className = 'small text-secondary text-end resource-count';
-    meta.textContent = '使用次數：' + resource.current + ' / ' + resource.max;
+    meta.textContent = t('common.resourceCountTemplate', { prefix: t('resourceCountPrefix'), current: resource.current, max: resource.max });
     summary.append(name, meta);
     const cooldown = document.createElement('div');
     cooldown.className = 'small text-secondary resource-cooldown';
-    cooldown.textContent = '回復時機：' + resource.cooldown;
+    cooldown.textContent = t('resourceCooldownTemplate', { cooldown: cooldownLabel(resource.cooldown) });
     cooldown.classList.toggle('d-none', showCooldown === false);
     const actions = document.createElement('div');
     actions.className = 'd-flex gap-2 mt-2';
@@ -146,14 +226,14 @@
     useButton.type = 'button';
     useButton.dataset.action = 'use-resource';
     useButton.dataset.index = index;
-    useButton.textContent = '使用';
+    useButton.textContent = t('resourceUse');
     useButton.disabled = !state.character || Number(resource.current) <= 0;
     const resetButton = document.createElement('button');
     resetButton.className = 'btn btn-warning btn-sm flex-fill';
     resetButton.type = 'button';
     resetButton.dataset.action = 'reset-resource';
     resetButton.dataset.index = index;
-    resetButton.textContent = '重置';
+    resetButton.textContent = t('resourceReset');
     resetButton.disabled = !state.character;
     actions.append(useButton, resetButton);
     row.append(summary, cooldown, actions);
@@ -173,12 +253,12 @@
     name.textContent = label;
     const source = document.createElement('span');
     source.className = 'tag-source';
-    source.textContent = '角色職業';
+    source.textContent = sourceLabel('角色職業');
     const cooldownValues = Array.from(new Set(items.map(function (item) { return item.resource.cooldown; })));
     const isMixed = cooldownValues.length > 1;
     const cooldownSummary = document.createElement('small');
     cooldownSummary.className = 'text-secondary d-block';
-    cooldownSummary.textContent = !isMixed ? '回復時機：' + cooldownValues[0] : '';
+    cooldownSummary.textContent = !isMixed ? t('resourceCooldownTemplate', { cooldown: cooldownLabel(cooldownValues[0]) }) : '';
     const title = document.createElement('div');
     title.appendChild(name);
     if (!isMixed) title.appendChild(cooldownSummary);
@@ -209,25 +289,25 @@
     header.className = 'card-header d-flex justify-content-between align-items-start gap-2';
     const name = document.createElement('strong');
     name.className = 'resource-name';
-    name.textContent = displayResourceName(resource.name);
+    name.textContent = displayResourceName(resource);
     const warning = document.createElement('span');
     warning.className = 'resource-warning d-none';
-    warning.textContent = '⚠';
+    warning.textContent = t('common.warningSymbol');
     warning.setAttribute('role', 'img');
     warning.setAttribute('aria-label', '');
     const source = document.createElement('span');
     source.className = 'tag-source';
-    source.textContent = resource.source;
+    source.textContent = sourceLabel(resource.source);
     header.append(name, warning, source);
 
     const body = document.createElement('div');
     body.className = 'card-body';
     const count = document.createElement('p');
     count.className = 'resource-count';
-    count.textContent = '使用次數：' + resource.current + ' / ' + resource.max;
+    count.textContent = t('common.resourceCountTemplate', { prefix: t('resourceCountPrefix'), current: resource.current, max: resource.max });
     const cooldown = document.createElement('p');
     cooldown.className = 'mb-3';
-    cooldown.textContent = '回復時機：' + resource.cooldown;
+    cooldown.textContent = t('resourceCooldownTemplate', { cooldown: cooldownLabel(resource.cooldown) });
     const actions = document.createElement('div');
     actions.className = 'd-flex gap-2';
     const useButton = document.createElement('button');
@@ -235,14 +315,14 @@
     useButton.type = 'button';
     useButton.dataset.action = 'use-resource';
     useButton.dataset.index = index;
-    useButton.textContent = '使用';
+    useButton.textContent = t('resourceUse');
     useButton.disabled = !state.character || Number(resource.current) <= 0;
     const resetButton = document.createElement('button');
     resetButton.className = 'btn btn-warning flex-fill';
     resetButton.type = 'button';
     resetButton.dataset.action = 'reset-resource';
     resetButton.dataset.index = index;
-    resetButton.textContent = '重置';
+    resetButton.textContent = t('resourceReset');
     resetButton.disabled = !state.character;
     actions.append(useButton, resetButton);
     body.append(count, cooldown, actions);
@@ -254,11 +334,11 @@
 
   function groupResourcesForDisplay(entries) {
     const groups = [
-      { label: '生命骰', type: 'hit-dice', items: [] },
-      { label: '法術位（1–5 環）', type: 'spell-1-5', items: [] },
-      { label: '法術位（6–9 環）', type: 'spell-6-9', items: [] },
-      { label: '契約魔法與神秘奧秘', type: 'pact', items: [] },
-      { label: '其他資源', type: 'other', items: [] }
+      { label: t('hitDiceLabel'), type: 'hit-dice', items: [] },
+      { label: t('groupSpellSlotsLow'), type: 'spell-1-5', items: [] },
+      { label: t('groupSpellSlotsHigh'), type: 'spell-6-9', items: [] },
+      { label: t('groupPactMagic'), type: 'pact', items: [] },
+      { label: t('groupOther'), type: 'other', items: [] }
     ];
     entries.forEach(function (entry) {
       const resource = entry.resource;
@@ -303,12 +383,23 @@
     element.textContent = value == null ? '' : String(value);
   }
 
+  function applyStaticTranslations() {
+    document.documentElement.lang = locale;
+    document.querySelectorAll('[data-i18n]').forEach(function (element) {
+      setText(element, t(element.dataset.i18n));
+    });
+    document.querySelectorAll('[data-i18n-aria-label]').forEach(function (element) {
+      element.setAttribute('aria-label', t(element.dataset.i18nAriaLabel));
+    });
+    setText(document.getElementById('classBuilderHelp'), t('classBuilderHelpTemplate', { artificer: t('classArtificer') }));
+  }
+
   function updateCharacters() {
     const select = document.getElementById('characterSelect');
     select.replaceChildren();
     const placeholder = document.createElement('option');
     placeholder.value = '';
-    placeholder.textContent = Object.keys(state.db).length ? '選擇角色' : '尚無角色';
+    placeholder.textContent = Object.keys(state.db).length ? t('characterSelectLabel') : t('characterSelectEmpty');
     select.appendChild(placeholder);
     Object.keys(state.db).forEach(function (name) {
       const option = document.createElement('option');
@@ -317,8 +408,10 @@
       select.appendChild(option);
     });
     select.value = state.character;
-    setText(document.getElementById('currentLabel'), state.character ? '目前角色：' + state.character : '目前角色：尚未選擇');
-    setText(document.getElementById('managementCharacterLabel'), state.character ? '目前角色：' + state.character : '尚未選擇角色。');
+    setText(document.getElementById('currentLabel'), t('characterCurrentTemplate', {
+      name: state.character || t('characterUnselectedPlaceholder')
+    }));
+    setText(document.getElementById('managementCharacterLabel'), state.character ? t('characterCurrentTemplate', { name: state.character }) : t('managementNoCharacter'));
     document.querySelectorAll('[data-action="copy-character"], [data-action="delete-character"]').forEach(function (button) {
       button.disabled = !state.character;
     });
@@ -339,8 +432,8 @@
     const warning = card.querySelector ? card.querySelector('.resource-warning') : null;
     if (warning) {
       warning.classList.toggle('d-none', !overMax);
-      warning.title = overMax ? '目前可用次數高於新上限，請重置此資源。' : '';
-      warning.setAttribute('aria-label', overMax ? '目前可用次數高於新上限，請重置此資源' : '');
+      warning.title = overMax ? t('warningOverMaxTitle') : '';
+      warning.setAttribute('aria-label', overMax ? t('warningOverMaxAria') : '');
     }
   }
 
@@ -358,8 +451,8 @@
   function updateEmptyState() {
     const resources = currentResources();
     document.getElementById('emptyState').classList.toggle('d-none', resources.length > 0);
-    if (!state.character) setText(document.getElementById('emptyState'), '請先選擇角色，或建立一個新角色。');
-    else if (!resources.length) setText(document.getElementById('emptyState'), '此角色尚無資源。請從「管理」新增資源。');
+    if (!state.character) setText(document.getElementById('emptyState'), t('emptySelectCharacter'));
+    else if (!resources.length) setText(document.getElementById('emptyState'), t('emptyCharacterResources'));
   }
 
   function refreshResourceGroups(groupTypes) {
@@ -400,7 +493,7 @@
       const row = match.classList.contains('resource-row') ? match : match.querySelector('.card') || match;
       const count = row.querySelector('.resource-count');
       if (count) {
-        count.textContent = '使用次數：' + resource.current + ' / ' + resource.max;
+        count.textContent = t('common.resourceCountTemplate', { prefix: t('resourceCountPrefix'), current: resource.current, max: resource.max });
       }
       const useButton = row.querySelector('[data-action="use-resource"]');
       if (useButton) useButton.disabled = Number(resource.current) <= 0;
@@ -444,11 +537,18 @@
     const description = document.createElement('span');
     description.className = 'flex-grow-1';
     const title = document.createElement('strong');
-    title.textContent = displayResourceName(resource.name);
+    title.textContent = displayResourceName(resource);
     const detail = document.createElement('span');
     detail.className = 'd-block small text-secondary';
     const source = sourceInfo[resource.source] || sourceInfo['其他'];
-    detail.textContent = resource.current + ' / ' + resource.max + '，' + resource.cooldown + '，' + resource.source + ' (' + source.english + ')：' + source.description;
+    detail.textContent = t('resourceDetailTemplate', {
+      current: resource.current,
+      max: resource.max,
+      cooldown: cooldownLabel(resource.cooldown),
+      source: sourceLabel(resource.source),
+      english: t(source.english),
+      description: t(source.description)
+    });
     description.append(title, detail);
     label.append(radio, description);
     return label;
@@ -546,11 +646,33 @@
     state.modal.show();
   }
 
+  function formatResourceTitle(mode, isConfirmation) {
+    const titleParts = {
+      edit: { actionKey: 'editResource', titleKey: 'resourceTitleEdit', placeholder: 'edit' },
+      copy: { actionKey: 'copyResource', titleKey: 'resourceTitleCopy', placeholder: 'copy' },
+      create: { actionKey: 'newResource', titleKey: 'resourceTitleNew', placeholder: 'create' },
+      delete: { actionKey: 'deleteResource', placeholder: 'delete' }
+    }[mode];
+    if (!titleParts) throw new Error('Unsupported resource title mode: ' + mode);
+    const resource = t('resourceNoun');
+    if (isConfirmation) {
+      return t('resourceTitleConfirmTemplate', {
+        confirm: t('confirm'),
+        action: t(titleParts.actionKey),
+        resource: resource
+      });
+    }
+    if (!titleParts.titleKey) throw new Error('Resource title is unavailable for mode: ' + mode);
+    const values = { resource: resource };
+    values[titleParts.placeholder] = t(titleParts.actionKey);
+    return t(titleParts.titleKey, values);
+  }
+
   function openEditor(mode, index, resource) {
     state.editorMode = mode;
     state.editorIndex = index;
     state.editorSourceName = resource ? resource.name : '';
-    document.getElementById('resourceEditorTitle').textContent = mode === 'edit' ? '修改資源' : mode === 'copy' ? '複製資源' : '新增資源';
+    document.getElementById('resourceEditorTitle').textContent = formatResourceTitle(mode, false);
     document.getElementById('resourceName').value = resource ? resource.name : '';
     document.getElementById('resourceMax').value = resource ? resource.max : 1;
     document.getElementById('resourceCooldown').value = resource ? resource.cooldown : '每回合';
@@ -591,7 +713,11 @@
   function updateSourceHelp() {
     const value = document.getElementById('resourceSource').value;
     const source = sourceInfo[value] || sourceInfo['其他'];
-    setText(document.getElementById('resourceSourceHelp'), value + ' ' + source.english + '：' + source.description + '。');
+    setText(document.getElementById('resourceSourceHelp'), t('sourceHelpTemplate', {
+      source: sourceLabel(value),
+      english: t(source.english),
+      description: t(source.description)
+    }));
   }
 
   function shiftResourceIndexesAfterDelete(index) {
@@ -671,7 +797,7 @@
       renderClassRowsFromResources();
       setManagementView('sections');
       setManagementSection('resources');
-      notify('職業等級資源已更新；手動管理的資源保持不變。');
+      notify(t('classResourcesUpdated'));
     }
     state.pendingAction = null;
   }
@@ -744,7 +870,7 @@
     save();
     render();
     renderHitDiceAccumulator();
-    notify('已將累積的生命骰加入資源列表。');
+    notify(t('hitDiceAdded'));
   }
 
   function createElement(tag, className, text) {
@@ -761,18 +887,18 @@
     row.dataset.classKey = presetKey;
     const fields = createElement('div', 'row g-2 align-items-end');
     const presetWrap = createElement('div', 'col-12 col-md-3');
-    const presetLabel = createElement('label', 'form-label small', '職業範本');
+    const presetLabel = createElement('label', 'form-label small', t('classPresetLabel'));
     const preset = createElement('select', 'form-select form-select-sm');
     preset.id = row.dataset.classId + '-preset';
     presetLabel.htmlFor = preset.id;
     preset.dataset.classPreset = 'true';
-    [['', '選擇職業範本'], ['custom', '自訂職業'], ...Object.keys(classPresets).map(function (key) { return [key, classPresets[key].name]; })].forEach(function (item) {
+    [['', t('classPresetPrompt')], ['custom', t('classPresetCustom')], ...Object.keys(classPresets).map(function (key) { return [key, t(classPresets[key].label)]; })].forEach(function (item) {
       const option = createElement('option', '', item[1]); option.value = item[0]; preset.appendChild(option);
     });
     preset.value = presetKey;
     presetWrap.append(presetLabel, preset);
     const nameWrap = createElement('div', 'col-12 col-md-3');
-    const nameLabel = createElement('label', 'form-label small', '職業名稱');
+    const nameLabel = createElement('label', 'form-label small', t('classNameLabel'));
     const name = createElement('input', 'form-control form-control-sm');
     name.id = row.dataset.classId + '-name'; nameLabel.htmlFor = name.id;
     name.type = 'text'; name.maxLength = 80; name.required = true; name.value = config ? config.name : '';
@@ -781,22 +907,22 @@
     nameDisplay.dataset.classNameDisplay = 'true';
     nameWrap.append(nameLabel, name, nameDisplay);
     const levelWrap = createElement('div', 'col-6 col-md-2');
-    const levelLabel = createElement('label', 'form-label small', '等級');
+    const levelLabel = createElement('label', 'form-label small', t('classLevelLabel'));
     const level = createElement('input', 'form-control form-control-sm');
     level.id = row.dataset.classId + '-level'; levelLabel.htmlFor = level.id;
     level.type = 'number'; level.min = '0'; level.max = '20'; level.step = '1'; level.value = config ? config.level : '1';
     level.dataset.classLevel = 'true'; level.required = true; levelWrap.append(levelLabel, level);
     const dieWrap = createElement('div', 'col-6 col-md-2');
-    const dieLabel = createElement('label', 'form-label small', '生命骰');
+    const dieLabel = createElement('label', 'form-label small', t('hitDiceLabel'));
     const die = createElement('select', 'form-select form-select-sm'); die.dataset.classDie = 'true';
     die.id = row.dataset.classId + '-die'; dieLabel.htmlFor = die.id;
-    hitDice.forEach(function (value) { const option = createElement('option', '', value.toUpperCase()); option.value = value; die.appendChild(option); });
+    hitDice.forEach(function (value) { const option = createElement('option', '', formatDieLabel(value)); option.value = value; die.appendChild(option); });
     die.value = config && hitDice.includes(config.hitDie) ? config.hitDie : 'd8';
     const dieDisplay = createElement('div', 'class-field-display d-none');
     dieDisplay.dataset.classDieDisplay = 'true';
     dieWrap.append(dieLabel, die, dieDisplay);
     const progressionWrap = createElement('div', 'col-12 col-md-2');
-    const progressionLabel = createElement('label', 'form-label small', '施法進程');
+    const progressionLabel = createElement('label', 'form-label small', t('classProgressionLabel'));
     const progression = createElement('select', 'form-select form-select-sm'); progression.dataset.classProgression = 'true';
     progression.id = row.dataset.classId + '-progression'; progressionLabel.htmlFor = progression.id;
     const progressionDisplay = createElement('div', 'class-field-display d-none');
@@ -822,16 +948,16 @@
     const progression = row.querySelector('[data-class-progression]');
     const classKey = row.dataset.classKey;
     const allowed = classKey !== 'custom' && classPresets[classKey] ? classPresets[classKey].progressions : progressions;
-    const labels = { none: '非施法者', full: '完整施法者', 'half-down': '半施法（向下）', 'half-up': '半施法（向上）', third: '三分之一施法者', pact: '契約魔法', manual: '自訂法術位' };
+    const labels = { none: 'progressionNone', full: 'progressionFull', 'half-down': 'progressionHalfDown', 'half-up': 'progressionHalfUp', third: 'progressionThird', pact: 'progressionPact', manual: 'progressionManual' };
     progression.replaceChildren();
     allowed.forEach(function (value) {
-      const option = createElement('option', '', labels[value]);
+      const option = createElement('option', '', t(labels[value]));
       option.value = value;
       progression.appendChild(option);
     });
     progression.value = allowed.includes(selectedValue) ? selectedValue : allowed[0];
     const display = row.querySelector('[data-class-progression-display]');
-    if (display) display.textContent = labels[progression.value] || progression.value;
+    if (display) display.textContent = labels[progression.value] ? t(labels[progression.value]) : progression.value;
   }
 
   function updateClassPresetOptions() {
@@ -848,7 +974,7 @@
   function selectClassPreset(row, presetKey) {
     const presetData = classPresets[presetKey];
     if (rowsHaveClassKey(presetKey, row)) {
-      setText(document.getElementById('classBuilderError'), '此職業已在其他列選擇，請先移除重複項目。');
+      setText(document.getElementById('classBuilderError'), t('classDuplicatePresetError'));
       row.querySelector('[data-class-preset]').value = row.dataset.classKey;
       return;
     }
@@ -893,7 +1019,7 @@
       if (!custom) {
         const value = field === 'progression'
           ? input.options[input.selectedIndex].textContent
-          : field === 'die' ? input.value.toUpperCase() : input.value;
+          : field === 'die' ? formatDieLabel(input.value) : field === 'name' && classPresets[row.dataset.classKey] && input.value === classPresets[row.dataset.classKey].name ? t(classPresets[row.dataset.classKey].label) : input.value;
         display.textContent = value;
       }
     });
@@ -905,11 +1031,11 @@
     values = Array.isArray(values) ? values : [];
     for (let slotLevel = 1; slotLevel <= 9; slotLevel += 1) {
       const wrap = createElement('div', 'col-4 col-md-1');
-      const label = createElement('label', 'form-label small', slotLevel + ' 環');
+      const label = createElement('label', 'form-label small', t('slotLevelLabel', { level: slotLevel }));
       const input = createElement('input', 'form-control form-control-sm');
       input.id = row.dataset.classId + '-slot-' + slotLevel; label.htmlFor = input.id;
       input.type = 'number'; input.min = '0'; input.max = '99'; input.step = '1'; input.value = values[slotLevel - 1] || 0; input.required = true;
-      input.dataset.manualSlot = String(slotLevel); input.setAttribute('aria-label', slotLevel + ' 環法術位數量');
+      input.dataset.manualSlot = String(slotLevel); input.setAttribute('aria-label', t('slotLevelAria', { level: slotLevel }));
       wrap.append(label, input); container.appendChild(wrap);
     }
     container.classList.toggle('d-none', row.querySelector('[data-class-progression]').value !== 'manual');
@@ -927,14 +1053,14 @@
       const manualInputs = Array.from(row.querySelectorAll('[data-manual-slot]'));
       const manualSlots = manualInputs.map(function (input) { return Number(input.value); });
       if (!name || levelInput.value === '' || !Number.isInteger(level) || level < 0 || level > 20 || !hitDice.includes(die) || !progressions.includes(progression) || manualInputs.some(function (input, slotIndex) { return progression === 'manual' && (input.value === '' || !Number.isInteger(manualSlots[slotIndex]) || manualSlots[slotIndex] < 0 || manualSlots[slotIndex] > 99); })) {
-        errors.push('第 ' + (index + 1) + ' 列職業資料不完整或超出允許範圍。');
+        errors.push(t('classRowValidationError', { row: index + 1 }));
       }
       return { classId: row.dataset.classId, classKey: row.dataset.classKey, name: name, level: level, hitDie: die, progression: progression, preset: row.dataset.classKey, manualSlots: manualSlots };
     });
     const classKeys = configs.map(function (config) { return config.classKey === 'custom' ? config.name.trim().toLocaleLowerCase() : config.classKey; });
-    if (new Set(classKeys).size !== classKeys.length) errors.push('職業不可重複；請合併相同職業的等級。');
-    if (!rows.length) errors.push('請至少新增一列職業。');
-    if (!configs.some(function (config) { return config.level > 0; })) errors.push('至少一個職業等級需大於 0。');
+    if (new Set(classKeys).size !== classKeys.length) errors.push(t('classDuplicateError'));
+    if (!rows.length) errors.push(t('classMissingError'));
+    if (!configs.some(function (config) { return config.level > 0; })) errors.push(t('classZeroLevelError'));
     return errors.length ? { errors: errors } : { configs: configs };
   }
 
@@ -1015,18 +1141,22 @@
     }
     const generated = calculateClassResources(result.configs);
     if (!generated.length) {
-      setText(document.getElementById('classBuilderError'), '這些設定沒有可產生的資源。');
+      setText(document.getElementById('classBuilderError'), t('classNoResourcesError'));
       return;
     }
     setText(document.getElementById('classBuilderError'), '');
-    const summary = generated.map(function (resource) { return resource.name + ' ' + resource.current + ' / ' + resource.max; }).join('；');
-    showConfirmation('確認套用職業資源', '將重建此角色由職業計算器產生的資源（手動建立的資源不變）：' + summary + '。', { type: 'apply-class-levels', resources: generated });
+    const summary = generated.map(function (resource) {
+      return t('classSummaryItemTemplate', { name: displayResourceName(resource), current: resource.current, max: resource.max });
+    }).join(t('classSummarySeparator'));
+    showConfirmation(t('confirmApplyClassesTitle'), t('confirmApplyClassesDetail', { summary: summary }), { type: 'apply-class-levels', resources: generated });
   }
 
   function availabilityText(resource) {
-    if (resource.cooldown === '手動') return '上限 ' + resource.max + ' 次，手動回復';
-    const period = { '每回合': '每回合', '短休': '每短休', '長休': '每長休', '日出': '日出時', '每24小時': '每24小時' }[resource.cooldown] || resource.cooldown;
-    return period + '可使用 ' + resource.max + ' 次';
+    const cooldown = cooldownInfo[resource.cooldown];
+    const period = cooldown
+      ? t(cooldown.availabilityPeriod)
+      : t('availabilityPeriodCustom', { cooldown: cooldownLabel(resource.cooldown) });
+    return t('availabilityTemplate', { period: period, max: resource.max });
   }
 
   function useResource(index) {
@@ -1072,23 +1202,23 @@
     const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(state.db))));
     document.getElementById('exportBox').value = encoded;
     document.getElementById('exportActions').classList.remove('d-none');
-    setText(document.getElementById('backupStatus'), '角色設定已匯出。');
+    setText(document.getElementById('backupStatus'), t('backupExportDone'));
   }
 
   function copyExportText() {
     const exportBox = document.getElementById('exportBox');
     if (!exportBox.value) return;
     if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
-      setText(document.getElementById('backupStatus'), '此瀏覽器無法直接使用剪貼簿，請手動選取匯出字串。');
+      setText(document.getElementById('backupStatus'), t('backupClipboardUnavailable'));
       return;
     }
     navigator.clipboard.writeText(exportBox.value).then(function () {
       exportBox.classList.remove('copied-glow');
       void exportBox.offsetWidth;
       exportBox.classList.add('copied-glow');
-      setText(document.getElementById('backupStatus'), '設定字串已複製。');
+      setText(document.getElementById('backupStatus'), t('backupCopyDone'));
     }).catch(function () {
-      setText(document.getElementById('backupStatus'), '無法使用剪貼簿，請確認瀏覽器權限後再試。');
+      setText(document.getElementById('backupStatus'), t('backupCopyFailed'));
     });
   }
 
@@ -1110,22 +1240,22 @@
   function importData() {
     const input = document.getElementById('importBox').value.trim();
     if (!input) {
-      setText(document.getElementById('backupStatus'), '請先貼上 Base64 匯出字串。');
+      setText(document.getElementById('backupStatus'), t('backupImportEmpty'));
       return;
     }
     let data;
     try {
       data = JSON.parse(decodeURIComponent(escape(atob(input))));
     } catch (error) {
-      setText(document.getElementById('backupStatus'), '資料格式錯誤，請確認為正確的 Base64 編碼 JSON。');
+      setText(document.getElementById('backupStatus'), t('backupImportInvalidJson'));
       return;
     }
     if (!isValidImportData(data)) {
-      setText(document.getElementById('backupStatus'), '匯入資料結構錯誤；現有資料未變更。');
+      setText(document.getElementById('backupStatus'), t('backupImportInvalidStructure'));
       return;
     }
 
-    if (!window.confirm('匯入將覆蓋所有現有角色資料，包括匯入檔中沒有的角色。此動作無法還原。是否繼續？')) return;
+    if (!window.confirm(t('backupImportConfirm'))) return;
 
     const nextDb = Object.create(null);
     Object.keys(data).forEach(function (name) {
@@ -1134,7 +1264,7 @@
     try {
       localStorage.setItem(storageKey, JSON.stringify(nextDb));
     } catch (error) {
-      setText(document.getElementById('backupStatus'), '無法儲存匯入資料，現有資料未變更。');
+      setText(document.getElementById('backupStatus'), t('backupImportSaveFailed'));
       throw error;
     }
     state.db = nextDb;
@@ -1142,7 +1272,7 @@
     state.selectedResource = null;
     render();
     renderClassRowsFromResources();
-    setText(document.getElementById('backupStatus'), '匯入完成。');
+    setText(document.getElementById('backupStatus'), t('backupImportDone'));
   }
 
   function handleAction(actionElement) {
@@ -1168,7 +1298,12 @@
     } else if (action === 'edit-resource' && selectedResource) {
       openEditor('edit', selected, Object.assign({}, selectedResource));
     } else if (action === 'delete-resource' && selectedResource) {
-      showConfirmation('確認刪除資源', '將刪除「' + selectedResource.name + '」（' + selectedResource.current + ' / ' + selectedResource.max + '，' + availabilityText(selectedResource) + '）。此動作無法還原。', { type: 'delete-resource', index: selected });
+      showConfirmation(formatResourceTitle('delete', true), t('confirmDeleteResourceDetail', {
+        name: selectedResource.name,
+        current: selectedResource.current,
+        max: selectedResource.max,
+        availability: availabilityText(selectedResource)
+      }), { type: 'delete-resource', index: selected });
     } else if (action === 'cancel-editor') {
       setManagementView('sections');
       setManagementSection('resources');
@@ -1178,9 +1313,13 @@
         document.getElementById('copyCharacterName').focus();
         return;
       }
-      showConfirmation('確認複製角色', '將角色「' + state.character + '」複製為「' + target + '」。' + (state.db[target] ? ' 現有角色「' + target + '」及其資源將被覆蓋。' : ''), { type: 'copy-character', source: state.character, target: target });
+      showConfirmation(t('confirmCopyCharacterTitle'), t('confirmCopyCharacterDetail', {
+        source: state.character,
+        target: target,
+        overwrite: state.db[target] ? ' ' + t('copyCharacterOverwriteWarning', { target: target }) : ''
+      }), { type: 'copy-character', source: state.character, target: target });
     } else if (action === 'delete-character' && state.character) {
-      showConfirmation('確認刪除角色', '將刪除角色「' + state.character + '」及其所有資源。此動作無法還原。', { type: 'delete-character', name: state.character });
+      showConfirmation(t('confirmDeleteCharacterTitle'), t('confirmDeleteCharacterDetail', { name: state.character }), { type: 'delete-character', name: state.character });
     } else if (action === 'export') exportData();
     else if (action === 'import') importData();
     else if (action === 'confirm-management') performPendingAction();
@@ -1237,15 +1376,20 @@
       if (state.editorMode === 'edit') {
         const oldResource = currentResources()[state.editorIndex];
         const oldName = oldResource ? oldResource.name : resource.name;
-        title = '確認修改資源';
+        title = formatResourceTitle('edit', true);
         const overMax = resource.current > resource.max;
-        details = '將修改「' + oldName + '」' + (resource.name !== oldName ? '為「' + resource.name + '」' : '') + '：' + resourceSummaryText(resource) + (overMax ? '。目前次數會高於新上限，主頁將標示提醒；請使用重置恢復。' : '。');
+        details = t('resourceEditDetailTemplate', {
+          name: oldName,
+          rename: resource.name !== oldName ? t('resourceRenameTemplate', { name: resource.name }) : '',
+          summary: resourceSummaryText(resource),
+          warning: overMax ? t('resourceOverMaxEditWarning') : ''
+        });
       } else if (state.editorMode === 'copy') {
-        title = '確認複製資源';
-        details = '將以「' + state.editorSourceName + '」為範本，新增「' + resource.name + '」：' + resourceSummaryText(resource) + '。';
+        title = formatResourceTitle('copy', true);
+        details = t('resourceCopyDetailTemplate', { sourceName: state.editorSourceName, name: resource.name, summary: resourceSummaryText(resource) });
       } else {
-        title = '確認新增資源';
-        details = '將新增「' + resource.name + '」：' + resourceSummaryText(resource) + '。';
+        title = formatResourceTitle('create', true);
+        details = t('resourceCreateDetailTemplate', { name: resource.name, summary: resourceSummaryText(resource) });
       }
       showConfirmation(title, details, {
         type: 'save-resource',
@@ -1264,7 +1408,7 @@
     setText(error, '');
     if (!name) { nameInput.focus(); return; }
     if (Object.prototype.hasOwnProperty.call(state.db, name)) {
-      setText(error, '此角色名稱已存在，請使用其他名稱。');
+      setText(error, t('roleNameExists'));
       nameInput.focus();
       return;
     }
@@ -1278,7 +1422,7 @@
     state.openManagementAfterRoleCreate = true;
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     state.roleModal.hide();
-    notify('角色「' + name + '」已建立並選取。');
+    notify(t('roleCreated', { name: name }));
   });
 
   roleModalElement.addEventListener('hidden.bs.modal', function () {
@@ -1301,6 +1445,9 @@
 
   document.getElementById('exportBox').addEventListener('click', copyExportText);
 
+  applyStaticTranslations();
   render();
   renderHitDiceAccumulator();
-})();
+})().catch(function (error) {
+  console.error('Failed to initialize character resources.', error);
+});
