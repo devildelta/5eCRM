@@ -48,7 +48,6 @@
             <div id="managementSections">
               <ul class="nav nav-tabs mb-3" role="tablist">
                 <li class="nav-item" role="presentation"><button class="nav-link active" type="button" data-section="resources" role="tab" data-i18n="tabResources"></button></li>
-                <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-section="characters" role="tab" data-i18n="tabCharacters"></button></li>
                 <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-section="backup" role="tab" data-i18n="tabBackup"></button></li>
               </ul>
 
@@ -89,16 +88,15 @@
                 </section>
               </section>
 
-              <section class="management-section d-none" data-section-panel="characters">
+              <section class="management-section d-none" data-section-panel="backup">
                 <p id="managementCharacterLabel" class="mb-3"></p>
                 <div class="mb-3"><label for="copyCharacterName" class="form-label" data-i18n="copyCharacterNameLabel"></label><input id="copyCharacterName" class="form-control" maxlength="120"></div>
                 <div class="d-flex flex-wrap gap-2">
                   <button class="btn btn-outline-light" type="button" data-action="copy-character" data-i18n="copyCharacter"></button>
                   <button class="btn btn-outline-danger" type="button" data-action="delete-character" data-i18n="deleteCharacter"></button>
                 </div>
-              </section>
 
-              <section class="management-section d-none" data-section-panel="backup">
+                <hr>
                 <div class="d-flex flex-wrap gap-2 mb-3">
                   <button class="btn btn-outline-info" type="button" data-action="export" data-i18n="exportCharacters"></button>
                   <button class="btn btn-outline-success" type="button" data-action="import" data-i18n="importCharacters"></button>
@@ -110,6 +108,15 @@
                   <textarea id="exportBox" class="form-control mt-2" rows="4" readonly spellcheck="false" data-i18n-aria-label="exportAria"></textarea>
                 </div>
                 <p id="backupStatus" class="small mb-0" aria-live="polite"></p>
+
+                <hr>
+                <div>
+                  <label for="localeSelect" class="form-label" data-i18n="localeLabel"></label>
+                  <select id="localeSelect" class="form-select" data-i18n-aria-label="localeLabel">
+                    <option value="zh-HK" data-i18n="localeZhHK"></option>
+                    <option value="zh-TW" data-i18n="localeZhTW"></option>
+                  </select>
+                </div>
               </section>
             </div>
 

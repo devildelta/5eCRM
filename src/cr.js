@@ -2,19 +2,31 @@
   'use strict';
 
   const scriptUrl = document.currentScript.src;
-  const locale = navigator.language.toLowerCase().replace('_', '-').split('-').indexOf('tw') !== -1 ? 'zh-TW' : 'zh-HK';
+  const localeStorageKey = 'dnd_skills_locale';
+  const browserLocale = navigator.language.toLowerCase().replace('_', '-').split('-').indexOf('tw') !== -1 ? 'zh-TW' : 'zh-HK';
+  const storedLocale = localStorage.getItem(localeStorageKey);
+  let locale = storedLocale === 'zh-HK' || storedLocale === 'zh-TW' ? storedLocale : browserLocale;
   const responses = await Promise.all([
     fetch(new URL('locales/common.json', scriptUrl)),
-    fetch(new URL('locales/' + locale + '.json', scriptUrl))
+    fetch(new URL('locales/zh-HK.json', scriptUrl)),
+    fetch(new URL('locales/zh-TW.json', scriptUrl))
   ]);
   const commonResponse = responses[0];
-  const localeResponse = responses[1];
+  const localeResponses = { 'zh-HK': responses[1], 'zh-TW': responses[2] };
   if (!commonResponse.ok) throw new Error('Unable to load shared locale resource.');
-  if (!localeResponse.ok) throw new Error('Unable to load locale resource: ' + locale);
+  Object.keys(localeResponses).forEach(function (localeName) {
+    if (!localeResponses[localeName].ok) throw new Error('Unable to load locale resource: ' + localeName);
+  });
   const commonI18n = await commonResponse.json();
-  const i18n = await localeResponse.json();
+  const locales = {
+    'zh-HK': await localeResponses['zh-HK'].json(),
+    'zh-TW': await localeResponses['zh-TW'].json()
+  };
+  let i18n = locales[locale];
   if (!commonI18n || typeof commonI18n !== 'object' || Array.isArray(commonI18n)) throw new Error('Invalid shared locale resource.');
-  if (!i18n || typeof i18n !== 'object' || Array.isArray(i18n)) throw new Error('Invalid locale resource: ' + locale);
+  Object.keys(locales).forEach(function (localeName) {
+    if (!locales[localeName] || typeof locales[localeName] !== 'object' || Array.isArray(locales[localeName])) throw new Error('Invalid locale resource: ' + localeName);
+  });
 
   const localeTokens = {
     character: 'characterNoun',
@@ -392,6 +404,7 @@
       element.setAttribute('aria-label', t(element.dataset.i18nAriaLabel));
     });
     setText(document.getElementById('classBuilderHelp'), t('classBuilderHelpTemplate', { artificer: t('classArtificer') }));
+    document.getElementById('localeSelect').value = locale;
   }
 
   function updateCharacters() {
@@ -1074,6 +1087,29 @@
     return [];
   }
 
+  function refreshClassRowsForLocale() {
+    const container = document.getElementById('classRows');
+    const configs = Array.from(container.querySelectorAll('.class-row')).map(function (row) {
+      return {
+        classId: row.dataset.classId,
+        preset: row.dataset.classKey,
+        name: row.querySelector('[data-class-name]').value,
+        level: row.querySelector('[data-class-level]').value,
+        hitDie: row.querySelector('[data-class-die]').value,
+        progression: row.querySelector('[data-class-progression]').value,
+        manualSlots: Array.from(row.querySelectorAll('[data-manual-slot]')).map(function (input) { return input.value; })
+      };
+    });
+    container.replaceChildren();
+    configs.forEach(function (config) {
+      addClassRow(config);
+      const row = container.lastElementChild;
+      Array.from(row.querySelectorAll('[data-manual-slot]')).forEach(function (input, index) {
+        if (config.manualSlots[index] !== undefined) input.value = config.manualSlots[index];
+      });
+    });
+  }
+
   function renderClassRowsFromResources() {
     const container = document.getElementById('classRows');
     if (!container) return;
@@ -1341,7 +1377,16 @@
   });
 
   app.addEventListener('change', function (event) {
-    if (event.target.id === 'characterSelect') {
+    if (event.target.id === 'localeSelect') {
+      const nextLocale = event.target.value;
+      if (!Object.prototype.hasOwnProperty.call(locales, nextLocale)) throw new Error('Unsupported locale: ' + nextLocale);
+      localStorage.setItem(localeStorageKey, nextLocale);
+      locale = nextLocale;
+      i18n = locales[locale];
+      applyStaticTranslations();
+      render();
+      refreshClassRowsForLocale();
+    } else if (event.target.id === 'characterSelect') {
       state.character = event.target.value;
       state.selectedResource = null;
       clearHitDiceAccumulator();
