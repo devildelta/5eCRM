@@ -12,14 +12,14 @@
 |---|---|---|
 | `SR` | 短休結束後恢復 | `短休` |
 | `LR` | 長休結束後恢復 | `長休` |
-| `SR/LR` | 短休或長休結束後恢復 | `短休`與`長休`皆可恢復 |
+| `SR/LR` | 短休或長休結束後恢復 | 工具統一記為`短休`；長休批次回復亦涵蓋此資源 |
 | `每日` | 每日 / 長休節奏恢復；按來源文字決定每日邊界，不應自動等同任意長休 | `長休`或明確自訂周期，需保留來源語意 |
 | `先攻觸發` | 擲先攻時符合條件才恢復，不是休息周期 | 獨立觸發，不可映射成`短休`或`長休` |
 | `事件觸發` | 施放法術、特定能力成功、特定物件消耗等事件後恢復 | 記錄事件 / 前置條件 |
 | `付費再用` | 額外使用需消耗法術位或另一資源 | 表示為資源成本，不增加免費上限 |
 | `無有限池` | 能力可用，但無每休息次數池；可能仍受回合、動作、持續時間或其他限制 | 不建立資源疊 |
 
-**通用判讀**：`每短休或長休恢復`不同於`每日一次`；「短休後才可使用的恢復能力」也不同於被恢復的法術位。單次施法 / 攻擊 / 反應限制是行動經濟，不等於可消耗資源池。
+**通用判讀**：工具將規則書中的 `SR/LR` 統一映射為`短休`冷卻；長休恢復會涵蓋短休資源。`每短休或長休恢復`不同於`每日一次`；「短休後才可使用的恢復能力」也不同於被恢復的法術位。單次施法 / 攻擊 / 反應限制是行動經濟，不等於可消耗資源池。
 
 ## Artificer（E:RftLW / TCE）
 
@@ -30,7 +30,7 @@
 - **Alchemist：Restorative Reagents（9 級）**：`Lesser Restoration` 免費施放次數等於智力調整值（至少 1），LR 恢復；藥劑帶來的臨時 HP 是效果，不是另一個可累積池。
 - **Armorer：Defensive Field（3 級）**：使用次數等於熟練加值（PB），LR 恢復。
 - **Artillerist：Eldritch Cannon**：完成 LR 後免費創造一座；同時只能維持一座（15 級特性可有兩座）；額外創造消耗法術位。其持續時間不是休息回復池。
-- **Battle Smith：Arcane Jolt（9 級）**：使用次數等於 PB，LR 恢復。
+- **Battle Smith：Arcane Jolt（9 級）**：使用次數等於 INT 調整值（至少 1），LR 恢復；每回合最多使用一次。
 - **Steel Defender**：修復 / 復活可能需要動作、工具或法術位；不可把夥伴 HP 當成 subclass 每日次數池。
 - 其他 infusions、工具熟練、裝備選擇多數不是休息次數資源。
 
@@ -50,11 +50,11 @@
 
 - **Bardic Inspiration**：次數等於魅力調整值（至少 1）；Bard 1–4 級 LR 恢復，從 5 級 Font of Inspiration 起 SR/LR 恢復。子職業消耗它時共用同一池。
 - **Superior Inspiration（20 級）**：擲先攻時若沒有 Bardic Inspiration 使用次數，恢復 1 次（`先攻觸發`）。
-- **Lore：Cutting Words；Valor：Combat Inspiration；Glamour：Mantle of Inspiration；Swords：Blade Flourish；Whispers：Psychic Blades；Creation：Animating Performance；Eloquence：Unsettling Words / Infectious Inspiration；Spirits：Tales from Beyond**：消耗 Bardic Inspiration，不另設次數池。
+- **Lore：Cutting Words；Valor：Combat Inspiration；Glamour：Mantle of Inspiration；Swords：Blade Flourish；Whispers：Psychic Blades；Creation：Animating Performance；Eloquence：Unsettling Words；Spirits：Tales from Beyond**：消耗 Bardic Inspiration，不另設次數池。
 - **Glamour：Enthralling Performance**：SR/LR。**Mantle of Majesty**：LR。**Unbreakable Majesty**：SR/LR。
 - **Whispers：Words of Terror、Mantle of Whispers**：SR/LR；**Shadow Lore**：LR。
 - **Creation：Performance of Creation**：LR 免費使用；額外使用支付法術位。其 Animated Object 持續時間不是每日再次充能的獨立池。
-- **Eloquence：Universal Speech**：LR；**Unsettling Words / Infectious Inspiration** 消耗 Bardic Inspiration。
+- **Eloquence：Universal Speech**：LR。**Unsettling Words** 消耗 Bardic Inspiration；**Infectious Inspiration** 使用次數等於 CHA 調整值（至少 1）/ LR，成功觸發時不消耗 Bardic Inspiration。
 - **Spirits：Tales from Beyond**：消耗 Bardic Inspiration；效果擲骰後不形成另一個可保存的資源池。
 - **Spirits：Spirit Session**：完成一次短休儀式後選擇一個符合等級限制的法術，可在下次長休前免費施放一次；使用此特性後 LR 才可再次主持儀式。
 - PHB / SCAG / XGE 的其他學院特性多為消耗 Bardic Inspiration、法術位或沒有有限使用次數。
@@ -68,17 +68,17 @@
 - **Twilight：Eyes of Night**：共享黑暗視覺的使用為 LR 一次；再次共享可依特性支付任意環級法術位。
 - **Forge / Grave / Order / Peace / Twilight / Arcana / Death** 等 Domain 的 Channel Divinity 招式：消耗共用 Channel Divinity 池，不各建一池。
 - **War：War Priest**：WIS 調整值次（至少 1）/ LR。
-- **TCE optional：Harness Divine Power**：PB 一半向上取整次 / LR；每次使用另外消耗一次 Channel Divinity，產生法術位恢復。這是有兩個資源欄位互動的兌換，不是免費法術位池。
+- **TCE optional：Harness Divine Power**：使用次數依 Cleric 等級為 2 級 1 次、6 級 2 次、18 級 3 次，LR 恢復；每次使用另外消耗一次 Channel Divinity，並恢復一個不高於 PB 一半向上取整環的法術位。這是有兩個資源欄位互動的兌換，不是免費法術位池。
 - **Arcana：Arcane Abjuration**、**Death：Touch of Death**、**Forge：Artisan's Blessing**、**Order：Order's Demand**、**Grave：Path to the Grave**、**Peace：Balm of Peace**、**Twilight：Twilight Sanctuary** 等均按 Channel Divinity 計費。
 
 ## Druid（PHB / SCAG / XGE / GGtR / TCE）
 
-- **Wild Shape**：2 次；SR/LR 恢復。消耗此池的 subclass / optional feature 必須共用扣次數。
+- **Wild Shape**：2 次；SR/LR 恢復。20 級 Archdruid 可無限使用。消耗此池的 subclass / optional feature（包括 Starry Form、Wildfire Spirit 及 Wild Companion）必須共用扣次數。
 - **Circle of the Land：Natural Recovery**：每日一次，在完成短休後恢復部分法術位；只能在短休結束時使用，不是 Wild Shape 恢復。
 - **Circle of Dreams：Balm of the Summer Court**：治療骰池為 Druid 等級數量的 d6，LR 恢復。**Hidden Paths**：使用次數等於 WIS 調整值（至少 1），LR 恢復；不消耗 Wild Shape。**Walker in Dreams**：每日一次，依特性要求在短休後使用，LR 後恢復。
 - **Circle of the Shepherd：Spirit Totem**：SR/LR。
 - **Circle of Spores：Symbiotic Entity**：消耗 Wild Shape；Fungal Infestation 次數等於 WIS 調整值（至少 1）/ LR。Halo of Spores 是符合條件時每回合的反應，不是有限池。
-- **Circle of Stars：Starry Form**：消耗 Wild Shape；Cosmic Omen 次數等於 PB / LR。星象分支效果共用該次 Starry Form 狀態，不各自建池。
+- **Circle of Stars：Star Map**：Guiding Bolt 免費施放次數等於 PB / LR。**Starry Form** 消耗 Wild Shape；Cosmic Omen 次數等於 PB / LR。星象分支效果共用該次 Starry Form 狀態，不各自建池。
 - **Circle of Wildfire：Wildfire Spirit**：召喚消耗 Wild Shape；Cauterizing Flames 次數等於 WIS 調整值（至少 1）/ LR。已消失的靈體可用法術位支付的復活方式應記為 `付費再用`。
 - **TCE optional：Wild Companion**：消耗 Wild Shape，或支付法術位替代；此能力沒有再額外恢復一池。
 
@@ -86,13 +86,13 @@
 
 - **Second Wind、Action Surge**：SR/LR；Action Surge 17 級後有額外次數，但單回合使用上限仍按特性限制。
 - **Indomitable**：LR；依 Fighter 等級增加次數。
-- **Battle Master：Superiority Dice**：SR/LR；Maneuvers 共用骰池。15 級 Relentless 在擲先攻時若沒有 superiority die，可恢復 1 顆（`先攻觸發`）。
+- **Battle Master：Superiority Dice**：SR/LR；Maneuvers 共用骰池，3 級 d8、10 級 d10、18 級 d12。15 級 Relentless 在擲先攻時若沒有 superiority die，可恢復 1 顆（`先攻觸發`）。
 - **Arcane Archer：Arcane Shot**：2 次 / SR/LR；15 級 Ever-Ready Shot 若擲先攻時沒有 Arcane Shot 使用次數，可恢復 1 次。
 - **Cavalier：Unwavering Mark**：強化反擊次數等於 STR 調整值（至少 1）/ LR。**Warding Maneuver**：次數等於 CON 調整值（至少 1）/ LR。
 - **Samurai：Fighting Spirit**：3 次 / LR；10 級若擲先攻時已無剩餘次數，恢復 1 次。**Strength Before Death**：LR。
 - **Echo Knight（EGtW）：Unleash Incarnation**：次數等於 CON 調整值（至少 1）/ LR。Reclaim Potential：PB 次 / LR；Echo 的召喚本身沒有單獨次數池。
 - **Rune Knight：Giant's Might、Runic Shield**：各 PB 次 / LR；每個 Rune 的啟動依該 rune 自己的規則 SR/LR 恢復，逐 rune 記錄，不能合併成一個 rune 池。
-- **Psi Warrior：Psionic Energy Dice**：數量等於兩倍 PB；LR 全恢復；若擲先攻時為 0，恢復 1 顆。所有消耗 psionic die 的能力共用一池。
+- **Psi Warrior：Psionic Energy Dice**：數量等於兩倍 PB；骰面為 d6（3 級）、d8（5 級）、d10（11 級）、d12（17 級）；LR 全恢復；若擲先攻時為 0，恢復 1 顆。所有消耗 psionic die 的能力共用一池。
 - **Psi Warrior：Bulwark of Force、Telekinetic Master**：各有一次 / LR 的免費啟動；額外使用分別可消耗 Psionic Energy die（Telekinetic Master 亦按特性要求施放法術）。
 - Champion、Purple Dragon Knight / Banneret、Eldritch Knight 等其他來源項目沒有新增的通用休息次數池；Eldritch Knight 法術位另屬 Spell Slots。
 
@@ -113,11 +113,11 @@
 
 - **Divine Sense**：次數為 1 + CHA 調整值（至少 1）/ LR。
 - **Lay on Hands**：HP 池等於 Paladin 等級 × 5；LR 全恢復。疾病 / 毒素治療也從同一池扣固定點數。
-- **Channel Divinity**：3 級 1 次，7 級 2 次，15 級 3 次；SR/LR 恢復。各 Oath 的 Channel Divinity 用途共用此池。
+- **Channel Divinity**：取得 Oath 時（3 級）1 次；SR/LR 恢復。各 Oath 的 Channel Divinity 用途共用此池。
 - **Oath of the Ancients / Devotion / Vengeance / Crown / Conquest / Redemption / Oathbreaker / Glory / Watchers**：各自 Channel Divinity 招式均消耗共用池。
 - **Glory：Glorious Defense**：使用次數等於 CHA 調整值（至少 1）/ LR。
 - **Watchers：Vigilant Rebuke**：使用次數等於 CHA 調整值（至少 1）/ LR。
-- **TCE optional：Harness Divine Power**：PB 一半向上取整次 / LR；每次另花一次 Channel Divinity 兌換法術位。
+- **TCE optional：Harness Divine Power**：使用次數依 Paladin 等級為 3 級 1 次、7 級 2 次、15 級 3 次，LR 恢復；每次另花一次 Channel Divinity，並恢復一個不高於 PB 一半向上取整環的法術位。
 - 造成傷害時的 Divine Smite 消耗法術位；這是 Spell Slot 支出，不是額外 Smite 次數池。
 
 ## Ranger（PHB / SCAG / XGE / TCE / Fizban）
@@ -129,14 +129,14 @@
 - **Fey Wanderer：Fey Reinforcements**：每個符合條件的召喚法術各一次免費施放 / LR；Misty Wanderer：WIS 調整值次（至少 1）/ LR。
 - **Swarmkeeper：Writhing Tide**：PB 次 / LR。
 - **Drakewarden：Drake Companion**：LR 免費召喚；額外召喚花法術位。**Drake's Breath**：LR 免費一次；額外使用需支付 3 環以上法術位。
-- **TCE optional：Favored Foe、Nature's Veil**：各 PB 次 / LR。**Primal Awareness**：獲得的指定法術各有一次免費施放 / LR；額外施放使用法術位。
+- **TCE optional：Favored Foe、Nature's Veil**：各 PB 次 / LR。Favored Foe 的額外傷害只在自己每回合首次命中標記目標時發生；這不是標記能力的額外使用次數限制。**Primal Awareness**：獲得的指定法術各有一次免費施放 / LR；額外施放使用法術位。
 - 其他 Hunter、Gloom Stalker、Swarm 等能力若只有每回合觸發、動作或持續時間，沒有使用次數上限時屬 `無有限池`。
 
 ## Rogue（PHB / SCAG / XGE / TCE）
 
 - **Thief：Stroke of Luck**：SR/LR。
 - **Phantom：Wails from the Grave**：次數等於 Rogue 等級一半向上取整 / LR。**Ghost Walk**：LR。Tokens of the Departed 可保存的 token 數受 PB 上限；token 在長休時消失，取得 / 消耗 token 是事件，不是休息時補滿的普通充能池。
-- **Soulknife：Psionic Energy Dice**：數量等於兩倍 PB；LR 全恢復，SR 恢復 1 顆；若擲先攻時已無骰，恢復 1 顆。相關技能檢定與傷害共用此池。Psychic Whispers 與 Psychic Veil 各有一次免費 / LR 的啟動機會，之後可按各自規則花 Psionic Energy die 再用。
+- **Soulknife：Psionic Energy Dice**：數量等於兩倍 PB；骰面為 d6（3 級）、d8（5 級）、d10（11 級）、d12（17 級）；LR 全恢復，SR 恢復 1 顆；若擲先攻時已無骰，恢復 1 顆。相關技能檢定與傷害共用此池。Psychic Whispers 與 Psychic Veil 各有一次免費 / LR 的啟動機會，之後可按各自規則花 Psionic Energy die 再用。
 - **Arcane Trickster**：法術位 LR 恢復；Mage Hand Legerdemain 等不另造休息池。
 - 其他 Inquisitive、Mastermind、Scout、Swashbuckler 等若能力沒有明文有限次數，屬 `無有限池`；Cunning Action / Sneak Attack 是回合頻率，不是冷卻資源。
 
@@ -172,14 +172,14 @@
 - **Spell Slots**：LR 恢復。
 - **Arcane Recovery**：每日一次，在完成 SR 後恢復部分 spell slots；這是「施放恢復能力」，不是短休自動補槽。
 - **Signature Spells（20 級）**：兩個已選法術各有一次不花槽施放 / SR/LR；記為兩個特定 free-cast 次數。
-- **Conjuration：Benign Transposition**：LR，或額外使用支付 spell slot。
+- **Conjuration：Benign Transposition**：使用後需完成 LR 才能再次使用；施放 1 環或更高環咒法法術後亦可恢復使用機會。
 - **Divination：Portent**：每次 LR 後重擲預言骰（通常 2 顆，14 級 3 顆）；Third Eye：SR/LR。Expert Divination 可在施放合資格預言法術時回復較低環 spell slot（`事件觸發`）。
-- **Enchantment：Instinctive Charm**：LR，或額外使用支付 spell slot。
+- **Enchantment：Instinctive Charm**：沒有全域使用次數池；成功抵抗此特性的攻擊者會在長休前免受此特性再次影響。
 - **Evocation：Overchannel**：每 LR 首次使用無額外傷害；同一長休前額外使用會承受逐次增加的傷害。不是每次使用都消耗固定充能數。
-- **Illusion：Illusory Self**：SR/LR，或額外使用支付 spell slot。
-- **Transmutation：Shapechanger**：SR/LR。Major Transformation 為消耗 Transmuter's Stone 的一次長休效果；石頭被消耗後依特性重建。
+- **Illusion：Illusory Self**：SR/LR。
+- **Transmutation：Shapechanger**：SR/LR。**Major Transformation（14 級）**：LR 一次，消耗 Transmuter's Stone。
 - **Abjuration：Arcane Ward**：ward 有 HP pool；施放合資格 Abjuration 法術時按規則回復 ward HP（`事件觸發`），不是長休自動補池。
-- **War Magic：Power Surge**：上限等於 INT 調整值（至少 1）；LR 時回至 1，成功反制 / 驅散法術等指定事件可取得額外 surge；使用 Arcane Deflection 且目前沒有 surge 時也可取得 1 個。上限仍受 INT 調整值限制，以小整數池加事件規則建模。
+- **War Magic：Power Surge**：上限等於 INT 調整值（至少 1）；LR 後重設為 1，成功以 Counterspell / Dispel Magic 終止法術時取得 surge；使用 Arcane Deflection 且目前沒有 surge 時也可取得 1 個。上限仍受 INT 調整值限制，以小整數池加事件規則建模。
 - **Chronurgy（EGtW）：Chronal Shift**：2 次 / LR；Momentary Stasis：PB 次 / LR；Arcane Abeyance：SR/LR；Convergent Future 沒有固定次數池，但每次承受 Exhaustion，視為代價而非冷卻。
 - **Graviturgy（EGtW）：Adjust Density**：使用次數等於 INT 調整值（至少 1）/ LR；Violent Attraction：INT 調整值次（至少 1）/ LR；Event Horizon：LR。
 - **Bladesinger**：以採用版本為準（見版本差異）。
@@ -187,7 +187,7 @@
 
 ## TCE 可選職業特性中會影響資源模型者
 
-- **Cleric / Paladin：Harness Divine Power**：PB 一半向上取整次 / LR，使用時支付一次 Channel Divinity 換 spell slot。
+- **Cleric / Paladin：Harness Divine Power**：使用次數依各自職業等級表增加並於 LR 恢復；使用時支付一次 Channel Divinity，恢復法術位環級上限為 PB 一半向上取整。
 - **Druid：Wild Companion**：支付 Wild Shape 或 spell slot；消耗既有池，不增加恢復池。
 - **Monk：Quickened Healing、Focused Aim**：消耗 Ki。
 - **Ranger：Favored Foe、Nature's Veil**：各 PB 次 / LR；Primal Awareness 的每個免費法術另按每 spell / LR 記錄。
@@ -235,7 +235,7 @@
 ## 版本 / 多職業 / 疊放規則
 
 - **Bladesinger 來源差異**：SCAG 原始版本為 2 次 / SR/LR；TCE 重印版本為 PB 次 / LR。角色資料需記錄採用版本或全專案指定單一版本，不能同時疊加。
-- **短休與長休**：若寫 `SR/LR`，代表兩種休息任一結束即可恢復；批次長休自然涵蓋較短恢復周期。每日 / 七日 / 1d4 次長休 / 事件觸發不可硬塞入三個一般休息按鈕。
+- **短休與長休**：若寫 `SR/LR`，代表兩種休息任一結束即可恢復；工具統一將其標記為短休冷卻，而批次長休仍會恢復短休資源。每日 / 七日 / 1d4 次長休 / 事件觸發不可硬塞入一般休息按鈕。
 - **多職業**：同名能力若依職業等級、熟練加值或屬性調整值計算，計算依 feature 原文的指定職業等級與角色總 PB 規則；不可一律拿角色總等級代替。
 - **不重複計池**：Channel Divinity、Ki、Rage、Bardic Inspiration、Sorcery Points、Superiority Dice 等職業池由多項 subclass 能力共用；卡片可專用分組顯示，但底層使用次數仍只有一份。
 - **消耗鏈**：例如能力每短休可使用，但每次另花 spell slot / Ki / Channel Divinity，需同時呈現「能力可用次數」和「付款來源」；若規則是直接花既有池且沒有額外次數，不建立額外資源。

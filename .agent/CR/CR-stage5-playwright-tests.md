@@ -40,6 +40,22 @@
 | CR-13 | 行動版 modal / 頁面寬度與 disabled 對比 | 重跑確認 | 曾測 390px viewport、modal 邊界和 disabled 色彩；最新 Bootstrap / CSS 應重跑 |
 | CR-14 | 匯入、匯出、剪貼簿、重名覆蓋 / 略過 | 未曾完成 | Stage 5 清單已有要求；目前歷史紀錄不足以判定整套流程已通過 |
 | CR-15 | 鍵盤焦點、Tab、ESC、輔助科技及真實裝置 | 未曾完成 | 歷史自動化 / 視窗模擬不能替代人工與實機驗收 |
+| CR-16 | Pass 2 職業／子職業、TCE、資源規則 | 已針對性重跑 | 以下記錄本次 focused checks；不代表 Step K 全子職業矩陣已完成 |
+
+## Pass 2 targeted verification
+
+以下使用 HTTP 頁面和臨時角色手動執行 Playwright 檢查；每次測試前後均保存並還原原有 localStorage。各案例通過，沒有 JavaScript page error：
+
+- 13 個標準職業均在子職業解鎖等級前停用選擇、到達解鎖等級後要求選擇。
+- Paladin 缺少 CHA 時出現本地化錯誤；Paladin 資源上限、Eldritch Knight 第三施法者進程、語言切換後保留子職業選擇均符合預期。
+- TCE 選項預設關閉、不同角色彼此隔離且重新載入後保留；Favored Foe opt-in 會產生 PB 資源，Sorcerous Restoration 會在短休恢復 4 點，停用後不再恢復。
+- Arcane Jolt 的 INT 調整值上限及每回合使用閘、Cleric Harness Divine Power 的職業等級次數與法術位環級上限、Star Map、Infectious Inspiration 均已抽樣驗證。
+- Soulknife Psionic Energy Dice 的 PB 上限、5 級 d8 骰面及短休恢復 1 顆均已驗證；Power Surge 初始為 1、長休後亦重設為 1；Wizard 的 Benign Transposition、Instinctive Charm、Illusory Self、Major Transformation 規則已抽樣驗證。
+- 重套時保留手動資源及既有資源消耗；自訂職業手動法術位／生命骰，以及 Paladin 3 級既有法術位計算均未改變。
+- SR/LR 統一為短休：既有資料中的「短休或長休」冷卻與 recovery metadata 會遷移成「短休」；資源編輯器只提供統一用語，短休批次回復仍可恢復遷移後資源。瀏覽器檢查通過且無 JavaScript page error；匯入路徑也使用同一正規化 helper。
+- Step J targeted test run（2026-10-19）：使用臨時 Ranger 1／Fighter 3（Battle Master）／Paladin 2 角色驗證總等級 PB、CHA 調整值、職業等級公式、Battle Master 骰數／骰面／冷卻、Favored Foe opt-in 及獨立使用閘；另驗證 TCE 預設關閉、啟用後生成、角色／子職業／能力值持久化與角色間隔離。全數通過，沒有 JavaScript page error。
+
+**Step K 未執行（依操作員指示）**：未跑逐一覆蓋所有子職業的 20 級案例，亦未跑計劃列出的完整多職整合矩陣。以上 focused checks 不替代該矩陣。
 
 ## 重跑規格
 
