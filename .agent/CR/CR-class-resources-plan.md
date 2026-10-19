@@ -1,5 +1,7 @@
 # D&D 5e 職業資源實作計劃
 
+> Step K 案例狀態及人員指派的中央控制表： [step-k-control-table.md](./step-k-control-table.md)。修正分組及每組修正後的測試／控制表更新規則見 [step-k-fix-control.md](./step-k-fix-control.md)。本計劃定義測試範圍與預期情境；控制表記錄現行狀態及指派。
+
 ## 目標與範圍
 
 擴充現有職業等級資源計算器，讓標準 2014 版 D&D 5e 職業輸入可選擇支援的子職業，並按職業等級、子職業、熟練加值及屬性調整值產生有限次數資源。現有法術位計算已實作，必須保持原有計算與行為。
@@ -229,17 +231,86 @@
 - [ ] K-B024：邊界屬性 fixture 覆蓋六能力分數 1、最低合法值、10（調整值 0）、20（調整值 +5）、30（調整值 +10）及空白；驗證上限、最少 1 規則及必填錯誤，不得把 PB、職業等級公式錯用能力調整值。
 - [ ] K-B025：PB 邊界按總職業等級 1、4、5、8、9、12、13、16、17、20 驗證；資源公式需明確區分角色總等級 PB 與持有該特性的職業等級。
 - [ ] K-B026–K-B039：逐項驗證所有 14 個生成公式／子公式分支（fixed、PB、twice-PB、half-PB-up、ability、ability-plus、ability-times、class-level、class-level-half-up、class-level-plus-one、class-level-times、level-tiers、cleric-channel-divinity、barbarian-rage）至少涵蓋最小值、升階邊界及 20 級值。`half-PB-up` 同時驗 Harness Divine Power 的法術位環級上限 metadata。對應資源 fixture 由規則參考逐項指派，不可只用一個通用例取代不同公式的邊界。
-- [ ] K-B040 固定值資源門檻；[ ] K-B041 PB 上限資源門檻；[ ] K-B042 能力值公式資源門檻；[ ] K-B043 等級 tier 資源門檻；[ ] K-B044 子職業限制資源門檻；[ ] K-B045 `recoveryFromLevel` 回復方式切換門檻；[ ] K-B046 骰面／次數隨等級變化門檻；[ ] K-B047 shared pool 消費者和 pool key；[ ] K-B048 資源付款成本及替代成本；[ ] K-B049 recovery-only 定義與資源存在條件；[ ] K-B050 TCE 特性適用門檻。每一 case 均須列出完整適用目錄列與 fixture 數，不可用單一代表列替代整份矩陣。生成／解鎖門檻須逐列以獨立 fixture 比較 `level - 1` 不生成／不啟用與 `level` 生成／啟用；公式、回復方式、骰面／次數等變化則須在每個實際變化門檻前後測試並斷言具體數值或 metadata 變更，不可錯判為底層資源消失。共享池／成本須驗證所有相關消費者、key、成本與替代成本；recovery-only 須逐列驗證存在條件，若目錄中沒有適用定義，需記錄已核對的 N/A 與依據。
+- [ ] K-B040-01 固定值資源門檻（Tester 1：Artificer／Barbarian／Ranger／Sorcerer）；[ ] K-B040-02（Tester 2：Bard／Cleric／Rogue）；[ ] K-B040-03（Tester 3：Druid／Fighter／Monk）；[ ] K-B040-04（Tester 4：Paladin／Warlock／Wizard）。四個切片各自有獨立結果；K-B040 父項只作歷史彙總，不再計分。 [ ] K-B041 PB 上限資源門檻；[ ] K-B042 能力值公式資源門檻；[ ] K-B043 等級 tier 資源門檻（Rune Knight 上限為五個 Rune，Fighter 18 級不新增第六個）；[ ] K-B044 子職業限制資源門檻；[ ] K-B045 `recoveryFromLevel` 回復方式切換門檻；[ ] K-B046 骰面／次數隨等級變化門檻；[ ] K-B047 shared pool 消費者和 pool key；[ ] K-B048 資源付款成本及替代成本；[ ] K-B049 recovery-only 定義與資源存在條件；[ ] K-B050 TCE 特性適用門檻。每一 case 均須列出完整適用目錄列與 fixture 數，不可用單一代表列替代整份矩陣。生成／解鎖門檻須逐列以獨立 fixture 比較 `level - 1` 不生成／不啟用與 `level` 生成／啟用；公式、回復方式、骰面／次數等變化則須在每個實際變化門檻前後測試並斷言具體數值或 metadata 變更，不可錯判為底層資源消失。共享池／成本須驗證所有相關消費者、key、成本與替代成本；recovery-only 須逐列驗證存在條件，若目錄中沒有適用定義，需記錄已核對的 N/A 與依據。
 
-#### K-T001–K-T007：跨目錄不變條件
+#### K-T001–K-T007：跨目錄不變條件（父項只作分組；不計分）
 
-- [ ] K-T001 共用池：Bardic Inspiration、Channel Divinity、Wild Shape、Ki、Rage、Sorcery Points、Superiority Dice 及所有有多個消費者的 pool key 不重複建立；所有消費者都指向正確既有 key。
-- [ ] K-T002 獨立池：同職業不同恢復方式、不同資源 key、不同法術環級及 Rune Knight 各 rune slot 均不合併；同卡分組不改變 pool identity。
-- [ ] K-T003 恢復矩陣：短休、長休、SR/LR（統一標為短休）、部分短休回復、long-rest reset-to、empty-only、生命骰半數回復各按規則恢復；每回合／每輪／先攻／事件觸發不可被普通休息按鈕錯誤回復。
-- [ ] K-T004 使用限制與成本：once-per-turn、once-on-your-turn、once-per-round、effect gate、法術位／Ki／Channel Divinity／傷害／物品成本分別記錄，不能混為 cooldown 或免費次數。
-- [ ] K-T005 重套與消耗保留：同 pool key 保持 current（包括超上限狀態），已刪除生成資源移除、手動資源保留、新增資源以正確初始值建立。
-- [ ] K-T006 Locale／輸入持久化：兩種語言切換及重繪後保留 class、level、subclass、六能力值、TCE selection；使用者角色隔離且資料 reload 後一致。
-- [ ] K-T007 報告差異：每一資源輸出 fixture 要能明確列出 missing、unexpected、wrong maximum、wrong recovery、wrong pool key，而非只以總數相等判定成功。
+每個 child ID 都只評分一項可獨立通過或失敗的檢查。舊報告中的 K-T001–K-T007 是歷史父項引用；目前結果以 child ID 為準。
+
+**K-T001 — 共用池及消費者**
+
+- [ ] K-T001-01 Bardic Inspiration：唯一 pool、`shared` metadata 及 Bard 消費者連結正確。
+- [ ] K-T001-02 Cleric Channel Divinity 消費者使用正確的 canonical shared pool 及 consumer links。
+- [ ] K-T001-03 Paladin Channel Divinity 消費者重用相同的 canonical shared pool 及正確 consumer links。
+- [ ] K-T001-04 Wild Shape：唯一 pool、`shared` metadata 及相關消費者連結正確。
+- [ ] K-T001-05 Ki：唯一 pool、`shared` metadata 及相關消費者連結正確。
+- [ ] K-T001-06 Rage：唯一 pool、`shared` metadata 及相關消費者連結正確。
+- [ ] K-T001-07 Sorcery Points：唯一 pool、`shared` metadata 及相關消費者連結正確。
+- [ ] K-T001-08 Superiority Dice：唯一 pool、`shared` metadata 及 Battle Master 消費者連結正確。
+- [ ] K-T001-09 Psi Warrior：唯一 Psionic Energy Dice pool 及其消費者連結正確。
+- [ ] K-T001-10 Soulknife：唯一 Psionic Energy Dice pool 及其消費者連結正確。
+- [ ] K-T001-11 其他多消費者 pool：完整列出適用 pool，並逐項確認消費者指向既有 canonical key。
+
+**K-T002 — 獨立池、恢復方式與分組**
+
+- [ ] K-T002-01 Soulknife Psionic Energy Dice 與 Psychic Whispers 保持不同 pool key。
+- [ ] K-T002-02 Soulknife Psionic Energy Dice 與 Psychic Whispers 保持不同恢復行為。
+- [ ] K-T002-03 Artificer spell-slot 各環級使用不同 pool key。
+- [ ] K-T002-04 同卡分組不合併 spell-slot 環級或改變 pool identity。
+- [ ] K-T002-05 Rune Knight 僅有五個獨立 Rune pool；Fighter 18 級不新增第六個。
+- [ ] K-T002-06 其餘不同 pool key／cooldown 的目錄列保持獨立；完成跨目錄核對。
+
+**K-T003 — 恢復行為**
+
+- [ ] K-T003-01 Bardic Inspiration 在 Bard 4／5 的短休與長休恢復邊界正確。
+- [ ] K-T003-02 Sorcerous Restoration 的恢復量符合已測等級變化。
+- [ ] K-T003-03 Power Surge 在短休及長休後均 reset-to 恰好 1。
+- [ ] K-T003-04 Soulknife Psionic Energy Dice 每回合使用上限正確。
+- [ ] K-T003-05 Soulknife Psionic Energy Dice 部分短休恢復量正確。
+- [ ] K-T003-06 Soulknife Psionic Energy Dice 長休恢復量正確。
+- [ ] K-T003-07 Psychic Whispers 僅在適用的 empty-only 條件下長休恢復。
+- [ ] K-T003-08 Fighter 生命骰長休恢復半數（向上取整）正確。
+- [ ] K-T003-09 Tides of Chaos 不因普通短休恢復，並按已記錄規則於長休恢復。
+- [ ] K-T003-10 事件觸發恢復不被普通休息控制取代，並逐項執行實際觸發：Tides of Chaos 在 DM 選擇觸發合資格 Wild Magic Surge 後恢復；Benign Transposition 在施放 1 環或更高環咒法法術後恢復；Power Surge 在 Counterspell／Dispel Magic 成功終止法術後取得，或符合 Arcane Deflection 的空池條件時取得。事件觸發須與休息 recovery 分開斷言。
+- [ ] K-T003-11 完成 `recoveryOnly` 目錄範圍核對；若無適用列，記錄 N/A 依據。
+- [ ] K-T003-12 完成 `longRestRecoveryWhenEmpty` 目錄範圍核對；若無適用列，記錄 N/A 依據。
+
+**K-T004 — 使用限制與成本**
+
+- [ ] K-T004-01 Arcane Jolt 的 once-per-turn gate 與 long-rest cooldown 分開運作。
+- [ ] K-T004-02 Action Surge 的 once-on-your-turn gate 與 short-rest cooldown 分開運作。
+- [ ] K-T004-03 核對 once-per-round 定義；若目錄沒有適用定義，記錄 N/A，並保留 UI 標籤支援證據。
+- [ ] K-T004-04 Favored Foe 的 damage effect gate 不冒充 PB 限定的標記次數。
+- [ ] K-T004-05 法術位成本及替代成本指向正確 pool、數量與最低環級。
+- [ ] K-T004-06 Ki 成本及替代成本指向正確 pool 和數量。
+- [ ] K-T004-07 Channel Divinity 成本指向正確 pool 和數量。
+- [ ] K-T004-08 傷害成本與免費使用／cooldown 分開記錄。
+- [ ] K-T004-09 物品成本與免費使用／cooldown 分開記錄。
+
+**K-T005 — 重套後資源狀態**
+
+- [ ] K-T005-01 同 pool key 重套後保留 current 值，包括 current 高於新 maximum 的情況。
+- [ ] K-T005-02 重套後保留手動建立的資源。
+- [ ] K-T005-03 重套後移除已失效的生成資源。
+- [ ] K-T005-04 新增生成資源以正確初始值建立。
+
+**K-T006 — Locale、持久化與角色隔離**
+
+- [ ] K-T006-01 Locale 切換／重繪後保留 class、level、subclass、六能力值及 TCE 選項。
+- [ ] K-T006-02 Reload 後同一角色的輸入及選項保持一致。
+- [ ] K-T006-03 不同角色的 TCE 選項互相隔離。
+
+**K-T007 — 差異報告**
+
+- [ ] K-T007-01 每個結果保留 case ID 及明確的 expected／actual。
+- [ ] K-T007-02 Missing resource 單獨分類。
+- [ ] K-T007-03 Unexpected resource 單獨分類。
+- [ ] K-T007-04 Wrong maximum 單獨分類。
+- [ ] K-T007-05 Wrong recovery 單獨分類。
+- [ ] K-T007-06 Wrong pool key 單獨分類。
+- [ ] K-T007-07 Wrong source 單獨分類。
+- [ ] K-T007-09 Wrong cost 單獨分類。
+- [ ] K-T007-10 Follow-up status 及必要 auditor round-trip 可追蹤。
 
 #### K-M001–K-M005：指定多職整合角色
 
