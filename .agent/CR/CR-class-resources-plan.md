@@ -92,6 +92,174 @@
 - **覆蓋率建議**：上述案例是重要的整合情境，但單靠這些多職組合無法合理宣稱覆蓋 90% 的所有玩家用例；職業／子職業組合、取得等級、資源公式和恢復方式的排列仍很多。建議把「每個支援子職業的 20 級案例」作為子職業功能及資料的全覆蓋基線，再以每個不同資源公式、共享池、恢復規則、使用閘及輸入重建行為至少一個案例作規則矩陣覆蓋。若需要量化 90%，應先定義分母為受支援資源特性／規則分支，而非籠統的玩家用例；目標可設為至少 90% 的這些項目有自動化斷言，剩餘未覆蓋項目列明原因並以瀏覽器驗收補足。每一個多職案例另須驗證總 PB、職業等級歸屬及不重複建池。
 - 完成 `.agent/CR/CR-class-resources-plan.md` 所列範圍後，更新計劃狀態及相關測試文件。
 
+### Step K 明細案例（待執行；不代表已驗收）
+
+#### 共用測試契約
+
+- 使用資料驅動 fixture；預設每個子職業案例都是一個總職業等級 20 的單職角色，該職業列等級 20，選定表列子職業。能力值固定為 STR 14、DEX 14、CON 14、INT 14、WIS 14、CHA 14（調整值均為 +2），PB 應為 +6。TCE optional features 全關，除非案例明確要求開啟。
+- 每一個 `K-Snnn` 案例比對獨立預期 fixture 與實際生成資源的完整集合：資源 key、名稱／所屬職業與子職業、存在／不存在、目前值與最大值公式、骰面、冷卻、重置／部分回復、共用池、付款成本、使用閘、事件或先攻 metadata。另斷言同一共享池只出現一次、不同 pool 不合併、無未預期的資源。
+- 預期值必須由 `.agent/CR/class-resource-recovery-reference.md` 與核准規則來源人工整理成 fixture，不可由 `classResourceData` / `classSubclassData` 直接生成 oracle，避免測試與被測資料目錄同源而自我驗證。規則來源仍待核實的特性須列為 blocked／deferred，不以推測值通過。
+
+#### K-S001–K-S104：全部支援子職業的 20 級案例
+
+每個下列方框都是獨立案例；共 104 個。子職業解鎖級別為其職業的共同邊界，表列來源必須與 UI 選項及資源來源 metadata 一致。
+
+- **Artificer（解鎖 3 級）**
+  - [ ] K-S001 Alchemist（TCE）
+  - [ ] K-S002 Armorer（TCE）
+  - [ ] K-S003 Artillerist（TCE）
+  - [ ] K-S004 Battle Smith（TCE）
+- **Barbarian（解鎖 3 級）**
+  - [ ] K-S005 Berserker（PHB）
+  - [ ] K-S006 Totem Warrior（PHB）
+  - [ ] K-S007 Ancestral Guardian（XGE）
+  - [ ] K-S008 Storm Herald（XGE）
+  - [ ] K-S009 Zealot（XGE）
+  - [ ] K-S010 Beast（TCE）
+  - [ ] K-S011 Wild Magic（TCE）
+  - [ ] K-S012 Path of the Giant（BGG）
+- **Bard（解鎖 3 級）**
+  - [ ] K-S013 Lore（PHB）
+  - [ ] K-S014 Valor（PHB）
+  - [ ] K-S015 Glamour（XGE）
+  - [ ] K-S016 Swords（XGE）
+  - [ ] K-S017 Whispers（XGE）
+  - [ ] K-S018 Creation（TCE）
+  - [ ] K-S019 Eloquence（TCE）
+- **Cleric（解鎖 1 級）**
+  - [ ] K-S020 Knowledge（PHB）
+  - [ ] K-S021 Life（PHB）
+  - [ ] K-S022 Light（PHB）
+  - [ ] K-S023 Nature（PHB）
+  - [ ] K-S024 Tempest（PHB）
+  - [ ] K-S025 Trickery（PHB）
+  - [ ] K-S026 War（PHB）
+  - [ ] K-S027 Death（DMG）
+  - [ ] K-S028 Arcana（SCAG）
+  - [ ] K-S029 Forge（XGE）
+  - [ ] K-S030 Grave（XGE）
+  - [ ] K-S031 Order（TCE）
+  - [ ] K-S032 Peace（TCE）
+  - [ ] K-S033 Twilight（TCE）
+- **Druid（解鎖 2 級）**
+  - [ ] K-S034 Land（PHB）
+  - [ ] K-S035 Moon（PHB）
+  - [ ] K-S036 Dreams（XGE）
+  - [ ] K-S037 Shepherd（XGE）
+  - [ ] K-S038 Stars（TCE）
+  - [ ] K-S039 Wildfire（TCE）
+- **Fighter（解鎖 3 級）**
+  - [ ] K-S040 Champion（PHB）
+  - [ ] K-S041 Battle Master（PHB）
+  - [ ] K-S042 Eldritch Knight（PHB）
+  - [ ] K-S043 Arcane Archer（XGE）
+  - [ ] K-S044 Cavalier（XGE）
+  - [ ] K-S045 Samurai（XGE）
+  - [ ] K-S046 Rune Knight（TCE）
+  - [ ] K-S047 Psi Warrior（TCE）
+- **Monk（解鎖 3 級）**
+  - [ ] K-S048 Four Elements（PHB）
+  - [ ] K-S049 Open Hand（PHB）
+  - [ ] K-S050 Shadow（PHB）
+  - [ ] K-S051 Drunken Master（XGE）
+  - [ ] K-S052 Kensei（XGE）
+  - [ ] K-S053 Astral Self（TCE）
+  - [ ] K-S054 Mercy（TCE）
+  - [ ] K-S055 Ascendant Dragon（FToD）
+- **Paladin（解鎖 3 級）**
+  - [ ] K-S056 Ancients（PHB）
+  - [ ] K-S057 Devotion（PHB）
+  - [ ] K-S058 Vengeance（PHB）
+  - [ ] K-S059 Oathbreaker（DMG）
+  - [ ] K-S060 Conquest（XGE）
+  - [ ] K-S061 Redemption（XGE）
+  - [ ] K-S062 Glory（TCE）
+  - [ ] K-S063 Watchers（TCE）
+- **Ranger（解鎖 3 級）**
+  - [ ] K-S064 Beast Master（PHB）
+  - [ ] K-S065 Hunter（PHB）
+  - [ ] K-S066 Gloom Stalker（XGE）
+  - [ ] K-S067 Horizon Walker（XGE）
+  - [ ] K-S068 Monster Slayer（XGE）
+  - [ ] K-S069 Fey Wanderer（TCE）
+  - [ ] K-S070 Swarmkeeper（TCE）
+  - [ ] K-S071 Drakewarden（FToD）
+- **Rogue（解鎖 3 級）**
+  - [ ] K-S072 Thief（PHB）
+  - [ ] K-S073 Assassin（PHB）
+  - [ ] K-S074 Arcane Trickster（PHB）
+  - [ ] K-S075 Inquisitive（XGE）
+  - [ ] K-S076 Mastermind（XGE）
+  - [ ] K-S077 Scout（XGE）
+  - [ ] K-S078 Swashbuckler（XGE）
+  - [ ] K-S079 Phantom（TCE）
+  - [ ] K-S080 Soulknife（TCE）
+- **Sorcerer（解鎖 1 級）**
+  - [ ] K-S081 Draconic Bloodline（PHB）
+  - [ ] K-S082 Wild Magic（PHB）
+  - [ ] K-S083 Divine Soul（XGE）
+  - [ ] K-S084 Shadow Magic（XGE）
+  - [ ] K-S085 Aberrant Mind（TCE）
+  - [ ] K-S086 Clockwork Soul（TCE）
+- **Warlock（解鎖 1 級）**
+  - [ ] K-S087 Archfey（PHB）
+  - [ ] K-S088 Fiend（PHB）
+  - [ ] K-S089 Great Old One（PHB）
+  - [ ] K-S090 Hexblade（XGE）
+  - [ ] K-S091 Celestial（XGE）
+  - [ ] K-S092 Fathomless（TCE）
+  - [ ] K-S093 Genie（TCE）
+- **Wizard（解鎖 2 級）**
+  - [ ] K-S094 Abjuration（PHB）
+  - [ ] K-S095 Conjuration（PHB）
+  - [ ] K-S096 Divination（PHB）
+  - [ ] K-S097 Enchantment（PHB）
+  - [ ] K-S098 Evocation（PHB）
+  - [ ] K-S099 Illusion（PHB）
+  - [ ] K-S100 Necromancy（PHB）
+  - [ ] K-S101 Transmutation（PHB）
+  - [ ] K-S102 War Magic（XGE）
+  - [ ] K-S103 Bladesinging（TCE）
+  - [ ] K-S104 Order of Scribes（TCE）
+
+#### K-B001–K-B023：解鎖、公式與可選特性邊界
+
+- [ ] K-B001–K-B013：每個 13 個標準職業各驗一個解鎖 UI 邊界案例：等級 `unlockLevel - 1` 子職業欄位不可要求選擇；等級 `unlockLevel` 必須選擇；降低等級、增加等級及切換職業後，不保留不合法的子職業值。Custom 職業不得出現子職業欄位。
+- [ ] K-B014–K-B023：逐項測以下 10 個 TCE optional features 各自獨立的 off/on、適用職業、`unlockLevel - 1` / `unlockLevel` 邊界及生成差異：Cleric Harness Divine Power（2）、Druid Wild Companion（2）、Monk Quickened Healing（2）、Monk Focused Aim（2）、Paladin Harness Divine Power（3）、Ranger Favored Foe（1）、Ranger Primal Awareness（3）、Ranger Nature's Veil（10）、Sorcerer Magical Guidance（5）、Sorcerer Sorcerous Restoration（20）。預設 off；只影響該項及所需既有池／成本，不連動修改其他選項。
+- [ ] K-B024：邊界屬性 fixture 覆蓋六能力分數 1、最低合法值、10（調整值 0）、20（調整值 +5）、30（調整值 +10）及空白；驗證上限、最少 1 規則及必填錯誤，不得把 PB、職業等級公式錯用能力調整值。
+- [ ] K-B025：PB 邊界按總職業等級 1、4、5、8、9、12、13、16、17、20 驗證；資源公式需明確區分角色總等級 PB 與持有該特性的職業等級。
+- [ ] K-B026–K-B039：逐項驗證所有 14 個生成公式／子公式分支（fixed、PB、twice-PB、half-PB-up、ability、ability-plus、ability-times、class-level、class-level-half-up、class-level-plus-one、class-level-times、level-tiers、cleric-channel-divinity、barbarian-rage）至少涵蓋最小值、升階邊界及 20 級值。`half-PB-up` 同時驗 Harness Divine Power 的法術位環級上限 metadata。對應資源 fixture 由規則參考逐項指派，不可只用一個通用例取代不同公式的邊界。
+- [ ] K-B040 固定值資源門檻；[ ] K-B041 PB 上限資源門檻；[ ] K-B042 能力值公式資源門檻；[ ] K-B043 等級 tier 資源門檻；[ ] K-B044 子職業限制資源門檻；[ ] K-B045 `recoveryFromLevel` 回復方式切換門檻；[ ] K-B046 骰面／次數隨等級變化門檻；[ ] K-B047 shared pool 消費者和 pool key；[ ] K-B048 資源付款成本及替代成本；[ ] K-B049 recovery-only 定義與資源存在條件；[ ] K-B050 TCE 特性適用門檻。每一 case 均須列出完整適用目錄列與 fixture 數，不可用單一代表列替代整份矩陣。生成／解鎖門檻須逐列以獨立 fixture 比較 `level - 1` 不生成／不啟用與 `level` 生成／啟用；公式、回復方式、骰面／次數等變化則須在每個實際變化門檻前後測試並斷言具體數值或 metadata 變更，不可錯判為底層資源消失。共享池／成本須驗證所有相關消費者、key、成本與替代成本；recovery-only 須逐列驗證存在條件，若目錄中沒有適用定義，需記錄已核對的 N/A 與依據。
+
+#### K-T001–K-T007：跨目錄不變條件
+
+- [ ] K-T001 共用池：Bardic Inspiration、Channel Divinity、Wild Shape、Ki、Rage、Sorcery Points、Superiority Dice 及所有有多個消費者的 pool key 不重複建立；所有消費者都指向正確既有 key。
+- [ ] K-T002 獨立池：同職業不同恢復方式、不同資源 key、不同法術環級及 Rune Knight 各 rune slot 均不合併；同卡分組不改變 pool identity。
+- [ ] K-T003 恢復矩陣：短休、長休、SR/LR（統一標為短休）、部分短休回復、long-rest reset-to、empty-only、生命骰半數回復各按規則恢復；每回合／每輪／先攻／事件觸發不可被普通休息按鈕錯誤回復。
+- [ ] K-T004 使用限制與成本：once-per-turn、once-on-your-turn、once-per-round、effect gate、法術位／Ki／Channel Divinity／傷害／物品成本分別記錄，不能混為 cooldown 或免費次數。
+- [ ] K-T005 重套與消耗保留：同 pool key 保持 current（包括超上限狀態），已刪除生成資源移除、手動資源保留、新增資源以正確初始值建立。
+- [ ] K-T006 Locale／輸入持久化：兩種語言切換及重繪後保留 class、level、subclass、六能力值、TCE selection；使用者角色隔離且資料 reload 後一致。
+- [ ] K-T007 報告差異：每一資源輸出 fixture 要能明確列出 missing、unexpected、wrong maximum、wrong recovery、wrong pool key，而非只以總數相等判定成功。
+
+#### K-M001–K-M005：指定多職整合角色
+
+多職 fixture 的能力值固定 +2（另在公式／能力邊界組補測）；單一 build case 一次建立整個角色，不得以分開單職結果相加替代。
+
+- [ ] K-M001 Fighter 5（Battle Master）／Ranger 5（Gloom Stalker）／Rogue 5（Arcane Trickster），總等級 15、PB +5；僅為此案例 opt-in Ranger Favored Foe。驗證三個子職業、各職業 5 級門檻、Fighter／Ranger／Rogue 各自 class-level 資源、Favored Foe 使用次數依角色總 PB 而非 Ranger 等級、共享／獨立 pool identity、第三施法者多職法術位，以及無跨職業資源覆蓋。
+- [ ] K-M002 Sorcerer 10（Clockwork Soul）／Warlock 10（Genie），總等級 20、PB +6。驗證 Sorcery Points 依 Sorcerer 等級、Pact Magic 依 Warlock 等級、Pact Slot 池不重複、Warlock 10 尚無 11 級 Mystic Arcanum、合併施法者法術位符合既有算法。
+- [ ] K-M003 Bard 10（Eloquence）／Paladin 10（Watchers），總等級 20、PB +6，CHA 16（調整值 +3）。驗證 Bardic Inspiration 次數依 CHA、於 Bard 5 級改為短休回復、Paladin 池依 Paladin 等級、Channel Divinity 不重複、所有 PB 資源使用總角色 PB。
+- [ ] K-M004 Wizard 10（Order of Scribes）／Artificer 10（Battle Smith），總等級 20、PB +6，INT 16（調整值 +3）。驗證 Artificer 半施法者與 Wizard 多職法術位進程、兩職 class-level 資源、INT 公式、Arcane Jolt 每回合閘及 pool identity。
+- [ ] K-M005 Cleric 1（Arcana）／Fighter 19（Champion），總等級 20、PB +6。驗證 Cleric 1 級子職業為必填、SCAG Arcana 可選、Cleric 資源門檻依 Cleric 等級（不得誤生 Cleric 2 級 Channel Divinity）、Fighter 資源依 Fighter 等級、PB 依總角色等級及多職法術位維持既有行為。
+
+#### 執行順序與子代理可行性評估
+
+- Step K 尚未全部完成。多職 K-M001–K-M005 和 UI 解鎖 K-B001–K-B013 已由 orchestrator 執行；相關逐案結果見 `.agent/CR/step-k-orchestrator-report.md`。其餘仍須完成：K-S001–K-S104、K-B014–K-B050、K-T001–K-T007，並讓每名 testor 的報告經 auditor 留言及同一 testor 跟進後再關閉。未經操作員要求，不進入 Step L，也不把 Step K targeted matrix 說成所有 Stage 5 驗收完成。
+- **估計規模**：104 個子職業 level-20 case、50 個邊界／公式 case 群、7 個跨目錄 invariant case、5 個多職 case；部分案例會共用同一個資料驅動 harness，但每個列出的 ID 都需有可追溯結果。實際單元數量應在 fixture 展開後列入執行報告。
+- **可拆給較弱 subagents 的工作**：在完整、凍結且獨立核實的期望 fixture 與固定測試流程提供後，可分配互不重疊的 class batch（例如 13 class groups 分為 4 批，約 3–4 class／批），只負責執行案例、檢查輸出與回報 case ID、expected／actual 差異；並行前要確保每個 worker 使用隔離的 browser context／localStorage。subagent 不修改共用 production files，不自行裁決未核實 RAW。
+- **不建議交給弱代理的工作**：建立或裁定 RAW oracle、處理跨職業法術位／共享 pool 的規則判讀、修正共用生成器、合併彼此衝突的發現。這些需由主代理集中審核；有規則疑義時使用 D&D 5E (2014) Rules Auditor 或保留 blocked 狀態。
+- **建議編排**：由具完整 repo／規則脈絡的主代理先建立獨立 oracle、資料驅動 harness、共享斷言及多職 fixture，再集中審查任何失敗。若 harness 已成熟，可把 13 個 class groups 分 4 個彼此獨立批次給較弱 subagents 做機械式驗證，主代理自己負責 K-B、K-T、K-M 和 triage；不應同時讓多代理操作同一個 browser page 或修改同一段 `src/cr.js`。
+- **GPT-6 Luna 配置判斷**：不用長 context window；class 資料可從 repo／fixture 按批載入。建議在 oracle／harness 設計及失敗分析階段維持高思考強度，待 fixture 凍結後把重複的 104 個機械案例交給一般／較弱代理。若當前沒有可隔離的 browser context 或確定的 fixture，則由單一主代理依同一資料驅動流程逐批跑，避免並行資料污染；無須為單純逐筆執行全程保持最高思考強度。
+
 ## 實作步驟 DAG 草案
 
 下圖表示工作相依而非必須逐項串行的排程。各步驟以完成並通過其交付檢查為依賴解除條件；Cartomancer 與 Storm Strike 的原文核實只阻擋各自有疑問的資料項目，不阻擋其他明確資源。
