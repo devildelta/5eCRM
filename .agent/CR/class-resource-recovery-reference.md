@@ -38,7 +38,7 @@
 
 - **Rage**：依 Barbarian 等級表取得次數；LR 恢復。20 級不再受次數限制。Rage 是多項 subclass 能力共用的職業池。
 - **Berserker：Frenzy**：發動 Rage 時選擇進入 Frenzy，沒有額外 Frenzy 次數池；Rage 結束後承受 Exhaustion。Exhaustion 不是「短休恢復」資源。
-- **Ancestral Guardian**：Spirit Shield 等在 Rage / 反應條件下使用，沒有獨立次數池；Consult the Spirits：LR。
+- **Ancestral Guardian**：Spirit Shield 等在 Rage / 反應條件下使用，沒有獨立次數池；Consult the Spirits：短休或長休恢復（本工具統一標為「短休」）。
 - **Storm Herald**：Storm Aura 依 Rage 啟動，沒有每日 aura 次數池。
 - **Zealot**：Fanatical Focus 每次 Rage 一次；與 Rage 次數綁定，不另加一池。Rage Beyond Death 依 Rage 維持。
 - **Battlerager（SCAG）**：主要能力依 Rage 或攻擊動作使用，沒有獨立充能池。
@@ -50,10 +50,11 @@
 
 - **Bardic Inspiration**：次數等於魅力調整值（至少 1）；Bard 1–4 級 LR 恢復，從 5 級 Font of Inspiration 起 SR/LR 恢復。子職業消耗它時共用同一池。
 - **Superior Inspiration（20 級）**：擲先攻時若沒有 Bardic Inspiration 使用次數，恢復 1 次（`先攻觸發`）。
-- **Lore：Cutting Words；Valor：Combat Inspiration；Glamour：Mantle of Inspiration；Swords：Blade Flourish；Whispers：Psychic Blades；Creation：Animating Performance；Eloquence：Unsettling Words；Spirits：Tales from Beyond**：消耗 Bardic Inspiration，不另設次數池。
+- **Lore：Cutting Words；Valor：Combat Inspiration；Glamour：Mantle of Inspiration；Swords：Blade Flourish；Whispers：Psychic Blades；Eloquence：Unsettling Words；Spirits：Tales from Beyond**：消耗 Bardic Inspiration，不另設次數池。
 - **Glamour：Enthralling Performance**：SR/LR。**Mantle of Majesty**：LR。**Unbreakable Majesty**：SR/LR。
 - **Whispers：Words of Terror、Mantle of Whispers**：SR/LR；**Shadow Lore**：LR。
-- **Creation：Performance of Creation**：LR 免費使用；額外使用支付法術位。其 Animated Object 持續時間不是每日再次充能的獨立池。
+- **Creation：Performance of Creation**：3 級解鎖；LR 免費使用一次，額外使用需消耗至少 2 環法術位。其 Animated Object 持續時間不是每日再次充能的獨立池。
+- **Creation：Animating Performance**：6 級解鎖；LR 免費使用一次，額外使用需消耗至少 3 環法術位。可在給予 Bardic Inspiration 的同一個附贈動作中指揮 animated object；不因此額外消耗 Bardic Inspiration。
 - **Eloquence：Universal Speech**：LR。**Unsettling Words** 消耗 Bardic Inspiration；**Infectious Inspiration** 使用次數等於 CHA 調整值（至少 1）/ LR，成功觸發時不消耗 Bardic Inspiration。
 - **Spirits：Tales from Beyond**：消耗 Bardic Inspiration；效果擲骰後不形成另一個可保存的資源池。
 - **Spirits：Spirit Session**：完成一次短休儀式後選擇一個符合等級限制的法術，可在下次長休前免費施放一次；使用此特性後 LR 才可再次主持儀式。
@@ -134,8 +135,8 @@
 
 ## Rogue（PHB / SCAG / XGE / TCE）
 
-- **Thief：Stroke of Luck**：SR/LR。
-- **Phantom：Wails from the Grave**：次數等於 Rogue 等級一半向上取整 / LR。**Ghost Walk**：LR。Tokens of the Departed 可保存的 token 數受 PB 上限；token 在長休時消失，取得 / 消耗 token 是事件，不是休息時補滿的普通充能池。
+- **Stroke of Luck（Rogue 職業特性，20 級）**：一次 / SR 或 LR；不是 Thief 專屬資源。
+- **Phantom：Wails from the Grave**：使用次數等於 PB / LR；傷害擲骰才是 Sneak Attack 骰數的一半向上取整。取得 Tokens of the Departed 後，可摧毀一枚 Soul Trinket，不消耗 Wails 使用次數而再次使用。**Ghost Walk**：一次 / LR；額外使用可摧毀一枚 Soul Trinket。Tokens of the Departed 可保存的 token 數受 PB 上限；token 在長休時消失，取得 / 消耗 token 是事件，不是休息時補滿的普通充能池。
 - **Soulknife：Psionic Energy Dice**：數量等於兩倍 PB；骰面為 d6（3 級）、d8（5 級）、d10（11 級）、d12（17 級）；LR 全恢復，SR 恢復 1 顆；若擲先攻時已無骰，恢復 1 顆。相關技能檢定與傷害共用此池。Psychic Whispers 與 Psychic Veil 各有一次免費 / LR 的啟動機會，之後可按各自規則花 Psionic Energy die 再用。
 - **Arcane Trickster**：法術位 LR 恢復；Mage Hand Legerdemain 等不另造休息池。
 - 其他 Inquisitive、Mastermind、Scout、Swashbuckler 等若能力沒有明文有限次數，屬 `無有限池`；Cunning Action / Sneak Attack 是回合頻率，不是冷卻資源。
@@ -144,7 +145,7 @@
 
 - **Sorcery Points**：數量等於 Sorcerer 等級；LR 全恢復。Metamagic、Flexible Casting 及 subclass 指定點數消耗共用此池。Sorcery Points 與 Spell Slots 會互相轉換，資料層不可把兩者混為一個池。
 - **Sorcerous Restoration（20 級，TCE optional）**：SR 恢復 4 點 Sorcery Points。
-- **Wild Magic：Tides of Chaos**：使用後通常需 LR 才恢復；若 DM 令其觸發 Wild Magic Surge，使用機會可提前恢復（`事件觸發` / DM 判定）。
+- **Wild Magic：Tides of Chaos**：使用後通常需 LR 才恢復；在恢復前，施放 1 環或更高環 Sorcerer 法術後，DM 可選擇要求 Wild Magic Surge 擲骰；若 DM 如此裁定並觸發 Surge，Tides of Chaos 隨即恢復。這是 DM 可選的事件觸發，不是每次施法都自動恢復（PHB 2014, p. 103）。
 - **Divine Soul：Favored by the Gods**：SR/LR。
 - **Shadow：Strength of the Grave**：LR；Hound of Ill Omen 花 3 Sorcery Points；Umbral Form 花 6 點。
 - **Clockwork Soul：Restore Balance**：PB 次 / LR；Bastion of Law 花 Sorcery Points；Trance of Order 花 5 點或 LR 免費一次；Clockwork Cavalcade 花 7 點或 LR 免費一次。
@@ -160,9 +161,9 @@
 - **Fiend：Dark One's Own Luck**：SR/LR；Hurl Through Hell：LR。
 - **Great Old One：Entropic Ward**：SR/LR。
 - **Hexblade：Hexblade's Curse**：SR/LR；Accursed Specter：LR。
-- **Celestial：Healing Light**：d6 池數量等於 Warlock 等級 + 1，LR 恢復；Searing Vengeance：LR。
+- **Celestial（XGE）：Healing Light**：d6 池數量等於 Warlock 等級 + 1，LR 恢復；Searing Vengeance：LR。
 - **Fathomless：Tentacle of the Deeps**：PB 次 / LR；Fathomless Plunge：LR。
-- **Genie：Bottled Respite、Elemental Gift**：各 PB 次 / LR；Limited Wish：使用後經 1d4 次 LR 才可再用（不是固定每次 LR）；Sanctuary Vessel 的攜伴 / 進入效果依該 feature 的 LR 限制。
+- **Genie：Bottled Respite**：每次 LR 前可免費進入 vessel 一次；vessel 持續時間最多為 2 × PB 小時，PB 影響持續時間而非免費進入次數。可花 spell slot 再進入，但 paid-reuse 成本屬本階段 deferred scope。**Elemental Gift**：PB 次 / LR。**Limited Wish**：使用後經 1d4 次 LR 才可再用（不是固定每次 LR），屬本階段 deferred scope；Sanctuary Vessel 的攜伴能力沿用 Bottled Respite 的進入限制，不另建使用池。
 - **Undead：Form of Dread**：PB 次 / LR；Necrotic Husk：LR；Spirit Projection：LR，額外使用可依特性花 Pact Magic slot。
 - **Pact of the Talisman（TCE）：Protection of the Talisman**：PB 次 / LR；與 Pact Magic slot 分開。
 - Eldritch Smite 等 Invocation 若花 Pact Magic slot，記為 `付費再用 / spell slot cost`，不再建立一個 invocation 使用池。
@@ -172,14 +173,14 @@
 - **Spell Slots**：LR 恢復。
 - **Arcane Recovery**：每日一次，在完成 SR 後恢復部分 spell slots；這是「施放恢復能力」，不是短休自動補槽。
 - **Signature Spells（20 級）**：兩個已選法術各有一次不花槽施放 / SR/LR；記為兩個特定 free-cast 次數。
-- **Conjuration：Benign Transposition**：使用後需完成 LR 才能再次使用；施放 1 環或更高環咒法法術後亦可恢復使用機會。
+- **Conjuration：Benign Transposition**：使用後需完成 LR 才能再次使用；施放 1 環或更高環咒法法術後亦會自動恢復使用機會（PHB 2014, p. 116）。
 - **Divination：Portent**：每次 LR 後重擲預言骰（通常 2 顆，14 級 3 顆）；Third Eye：SR/LR。Expert Divination 可在施放合資格預言法術時回復較低環 spell slot（`事件觸發`）。
 - **Enchantment：Instinctive Charm**：沒有全域使用次數池；成功抵抗此特性的攻擊者會在長休前免受此特性再次影響。
 - **Evocation：Overchannel**：每 LR 首次使用無額外傷害；同一長休前額外使用會承受逐次增加的傷害。不是每次使用都消耗固定充能數。
 - **Illusion：Illusory Self**：SR/LR。
 - **Transmutation：Shapechanger**：SR/LR。**Major Transformation（14 級）**：LR 一次，消耗 Transmuter's Stone。
 - **Abjuration：Arcane Ward**：ward 有 HP pool；施放合資格 Abjuration 法術時按規則回復 ward HP（`事件觸發`），不是長休自動補池。
-- **War Magic：Power Surge**：上限等於 INT 調整值（至少 1）；LR 後重設為 1，成功以 Counterspell / Dispel Magic 終止法術時取得 surge；使用 Arcane Deflection 且目前沒有 surge 時也可取得 1 個。上限仍受 INT 調整值限制，以小整數池加事件規則建模。
+- **War Magic：Power Surge**：上限等於 INT 調整值（至少 1）；SR 或 LR 後均重設為恰好 1；Counterspell／Dispel Magic 成功終止法術時取得 1 個 surge；使用 Arcane Deflection 且目前沒有 surge 時也可取得 1 個。事件觸發不等於每回合自動恢復，上限仍受 INT 調整值限制（XGE, p. 60）。
 - **Chronurgy（EGtW）：Chronal Shift**：2 次 / LR；Momentary Stasis：PB 次 / LR；Arcane Abeyance：SR/LR；Convergent Future 沒有固定次數池，但每次承受 Exhaustion，視為代價而非冷卻。
 - **Graviturgy（EGtW）：Adjust Density**：使用次數等於 INT 調整值（至少 1）/ LR；Violent Attraction：INT 調整值次（至少 1）/ LR；Event Horizon：LR。
 - **Bladesinger**：以採用版本為準（見版本差異）。
