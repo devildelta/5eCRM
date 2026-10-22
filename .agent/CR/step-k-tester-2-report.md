@@ -215,3 +215,20 @@ The full 25-row Bard/Cleric/Rogue catalog scan identifies exactly three shared o
 **Evidence:** K-T001 fixture `__stepk_tester2_kt001_20261019__`; K-B fixture outputs `bond-l*`, `steps-l*`, `hdp-l*`, and `soulknife-l*` listed above. Generated pool fields and costs were inspected after UI apply/confirm. Catalog actual-output locations are `src/cr.js:163`, `src/cr.js:173`, `src/cr.js:226–228`, and generated `shared`/consumer fields at `src/cr.js:1706,1720–1722`. Expected shared-pool scope is [CR-class-resources-plan.md](./CR-class-resources-plan.md), K-T001; recovery rules are [class-resource-recovery-reference.md](./class-resource-recovery-reference.md), Bard lines 51–53, Cleric lines 64 and 69–72, Rogue line 139; Soulknife feature/cost wording is [TCE Soulknife](https://dnd5e.wikidot.com/rogue:soulknife). As corrected above, Animating Performance is not counted as a Bardic Inspiration consumer.
 
 **Disposition:** Tester 2's owned-slice portion of Finding 2 is **PARTIALLY ADDRESSED / OPEN**. The expected pool families, generated keys, pool counts, shared flags, and all observed forward cost references are documented. Bardic Inspiration's shared flag is wrong; Bard/Cleric consumer arrays are empty; Soulknife's reverse consumer list and several die-spend links are missing. Direct feature-activation/payment verification is **BLOCKED**: this resource UI exposes generic pool use/rest controls but no Bard, Cleric, or Rogue feature activation/payment handlers. Missing metadata links remain confirmed findings, not blockers. K-B047 remains **FAIL**; global K-T001 Finding 2 remains open. No product edits were made.
+
+## K-B044 post-fix audit and focused threshold retest — 2026-10-22
+
+The Group 1 record documents the post-fix UI retest across 50 Bard/Cleric/Rogue profiles. I independently audited the eight K-B044 feature definitions below against the 2014 rules evidence cited in this report and the expected metadata contract, then applied 16 additional threshold fixtures through the normal class-resource UI flow. For each fixture, the generated pool's presence/absence, key, owner, selected subclass/source, maximum, and recovery were checked; Animating Performance's level-3 spell-slot minimum and Divine Intervention's success-only seven-day trigger metadata were also checked. All 16 focused fixtures passed, and the prior 50-profile post-fix evidence remains consistent.
+
+| Feature | Gate | Focused threshold fixtures | Audit result |
+|---|---|---|---|
+| Creation — Animating Performance | Bard 6; TCE | Bard 5 / 6, Creation | Absent below; present at unlock with 1/LR and 3rd-level minimum for paid reuse. |
+| Divine Intervention | Cleric 10; PHB | Cleric 9 / 10, Knowledge | Absent below; present at unlock with success-only 7-day recovery metadata. |
+| Knowledge — Visions of the Past | Cleric 17; PHB | Cleric 16 / 17, Knowledge | Absent below; present at unlock, 1/SR-or-LR representation. |
+| Order — Embodiment of the Law | Cleric 6; TCE | Cleric 5 / 6, Order | Absent below; present at unlock with WIS modifier (minimum 1) / LR. |
+| Stroke of Luck | Rogue 20; PHB | Rogue 19 / 20, Thief | Absent below; present at 20 as a Rogue class-owned pool, not Thief-owned. |
+| Arcane Trickster — Spell Thief | Rogue 17; PHB | Rogue 16 / 17, Arcane Trickster | Absent below; present at unlock, 1/LR. |
+| Inquisitive — Unerring Eye | Rogue 9; XGE | Rogue 8 / 9, Inquisitive | Absent below; present at unlock with WIS modifier (minimum 1) / LR. |
+| Swashbuckler — Master Duelist | Rogue 17; XGE | Rogue 16 / 17, Swashbuckler | Absent below; present at unlock, 1/SR-or-LR representation. |
+
+The matching current definitions in `src/cr.js` use the listed level gates, keys, owners, formulas, and source versions. The 16 focused results and the 50-profile Group 1 matrix close Tester 2's K-B044 audit; the earlier missing-output findings remain historical and are not current failures. This closure is specific to K-B044 and does not resolve the separate K-B047 shared-consumer metadata failures or K-B048 paid-action execution limits.

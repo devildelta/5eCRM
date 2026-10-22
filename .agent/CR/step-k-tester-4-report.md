@@ -405,6 +405,45 @@ The isolated browser runner completed **170/170** profiles for temporary charact
 | K-B049 | recovery-only presence | 0 | 0 | 0 | N/A |
 | K-B050 | TCE option unlock | 1 | 17 | 0 | PASS |
 
+**K-B044 sub-scenario clarification:** The row is a historical tagged-run result. Its 10 mismatching profiles are not 10 gate failures: they comprise 3 Celestial selected-subclass-source mismatches and 7 Genie Bottled Respite maximum mismatches, and none of the saved error strings identifies a subclass-gate mismatch. Group 2 later corrected Bottled Respite's maximum and Group 3 corrected Celestial source metadata. The full 56-profile K-B044 matrix was not rerun after both fixes, so this row cannot establish a post-fix PASS. The auditor's review is partial: it accepted the error attribution, but the aggregate does not map each error to a K-B044 assertion.
+
+#### K-B044 post-fix gate audit and 56-profile retest — 2026-10-22
+
+Re-ran the complete T4 K-B044 slice through the class-resource UI apply/confirm flow after the Group 2 Bottled Respite fix and Group 3 Celestial source fix. All 56 tagged profiles were applied and checked; each profile was checked against every applicable row below, including absence before unlock and for an unselected subclass. Assertions covered resource key, owner, selected subclass and source metadata, maximum, and recovery. All 26 definitions passed.
+
+| Definition | Unlock / source | Retest fixtures | Result |
+|---|---|---|---|
+| Paladin Glory — Glorious Defense | 15 / TCE | F005 L14, F006 L15 | Absent below; present with expected metadata at unlock. |
+| Paladin Watchers — Vigilant Rebuke | 15 / TCE | F008 L14, F009 L15 | Absent below; present with expected metadata at unlock. |
+| Warlock Archfey — Fey Presence | 1 / PHB | F013 L1 | Present with expected metadata. |
+| Warlock Archfey — Misty Escape | 6 / PHB | F015 L5, F016 L6 | Absent below; present at unlock. |
+| Warlock Archfey — Dark Delirium | 14 / PHB | F018 L13, F019 L14 | Absent below; present at unlock. |
+| Warlock Fiend — Dark One's Own Luck | 6 / PHB | F021 L5, F017 L6 | Absent below; present at unlock. |
+| Warlock Fiend — Hurl Through Hell | 14 / PHB | F022 L13, F020 L14 | Absent below; present at unlock. |
+| Warlock Great Old One — Entropic Ward | 6 / PHB | F023 L5, F024 L6 | Absent below; present at unlock. |
+| Warlock Hexblade — Hexblade's Curse | 1 / XGE | F025 L1 | Present with expected metadata. |
+| Warlock Hexblade — Accursed Specter | 6 / XGE | F026 L5, F027 L6 | Absent below; present at unlock. |
+| Warlock Celestial — Healing Light | 1 / XGE | F028 L1, F029 L13, F030 L14 | Present; the selected-subclass and feature sources both report XGE. |
+| Warlock Celestial — Searing Vengeance | 14 / XGE | F029 L13, F030 L14 | Absent below; present at unlock; source metadata reports XGE. |
+| Warlock Fathomless — Tentacle of the Deeps | 1 / TCE | F031 L1, F032 L13, F033 L14 | Present with expected PB maximum and metadata. |
+| Warlock Fathomless — Fathomless Plunge | 14 / TCE | F032 L13, F033 L14 | Absent below; present at unlock. |
+| Warlock Genie — Bottled Respite | 1 / TCE | F034 L1, F035 L5, F036 L6, F070 L9, F086 L10, F072 L13, F087 L14 | Present at all tested eligible levels with fixed 1/LR maximum; prior PB-maximum failure is cleared. |
+| Warlock Genie — Elemental Gift | 6 / TCE | F035 L5, F036 L6, F070 L9, F086 L10, F072 L13, F087 L14 | Absent below; present at and above unlock with expected PB maximum. |
+| Wizard Conjuration — Benign Transposition | 6 / PHB | F037 L5, F038 L6 | Absent below; present at unlock. |
+| Wizard Divination — Portent | 2 / PHB | F041 L2, F043 L9, F044 L10 | Present with expected 2-use maximum at tested levels. |
+| Wizard Divination — Third Eye | 10 / PHB | F043 L9, F044 L10 | Absent below; present at unlock. |
+| Wizard Evocation — Overchannel | 14 / PHB | F046 L13, F047 L14 | Absent below; present at unlock. |
+| Wizard Illusion — Illusory Self | 10 / PHB | F049 L9, F050 L10 | Absent below; present at unlock. |
+| Wizard Transmutation — Shapechanger | 10 / PHB | F051 L9, F052 L10 | Absent below; present at unlock. |
+| Wizard Transmutation — Major Transformation | 14 / PHB | F053 L13, F054 L14 | Absent below; present at unlock. |
+| Wizard War Magic — Power Surge | 2 / XGE | F057 L2 | Present with expected INT-based maximum and reset metadata; event accumulation remains outside this gate test. |
+| Wizard Bladesinging — Bladesong | 2 / TCE | F058 L2 | Present with expected PB maximum and metadata. |
+| Wizard Order of Scribes — Manifest Mind | 6 / TCE | F059 L5, F060 L6 | Absent below; present at unlock. |
+
+The 56 profiles comprise 5 Paladin, 29 Warlock, and 22 Wizard configurations. F012's below-level Warlock control was applied as Warlock 0 plus Fighter 1 because the UI rejects a character whose class levels are all zero; it generated no Warlock subclass resource. The four Abjuration profiles F039/F042/F045/F048 produced no Arcane Ward. Arcane Ward is an explicitly deferred accumulator/HP feature, not one of the 26 scored K-B044 definitions, so these are recorded as deferred-scope observations rather than failures.
+
+**Retest disposition:** 56/56 profiles passed the K-B044 assertions. The three historical Celestial source mismatches and seven Genie maximum mismatches are cleared by the post-fix results; no gate-specific mismatch remains. The 2026-10-19 auditor's profile-error attribution review is superseded for closure purposes by this post-fix, assertion-attributed retest. No product code was changed during this audit.
+
 The corrected inventory is **22 fixed / 3 PB** definitions (the fourth prior PB row, Genie Bottled Respite, is fixed at one free use per Long Rest). K-B040 now has 52 distinct tagged profiles; K-B041 has 42, including the separate Harness half-PB-up slot-recovery cap. The earlier 39/45 counts remain in their original table as historical aggregate values; this tagged rerun supersedes them for the corrected crosswalk. K-B044 is 56 profiles in the actual tagged output; the prior aggregate's 52 did not include all four distinct tagged wrong-subclass profiles. K-B045 and K-B049 remain N/A only for the absence of such rows in the complete 33-definition owned slice; this does not imply the RAW features noted below are absent.
 
 #### Bottled Respite correction ? K-S093 and K-B040/K-B041/K-B044

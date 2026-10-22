@@ -192,6 +192,29 @@ header {
   padding: 0.55rem 0.7rem;
 }
 
+.accumulative-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.accumulative-control {
+  min-width: 0;
+}
+
+.accumulative-control .form-control {
+  min-width: 2.75rem;
+  padding-right: 0.35rem;
+  padding-left: 0.35rem;
+  text-align: center;
+}
+
+.accumulative-control .btn {
+  min-width: 0;
+  white-space: nowrap;
+}
+
 .resource-count {
   color: #ffe082;
   font-size: 1.03rem;

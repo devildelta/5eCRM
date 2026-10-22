@@ -264,14 +264,14 @@
 
 - [ ] K-T003-01 Bardic Inspiration 在 Bard 4／5 的短休與長休恢復邊界正確。
 - [ ] K-T003-02 Sorcerous Restoration 的恢復量符合已測等級變化。
-- [ ] K-T003-03 Power Surge 在短休及長休後均 reset-to 恰好 1。
+- [ ] K-T003-03 Power Surge 長休後設為 1；短休結束時只有空池先補 1，非空池維持原數。**DEFERRED：** 依 operator scope decision，event gain／消耗／rest reset 屬同一累積資源行為，留待另行設計；不可只單獨實作 reset。
 - [ ] K-T003-04 Soulknife Psionic Energy Dice 每回合使用上限正確。
 - [ ] K-T003-05 Soulknife Psionic Energy Dice 部分短休恢復量正確。
 - [ ] K-T003-06 Soulknife Psionic Energy Dice 長休恢復量正確。
 - [ ] K-T003-07 Psychic Whispers 僅在適用的 empty-only 條件下長休恢復。
 - [ ] K-T003-08 Fighter 生命骰長休恢復半數（向上取整）正確。
 - [ ] K-T003-09 Tides of Chaos 不因普通短休恢復，並按已記錄規則於長休恢復。
-- [ ] K-T003-10 事件觸發恢復不被普通休息控制取代，並逐項執行實際觸發：Tides of Chaos 在 DM 選擇觸發合資格 Wild Magic Surge 後恢復；Benign Transposition 在施放 1 環或更高環咒法法術後恢復；Power Surge 在 Counterspell／Dispel Magic 成功終止法術後取得，或符合 Arcane Deflection 的空池條件時取得。事件觸發須與休息 recovery 分開斷言。
+- [x] K-T003-10 事件觸發後的單次資源由使用者手動恢復；不要求應用程式模擬事件或自動重置。Tides of Chaos 在 DM 選擇觸發合資格 Wild Magic Surge 後，由使用者手動按資源卡「重置」；Benign Transposition 在施放 1 環或更高環咒法法術後亦由使用者手動重置。驗證兩者均可由 1/1 使用至 0/1，再手動重置回 1/1。**Power Surge 子項 DEFERRED**；其空池短休補充屬 K-T003-03 的恢復斷言；Arcane Deflection 不會觸發 Power Surge。事件本身不在本測試執行。
 - [ ] K-T003-11 完成 `recoveryOnly` 目錄範圍核對；若無適用列，記錄 N/A 依據。
 - [ ] K-T003-12 完成 `longRestRecoveryWhenEmpty` 目錄範圍核對；若無適用列，記錄 N/A 依據。
 

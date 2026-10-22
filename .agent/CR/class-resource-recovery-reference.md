@@ -16,6 +16,7 @@
 | `每日` | 每日 / 長休節奏恢復；按來源文字決定每日邊界，不應自動等同任意長休 | `長休`或明確自訂周期，需保留來源語意 |
 | `先攻觸發` | 擲先攻時符合條件才恢復，不是休息周期 | 獨立觸發，不可映射成`短休`或`長休` |
 | `事件觸發` | 施放法術、特定能力成功、特定物件消耗等事件後恢復 | 記錄事件 / 前置條件 |
+| `累積資源` | 合資格事件逐次增加數量，受容量上限限制，並可由其他能力消耗；不是普通休息冷卻池 | 需要獨立的取得、上限、消耗及失效 / 重設模型；未設計前不可當成一般 recoverable resource 實作 |
 | `付費再用` | 額外使用需消耗法術位或另一資源 | 表示為資源成本，不增加免費上限 |
 | `無有限池` | 能力可用，但無每休息次數池；可能仍受回合、動作、持續時間或其他限制 | 不建立資源疊 |
 
@@ -74,7 +75,7 @@
 
 ## Druid（PHB / SCAG / XGE / GGtR / TCE）
 
-- **Wild Shape**：2 次；SR/LR 恢復。20 級 Archdruid 可無限使用。消耗此池的 subclass / optional feature（包括 Starry Form、Wildfire Spirit 及 Wild Companion）必須共用扣次數。
+- **Wild Shape**：2 次；SR/LR 恢復。20 級 Archdruid 可無限使用。消耗此池的 subclass / optional feature（包括 Starry Form、Wildfire Spirit 及 Wild Companion）必須共用扣次數。Moon Druid 的 Elemental Wild Shape 花 2 次 Wild Shape。
 - **Circle of the Land：Natural Recovery**：每日一次，在完成短休後恢復部分法術位；只能在短休結束時使用，不是 Wild Shape 恢復。
 - **Circle of Dreams：Balm of the Summer Court**：治療骰池為 Druid 等級數量的 d6，LR 恢復。**Hidden Paths**：使用次數等於 WIS 調整值（至少 1），LR 恢復；不消耗 Wild Shape。**Walker in Dreams**：每日一次，依特性要求在短休後使用，LR 後恢復。
 - **Circle of the Shepherd：Spirit Totem**：SR/LR。
@@ -99,12 +100,12 @@
 
 ## Monk（PHB / SCAG / XGE / TCE / Fizban）
 
-- **Ki**：數量等於 Monk 等級；SR/LR 恢復。所有 Ki-powered subclass 能力共用此池。
-- **Four Elements、Open Hand、Shadow、Sun Soul**：符合條文的招式消耗 Ki；不各自建立一池。
+- **Ki**：數量等於 Monk 等級；SR/LR 恢復。所有 Ki-powered subclass 能力共用此池。Flurry of Blows、Patient Defense、Step of the Wind 各花 1 Ki；Stunning Strike 每次花 1 Ki；Empty Body（18 級）花 4 Ki。
+- **Four Elements**：Elemental Attunement 不花 Ki；其餘 cost-bearing Disciplines 共用 Ki 池。咒法型 discipline 可額外花 Ki 提升法術環級，每升一環加 1 Ki，總成本上限按 Monk 等級決定（Monk 20 最多 6 Ki）；非咒法招式的額外傷害成本另行計算。Fangs of the Fire Snake 花 1 Ki 啟動，命中後可再花 1 Ki 取得首個額外 1d10 火焰傷害，每多花 1 Ki 再加 1d10；Fist of Unbroken Air 基礎 2 Ki；Open Hand 的 Quivering Palm 花 3 Ki；Shadow Arts 的付費施法花 2 Ki。
 - **Long Death（SCAG）：Mastery of Death**：花 1 Ki 避免降至 0 HP；Touch of the Long Death 消耗 Ki。不是 SR/LR 獨立次數。
 - **Drunken Master：Drunkard's Luck**：每次花 2 Ki，受 Ki 池限制。
-- **Kensei：Deft Strike、Sharpen the Blade**：花 Ki；不另設休息次數池。
-- **Astral Self / Mercy（TCE）**：各種形態、Hand of Healing / Harm 等消耗 Ki，共用職業池。
+- **Kensei：Deft Strike、Sharpen the Blade**：Deft Strike 花 1 Ki；Sharpen the Blade 花 1–3 Ki；不另設休息次數池。
+- **Astral Self / Mercy（TCE）**：Arms of the Astral Self 花 2 Ki；Visage、Body、Hand of Healing / Harm 等按特性花 Ki，共用職業池。
 - **Mercy：Hand of Ultimate Mercy（17 級）**：復活能力需 5 Ki，另限一次 / LR；同時受共用 Ki 池限制。
 - **Ascendant Dragon（Fizban）：Breath of the Dragon**：免費使用次數等於 PB / LR；用完後可再花 Ki。免費次數與 Ki 池要分開記錄。
 - **Ascendant Dragon：Wings of the Dragon**：一次 / LR 免費展翼；額外使用花 Ki。
@@ -136,7 +137,7 @@
 ## Rogue（PHB / SCAG / XGE / TCE）
 
 - **Stroke of Luck（Rogue 職業特性，20 級）**：一次 / SR 或 LR；不是 Thief 專屬資源。
-- **Phantom：Wails from the Grave**：使用次數等於 PB / LR；傷害擲骰才是 Sneak Attack 骰數的一半向上取整。取得 Tokens of the Departed 後，可摧毀一枚 Soul Trinket，不消耗 Wails 使用次數而再次使用。**Ghost Walk**：一次 / LR；額外使用可摧毀一枚 Soul Trinket。Tokens of the Departed 可保存的 token 數受 PB 上限；token 在長休時消失，取得 / 消耗 token 是事件，不是休息時補滿的普通充能池。
+- **Phantom：Wails from the Grave**：使用次數等於 PB / LR；傷害擲骰才是 Sneak Attack 骰數的一半向上取整。取得 Tokens of the Departed 後，在自己回合造成 Sneak Attack 傷害時可摧毀一枚身上持有的 Soul Trinket，免費再次使用 Wails from the Grave。**Ghost Walk**：一次 / LR；之後可在再次啟動時摧毀一枚 Soul Trinket 以額外使用。亦可用 Action 摧毀一枚 Trinket，向其靈魂問一條問題。Soul Trinket 上限為 PB；看見 30 呎內生物死亡時可用 Reaction 取得一枚。持有時對 Death Saving Throws 及 Constitution Saving Throws 有 Advantage。Trinket 不會因長休消失；17 級 Death Knell 只在長休結束時沒有任何 Trinket 才補一枚。此為事件取得及特定用途消耗的 token pool，不是普通休息充能池（TCE, p. 62）。
 - **Soulknife：Psionic Energy Dice**：數量等於兩倍 PB；骰面為 d6（3 級）、d8（5 級）、d10（11 級）、d12（17 級）；LR 全恢復，SR 恢復 1 顆；若擲先攻時已無骰，恢復 1 顆。相關技能檢定與傷害共用此池。Psychic Whispers 與 Psychic Veil 各有一次免費 / LR 的啟動機會，之後可按各自規則花 Psionic Energy die 再用。
 - **Arcane Trickster**：法術位 LR 恢復；Mage Hand Legerdemain 等不另造休息池。
 - 其他 Inquisitive、Mastermind、Scout、Swashbuckler 等若能力沒有明文有限次數，屬 `無有限池`；Cunning Action / Sneak Attack 是回合頻率，不是冷卻資源。
@@ -179,8 +180,8 @@
 - **Evocation：Overchannel**：每 LR 首次使用無額外傷害；同一長休前額外使用會承受逐次增加的傷害。不是每次使用都消耗固定充能數。
 - **Illusion：Illusory Self**：SR/LR。
 - **Transmutation：Shapechanger**：SR/LR。**Major Transformation（14 級）**：LR 一次，消耗 Transmuter's Stone。
-- **Abjuration：Arcane Ward**：ward 有 HP pool；施放合資格 Abjuration 法術時按規則回復 ward HP（`事件觸發`），不是長休自動補池。
-- **War Magic：Power Surge**：上限等於 INT 調整值（至少 1）；SR 或 LR 後均重設為恰好 1；Counterspell／Dispel Magic 成功終止法術時取得 1 個 surge；使用 Arcane Deflection 且目前沒有 surge 時也可取得 1 個。事件觸發不等於每回合自動恢復，上限仍受 INT 調整值限制（XGE, p. 60）。
+- **Abjuration：Arcane Ward**：建立時 HP 等於 2 × Wizard 等級 + INT 調整值；建立後持續至長休，且每長休只能建立一次。Ward 吸收傷害會扣 HP；施放 1 環或以上 Abjuration 法術時回復 2 × 法術環級 HP，上限為最大值。長休令 Ward 結束，不會自動建立或補滿；下一次選擇建立時才以最大 HP 開始。此為有建立限制、受傷耗損及法術事件回補的 HP buffer，需獨立設計，不按一般休息次數池實作（PHB 2014, p. 115）。
+- **War Magic：Power Surge**：上限等於 INT 調整值（至少 1）；長休結束時數量重設為 1；短休結束時若數量為 0 則取得 1，否則不變。Counterspell／Dispel Magic 成功終止法術時取得 1 個 surge。每回合一次，當 Wizard 法術對生物或物件造成傷害時，可消耗 1 個 surge，對該目標增加等於 Wizard 等級一半的 Force damage。Arcane Deflection 不會產生 surge。此為事件累積的 charge pool；增量、條件、消耗與兩種休息行為需一併建模，不可只當一般 LR 次數池（XGE, p. 59）。
 - **Chronurgy（EGtW）：Chronal Shift**：2 次 / LR；Momentary Stasis：PB 次 / LR；Arcane Abeyance：SR/LR；Convergent Future 沒有固定次數池，但每次承受 Exhaustion，視為代價而非冷卻。
 - **Graviturgy（EGtW）：Adjust Density**：使用次數等於 INT 調整值（至少 1）/ LR；Violent Attraction：INT 調整值次（至少 1）/ LR；Event Horizon：LR。
 - **Bladesinger**：以採用版本為準（見版本差異）。
@@ -242,6 +243,7 @@
 - **消耗鏈**：例如能力每短休可使用，但每次另花 spell slot / Ki / Channel Divinity，需同時呈現「能力可用次數」和「付款來源」；若規則是直接花既有池且沒有額外次數，不建立額外資源。
 - **生命骰**：與上述職業能力池分開。2014 規則長休後只恢復已消耗生命骰的一半（至少一顆），不會全滿；短休時花生命骰不是恢復它。
 - **狀態觸發**：先攻恢復、成功反制、召喚物被摧毀、消耗物品等需獨立記錄 trigger / eligibility；不可錯誤標成短休或長休。
+- **累積資源範圍**：若每次合資格事件都可增加資源、累積至上限，並由其他效果消耗，須分別表達事件取得、容量、消耗、長休失效 / 重設。Soul Trinkets、Power Surge 和 Arcane Ward 屬需專門設計的例子；它們不能因有 `maximum` 或休息文字就簡化成普通 recoverable resource。只在空池時恢復一點的 initiative recovery，以及上限為 1 的事件恢復（如 Tides of Chaos、Benign Transposition），不會逐次累積至多點容量，不屬此類。
 
 ## 對 CR 後續資料模型的建議
 
@@ -260,6 +262,8 @@
 | `sourceVersion` | PHB 2014、SCAG 原版、TCE 重印等 |
 
 聚合建議：一張職業 / subclass 專用資源疊可以容納多個 inner pools；但每個 inner resource 必須保有獨立 key、回復規則與花費關係。卡片聚合不能把不同 cooldown 或不同觸發條件合併成同一個 current/max。
+
+累積資源另需 event-ledger / counter semantics：各取得事件及資格條件、每次增量、容量上限、消耗來源、長休時的失效或重設、以及消耗後剩餘值。現階段不以一般資源的初始化 / cooldown / reset 欄位模擬；待資料模型及互動流程設計完成後再納入。
 
 ## 來源縮寫
 

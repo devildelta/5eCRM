@@ -134,7 +134,7 @@
     ranger: { unlockLevel: 3, options: [['beast-master', 'Beast Master', 'PHB'], ['hunter', 'Hunter', 'PHB'], ['gloom-stalker', 'Gloom Stalker', 'XGE'], ['horizon-walker', 'Horizon Walker', 'XGE'], ['monster-slayer', 'Monster Slayer', 'XGE'], ['fey-wanderer', 'Fey Wanderer', 'TCE'], ['swarmkeeper', 'Swarmkeeper', 'TCE'], ['drakewarden', 'Drakewarden', 'FToD']] },
     rogue: { unlockLevel: 3, options: [['thief', 'Thief', 'PHB'], ['assassin', 'Assassin', 'PHB'], ['arcane-trickster', 'Arcane Trickster', 'PHB'], ['inquisitive', 'Inquisitive', 'XGE'], ['mastermind', 'Mastermind', 'XGE'], ['scout', 'Scout', 'XGE'], ['swashbuckler', 'Swashbuckler', 'XGE'], ['phantom', 'Phantom', 'TCE'], ['soulknife', 'Soulknife', 'TCE']] },
     sorcerer: { unlockLevel: 1, options: [['draconic', 'Draconic Bloodline', 'PHB'], ['wild-magic', 'Wild Magic', 'PHB'], ['divine-soul', 'Divine Soul', 'XGE'], ['shadow-magic', 'Shadow Magic', 'XGE'], ['aberrant-mind', 'Aberrant Mind', 'TCE'], ['clockwork-soul', 'Clockwork Soul', 'TCE']] },
-    warlock: { unlockLevel: 1, options: [['archfey', 'Archfey', 'PHB'], ['fiend', 'Fiend', 'PHB'], ['great-old-one', 'Great Old One', 'PHB'], ['hexblade', 'Hexblade', 'XGE'], ['celestial', 'Celestial', 'TCE'], ['fathomless', 'Fathomless', 'TCE'], ['genie', 'Genie', 'TCE']] },
+    warlock: { unlockLevel: 1, options: [['archfey', 'Archfey', 'PHB'], ['fiend', 'Fiend', 'PHB'], ['great-old-one', 'Great Old One', 'PHB'], ['hexblade', 'Hexblade', 'XGE'], ['celestial', 'Celestial', 'XGE'], ['fathomless', 'Fathomless', 'TCE'], ['genie', 'Genie', 'TCE']] },
     wizard: { unlockLevel: 2, options: [['abjuration', 'Abjuration', 'PHB'], ['conjuration', 'Conjuration', 'PHB'], ['divination', 'Divination', 'PHB'], ['enchantment', 'Enchantment', 'PHB'], ['evocation', 'Evocation', 'PHB'], ['illusion', 'Illusion', 'PHB'], ['necromancy', 'Necromancy', 'PHB'], ['transmutation', 'Transmutation', 'PHB'], ['war-magic', 'War Magic', 'XGE'], ['bladesinging', 'Bladesinging', 'TCE'], ['order-of-scribes', 'Order of Scribes', 'TCE']] }
   };
   const tceFeatureData = [
@@ -149,6 +149,150 @@
     { key: 'sorcerer-magical-guidance', classKey: 'sorcerer', label: 'tceMagicalGuidance', unlockLevel: 5, costs: [{ poolKey: 'class:sorcerer:sorcery-points', amount: 1 }] },
     { key: 'sorcerer-sorcerous-restoration', classKey: 'sorcerer', label: 'tceSorcerousRestoration', unlockLevel: 20, recovery: { poolKey: 'class:sorcerer:sorcery-points', shortRestRecovery: 4 } }
   ];
+  const sharedPoolConsumers = {
+    bardicInspiration: [
+      { featureKey: 'cutting-words', name: 'Cutting Words', subclassKey: 'lore', level: 3, costs: [{ poolKey: 'class:bard:bardic-inspiration', amount: 1 }] },
+      { featureKey: 'combat-inspiration', name: 'Combat Inspiration', subclassKey: 'valor', level: 3, costs: [{ poolKey: 'class:bard:bardic-inspiration', amount: 1 }] },
+      { featureKey: 'mantle-of-inspiration', name: 'Mantle of Inspiration', subclassKey: 'glamour', level: 3, costs: [{ poolKey: 'class:bard:bardic-inspiration', amount: 1 }] },
+      { featureKey: 'blade-flourish', name: 'Blade Flourish', subclassKey: 'swords', level: 3, costs: [{ poolKey: 'class:bard:bardic-inspiration', amount: 1 }] },
+      { featureKey: 'psychic-blades', name: 'Psychic Blades', subclassKey: 'whispers', level: 3, costs: [{ poolKey: 'class:bard:bardic-inspiration', amount: 1 }] },
+      { featureKey: 'unsettling-words', name: 'Unsettling Words', subclassKey: 'eloquence', level: 3, costs: [{ poolKey: 'class:bard:bardic-inspiration', amount: 1 }] }
+    ],
+    clericChannelDivinity: [
+      { featureKey: 'turn-undead', name: 'Turn Undead', level: 2, costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] },
+      { featureKey: 'knowledge-of-the-ages', name: 'Knowledge of the Ages', subclassKey: 'knowledge', level: 2, costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] },
+      { featureKey: 'read-thoughts', name: 'Read Thoughts', subclassKey: 'knowledge', level: 6, costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] },
+      { featureKey: 'preserve-life', name: 'Preserve Life', subclassKey: 'life', level: 2, costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] },
+      { featureKey: 'radiance-of-the-dawn', name: 'Radiance of the Dawn', subclassKey: 'light', level: 2, costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] },
+      { featureKey: 'charm-animals-and-plants', name: 'Charm Animals and Plants', subclassKey: 'nature', level: 2, costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] },
+      { featureKey: 'destructive-wrath', name: 'Destructive Wrath', subclassKey: 'tempest', level: 2, costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] },
+      { featureKey: 'invoke-duplicity', name: 'Invoke Duplicity', subclassKey: 'trickery', level: 2, costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] },
+      { featureKey: 'guided-strike', name: 'Guided Strike', subclassKey: 'war', level: 2, costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] },
+      { featureKey: 'war-gods-blessing', name: "War God's Blessing", subclassKey: 'war', level: 6, costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] },
+      { featureKey: 'touch-of-death', name: 'Touch of Death', subclassKey: 'death', level: 2, costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] },
+      { featureKey: 'arcane-abjuration', name: 'Arcane Abjuration', subclassKey: 'arcana', level: 2, costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] },
+      { featureKey: 'artisans-blessing', name: "Artisan's Blessing", subclassKey: 'forge', level: 2, costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] },
+      { featureKey: 'path-to-the-grave', name: 'Path to the Grave', subclassKey: 'grave', level: 2, costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] },
+      { featureKey: 'orders-demand', name: "Order's Demand", subclassKey: 'order', level: 2, costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] },
+      { featureKey: 'balm-of-peace', name: 'Balm of Peace', subclassKey: 'peace', level: 2, costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] },
+      { featureKey: 'twilight-sanctuary', name: 'Twilight Sanctuary', subclassKey: 'twilight', level: 2, costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] },
+      { featureKey: 'cleric-harness-divine-power', label: 'tceHarnessDivinePowerCleric', tceFeatureKey: 'cleric-harness-divine-power', level: 2, costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] }
+    ],
+    wildShape: [
+      { featureKey: 'combat-wild-shape', name: 'Combat Wild Shape', subclassKey: 'moon', level: 2, costs: [{ poolKey: 'class:druid:wild-shape', amount: 1 }] },
+      { featureKey: 'circle-forms', name: 'Circle Forms', subclassKey: 'moon', level: 2 },
+      { featureKey: 'elemental-wild-shape', name: 'Elemental Wild Shape', subclassKey: 'moon', level: 10, costs: [{ poolKey: 'class:druid:wild-shape', amount: 2 }] },
+      { featureKey: 'starry-form', label: 'classWildShapeConsumerStarryForm', subclassKey: 'stars', level: 2, costs: [{ poolKey: 'class:druid:wild-shape', amount: 1 }] },
+      { featureKey: 'wildfire-spirit', label: 'classWildShapeConsumerWildfireSpirit', subclassKey: 'wildfire', level: 2, costs: [{ poolKey: 'class:druid:wild-shape', label: 'classWildShapeUseCost', amount: 1, alternative: true }, { type: 'spell-slot', alternative: true }] },
+      { featureKey: 'druid-wild-companion', label: 'tceWildCompanion', tceFeatureKey: 'druid-wild-companion', level: 2, costs: [{ poolKey: 'class:druid:wild-shape', amount: 1, alternative: true }, { type: 'spell-slot', alternative: true }] }
+    ],
+    rage: [
+      { featureKey: 'frenzy', name: 'Frenzy', subclassKey: 'berserker', level: 3 },
+      { featureKey: 'totem-warrior-features', name: 'Totem Warrior Rage features', subclassKey: 'totem-warrior', level: 3 },
+      { featureKey: 'ancestral-protectors', name: 'Ancestral Protectors', subclassKey: 'ancestral-guardian', level: 3 },
+      { featureKey: 'spirit-shield', name: 'Spirit Shield', subclassKey: 'ancestral-guardian', level: 6 },
+      { featureKey: 'storm-aura', name: 'Storm Aura', subclassKey: 'storm-herald', level: 3 },
+      { featureKey: 'fanatical-focus', name: 'Fanatical Focus', subclassKey: 'zealot', level: 6 },
+      { featureKey: 'rage-beyond-death', name: 'Rage Beyond Death', subclassKey: 'zealot', level: 14 },
+      { featureKey: 'bestial-soul', name: 'Beast forms', subclassKey: 'beast', level: 3 },
+      { featureKey: 'giant-rage-features', name: 'Path of the Giant Rage features', subclassKey: 'giant', level: 3 },
+      { featureKey: 'wild-surge', name: 'Wild Surge', subclassKey: 'wild-magic', level: 3 }
+    ],
+    superiorityDice: [
+      { featureKey: 'battle-master-maneuvers', name: 'Battle Master maneuvers', subclassKey: 'battle-master', level: 3, costs: [{ poolKey: 'subclass:fighter:battle-master:superiority-dice', amount: 1 }] }
+    ],
+    psiWarriorDice: [
+      { featureKey: 'protective-field', name: 'Protective Field', subclassKey: 'psi-warrior', level: 3, costs: [{ poolKey: 'subclass:fighter:psi-warrior:psionic-energy-dice', amount: 1 }] },
+      { featureKey: 'psionic-strike', name: 'Psionic Strike', subclassKey: 'psi-warrior', level: 3, costs: [{ poolKey: 'subclass:fighter:psi-warrior:psionic-energy-dice', amount: 1 }] },
+      { featureKey: 'telekinetic-movement', name: 'Telekinetic Movement', subclassKey: 'psi-warrior', level: 7, costs: [{ poolKey: 'subclass:fighter:psi-warrior:psionic-energy-dice', amount: 1, additionalUse: true }] },
+      { featureKey: 'psi-powered-leap', name: 'Psi-Powered Leap', subclassKey: 'psi-warrior', level: 7, costs: [{ poolKey: 'subclass:fighter:psi-warrior:psionic-energy-dice', amount: 1 }] },
+      { featureKey: 'guarded-mind', name: 'Guarded Mind', subclassKey: 'psi-warrior', level: 10, costs: [{ poolKey: 'subclass:fighter:psi-warrior:psionic-energy-dice', amount: 1 }] },
+      { featureKey: 'bulwark-of-force', name: 'Bulwark of Force', subclassKey: 'psi-warrior', level: 15, costs: [{ poolKey: 'subclass:fighter:psi-warrior:psionic-energy-dice', amount: 1, additionalUse: true }] },
+      { featureKey: 'telekinetic-master', name: 'Telekinetic Master', subclassKey: 'psi-warrior', level: 18, costs: [{ poolKey: 'subclass:fighter:psi-warrior:psionic-energy-dice', amount: 1, additionalUse: true }] }
+    ],
+    ki: [
+      { featureKey: 'flurry-of-blows', name: 'Flurry of Blows', level: 2, costs: [{ poolKey: 'class:monk:ki', amount: 1 }] },
+      { featureKey: 'patient-defense', name: 'Patient Defense', level: 2, costs: [{ poolKey: 'class:monk:ki', amount: 1 }] },
+      { featureKey: 'step-of-the-wind', name: 'Step of the Wind', level: 2, costs: [{ poolKey: 'class:monk:ki', amount: 1 }] },
+      { featureKey: 'stunning-strike', name: 'Stunning Strike', level: 5, costs: [{ poolKey: 'class:monk:ki', amount: 1 }] },
+      { featureKey: 'drunkards-luck', name: "Drunkard's Luck", subclassKey: 'drunken-master', level: 6, costs: [{ poolKey: 'class:monk:ki', amount: 2 }] },
+      { featureKey: 'fangs-of-the-fire-snake', name: 'Fangs of the Fire Snake', subclassKey: 'four-elements', level: 3, costs: [{ poolKey: 'class:monk:ki', amount: 1 }, { poolKey: 'class:monk:ki', amount: '1 on a hit for the first extra 1d10 fire damage; each further Ki adds 1d10' }] },
+      { featureKey: 'fist-of-four-thunders', name: 'Fist of Four Thunders', subclassKey: 'four-elements', level: 3, costs: [{ poolKey: 'class:monk:ki', amount: '2 base; +1 per spell level above 1st, maximum 6 total' }] },
+      { featureKey: 'fist-of-unbroken-air', name: 'Fist of Unbroken Air', subclassKey: 'four-elements', level: 3, costs: [{ poolKey: 'class:monk:ki', amount: '2 base; +1 per extra point adds 1d10 damage' }] },
+      { featureKey: 'clench-of-the-north-wind', name: 'Clench of the North Wind', subclassKey: 'four-elements', level: 6, costs: [{ poolKey: 'class:monk:ki', amount: '3 base; +1 per spell level above 2nd, maximum 6 total' }] },
+      { featureKey: 'gong-of-the-summit', name: 'Gong of the Summit', subclassKey: 'four-elements', level: 6, costs: [{ poolKey: 'class:monk:ki', amount: '3 base; +1 per spell level above 2nd, maximum 6 total' }] },
+      { featureKey: 'rush-of-the-gale-spirits', name: 'Rush of the Gale Spirits', subclassKey: 'four-elements', level: 6, costs: [{ poolKey: 'class:monk:ki', amount: '2 base; +1 per spell level above 2nd, maximum 6 total' }] },
+      { featureKey: 'shape-the-flowing-river', name: 'Shape the Flowing River', subclassKey: 'four-elements', level: 6, costs: [{ poolKey: 'class:monk:ki', amount: 1 }] },
+      { featureKey: 'sweeping-cinder-strike', name: 'Sweeping Cinder Strike', subclassKey: 'four-elements', level: 6, costs: [{ poolKey: 'class:monk:ki', amount: '2 base; +1 per spell level above 1st, maximum 6 total' }] },
+      { featureKey: 'water-whip', name: 'Water Whip', subclassKey: 'four-elements', level: 6, costs: [{ poolKey: 'class:monk:ki', amount: '2+; each extra point adds 1d10 damage' }] },
+      { featureKey: 'flames-of-the-phoenix', name: 'Flames of the Phoenix', subclassKey: 'four-elements', level: 11, costs: [{ poolKey: 'class:monk:ki', amount: '4 base; +1 per spell level above 3rd, maximum 6 total' }] },
+      { featureKey: 'mist-stance', name: 'Mist Stance', subclassKey: 'four-elements', level: 11, costs: [{ poolKey: 'class:monk:ki', amount: '4 base; +1 per spell level above 3rd, maximum 6 total' }] },
+      { featureKey: 'ride-the-wind', name: 'Ride the Wind', subclassKey: 'four-elements', level: 11, costs: [{ poolKey: 'class:monk:ki', amount: '4 base; +1 per spell level above 3rd, maximum 6 total' }] },
+      { featureKey: 'breath-of-winter', name: 'Breath of Winter', subclassKey: 'four-elements', level: 17, costs: [{ poolKey: 'class:monk:ki', amount: 6 }] },
+      { featureKey: 'eternal-mountain-defense', name: 'Eternal Mountain Defense', subclassKey: 'four-elements', level: 17, costs: [{ poolKey: 'class:monk:ki', amount: '5 base; +1 per spell level above 4th, maximum 6 total' }] },
+      { featureKey: 'river-of-hungry-flame', name: 'River of Hungry Flame', subclassKey: 'four-elements', level: 17, costs: [{ poolKey: 'class:monk:ki', amount: '5 base; +1 per spell level above 4th, maximum 6 total' }] },
+      { featureKey: 'wave-of-rolling-earth', name: 'Wave of Rolling Earth', subclassKey: 'four-elements', level: 17, costs: [{ poolKey: 'class:monk:ki', amount: 6 }] },
+      { featureKey: 'shadow-arts', name: 'Shadow Arts', subclassKey: 'shadow', level: 3, costs: [{ poolKey: 'class:monk:ki', amount: 2 }] },
+      { featureKey: 'quivering-palm', name: 'Quivering Palm', subclassKey: 'open-hand', level: 17, costs: [{ poolKey: 'class:monk:ki', amount: 3 }] },
+      { featureKey: 'empty-body', name: 'Empty Body', level: 18, costs: [{ poolKey: 'class:monk:ki', amount: 4 }] },
+      { featureKey: 'touch-of-the-long-death', name: 'Touch of the Long Death', subclassKey: 'long-death', level: 17, costs: [{ poolKey: 'class:monk:ki', amount: '1-10' }] },
+      { featureKey: 'mastery-of-death', name: 'Mastery of Death', subclassKey: 'long-death', level: 11, costs: [{ poolKey: 'class:monk:ki', amount: 1 }] },
+      { featureKey: 'searing-sunburst', name: 'Searing Sunburst', subclassKey: 'sun-soul', level: 11, costs: [{ poolKey: 'class:monk:ki', amount: '3+' }] },
+      { featureKey: 'deft-strike', name: 'Deft Strike', subclassKey: 'kensei', level: 3, costs: [{ poolKey: 'class:monk:ki', amount: 1 }] },
+      { featureKey: 'sharpen-the-blade', name: 'Sharpen the Blade', subclassKey: 'kensei', level: 11, costs: [{ poolKey: 'class:monk:ki', amount: '1-3' }] },
+      { featureKey: 'arms-of-the-astral-self', name: 'Arms of the Astral Self', subclassKey: 'astral-self', level: 3, costs: [{ poolKey: 'class:monk:ki', amount: 2 }] },
+      { featureKey: 'visage-of-the-astral-self', name: 'Visage of the Astral Self', subclassKey: 'astral-self', level: 6, costs: [{ poolKey: 'class:monk:ki', amount: 1 }] },
+      { featureKey: 'body-of-the-astral-self', name: 'Body of the Astral Self', subclassKey: 'astral-self', level: 11, costs: [{ poolKey: 'class:monk:ki', amount: 1 }] },
+      { featureKey: 'awakened-astral-self', name: 'Awakened Astral Self', subclassKey: 'astral-self', level: 17, costs: [{ poolKey: 'class:monk:ki', amount: 5 }] },
+      { featureKey: 'hand-of-healing', name: 'Hand of Healing', subclassKey: 'mercy', level: 3, costs: [{ poolKey: 'class:monk:ki', amount: 1 }] },
+      { featureKey: 'hand-of-harm', name: 'Hand of Harm', subclassKey: 'mercy', level: 3, costs: [{ poolKey: 'class:monk:ki', amount: 1 }] },
+      { featureKey: 'hand-of-ultimate-mercy', name: 'Hand of Ultimate Mercy', subclassKey: 'mercy', level: 17, costs: [{ poolKey: 'class:monk:ki', amount: 5 }] },
+      { featureKey: 'breath-of-the-dragon', name: 'Breath of the Dragon', subclassKey: 'ascendant-dragon', level: 3, costs: [{ poolKey: 'class:monk:ki', amount: 1, additionalUse: true }] },
+      { featureKey: 'wings-of-the-dragon', name: 'Wings of the Dragon', subclassKey: 'ascendant-dragon', level: 6, costs: [{ poolKey: 'class:monk:ki', amount: 1, additionalUse: true }] },
+      { featureKey: 'monk-quickened-healing', label: 'tceQuickenedHealing', tceFeatureKey: 'monk-quickened-healing', level: 2, costs: [{ poolKey: 'class:monk:ki', amount: 2 }] },
+      { featureKey: 'monk-focused-aim', label: 'tceFocusedAim', tceFeatureKey: 'monk-focused-aim', level: 2, costs: [{ poolKey: 'class:monk:ki', amount: '1-3' }] },
+    ],
+    paladinChannelDivinity: [
+      { featureKey: 'natures-wrath', name: "Nature's Wrath", subclassKey: 'ancients', level: 3, costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }] },
+      { featureKey: 'turn-the-faithless', name: 'Turn the Faithless', subclassKey: 'ancients', level: 3, costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }] },
+      { featureKey: 'sacred-weapon', name: 'Sacred Weapon', subclassKey: 'devotion', level: 3, costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }] },
+      { featureKey: 'turn-the-unholy', name: 'Turn the Unholy', subclassKey: 'devotion', level: 3, costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }] },
+      { featureKey: 'abjure-enemy', name: 'Abjure Enemy', subclassKey: 'vengeance', level: 3, costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }] },
+      { featureKey: 'vow-of-enmity', name: 'Vow of Enmity', subclassKey: 'vengeance', level: 3, costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }] },
+      { featureKey: 'control-undead', name: 'Control Undead', subclassKey: 'oathbreaker', level: 3, costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }] },
+      { featureKey: 'dreadful-aspect', name: 'Dreadful Aspect', subclassKey: 'oathbreaker', level: 3, costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }] },
+      { featureKey: 'conquering-presence', name: 'Conquering Presence', subclassKey: 'conquest', level: 3, costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }] },
+      { featureKey: 'guided-strike', name: 'Guided Strike', subclassKey: 'conquest', level: 3, costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }] },
+      { featureKey: 'emissary-of-peace', name: 'Emissary of Peace', subclassKey: 'redemption', level: 3, costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }] },
+      { featureKey: 'rebuke-the-violent', name: 'Rebuke the Violent', subclassKey: 'redemption', level: 3, costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }] },
+      { featureKey: 'peerless-athlete', name: 'Peerless Athlete', subclassKey: 'glory', level: 3, costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }] },
+      { featureKey: 'inspiring-smite', name: 'Inspiring Smite', subclassKey: 'glory', level: 3, costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }] },
+      { featureKey: 'watchers-will', name: "Watcher's Will", subclassKey: 'watchers', level: 3, costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }] },
+      { featureKey: 'abjure-the-extraplanar', name: 'Abjure the Extraplanar', subclassKey: 'watchers', level: 3, costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }] },
+      { featureKey: 'paladin-harness-divine-power', label: 'tceHarnessDivinePowerPaladin', tceFeatureKey: 'paladin-harness-divine-power', level: 3, costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }] }
+    ],
+    sorceryPoints: [
+      { featureKey: 'flexible-casting', name: 'Flexible Casting', level: 2, costs: [{ poolKey: 'class:sorcerer:sorcery-points', amount: 'varies by slot level' }] },
+      { featureKey: 'metamagic', name: 'Metamagic', level: 3, costs: [{ poolKey: 'class:sorcerer:sorcery-points', amount: 'varies by option' }] },
+      { featureKey: 'hound-of-ill-omen', name: 'Hound of Ill Omen', subclassKey: 'shadow-magic', level: 6, costs: [{ poolKey: 'class:sorcerer:sorcery-points', amount: 3 }] },
+      { featureKey: 'umbral-form', name: 'Umbral Form', subclassKey: 'shadow-magic', level: 14, costs: [{ poolKey: 'class:sorcerer:sorcery-points', amount: 6 }] },
+      { featureKey: 'psionic-sorcery', name: 'Psionic Sorcery', subclassKey: 'aberrant-mind', level: 6, costs: [{ poolKey: 'class:sorcerer:sorcery-points', amount: 'spell level' }] },
+      { featureKey: 'revelation-in-flesh', name: 'Revelation in Flesh', subclassKey: 'aberrant-mind', level: 14, costs: [{ poolKey: 'class:sorcerer:sorcery-points', amount: '1 per manifestation' }] },
+      { featureKey: 'warping-implosion', name: 'Warping Implosion', subclassKey: 'aberrant-mind', level: 18, costs: [{ poolKey: 'class:sorcerer:sorcery-points', amount: 5, additionalUse: true }] },
+      { featureKey: 'bastion-of-law', name: 'Bastion of Law', subclassKey: 'clockwork-soul', level: 6, costs: [{ poolKey: 'class:sorcerer:sorcery-points', amount: '1-5' }] },
+      { featureKey: 'trance-of-order', name: 'Trance of Order', subclassKey: 'clockwork-soul', level: 14, costs: [{ poolKey: 'class:sorcerer:sorcery-points', amount: 5, alternative: true }] },
+      { featureKey: 'clockwork-cavalcade', name: 'Clockwork Cavalcade', subclassKey: 'clockwork-soul', level: 18, costs: [{ poolKey: 'class:sorcerer:sorcery-points', amount: 7, alternative: true }] },
+      { featureKey: 'sorcerer-magical-guidance', label: 'tceMagicalGuidance', tceFeatureKey: 'sorcerer-magical-guidance', level: 5, costs: [{ poolKey: 'class:sorcerer:sorcery-points', amount: 1 }] }
+    ],
+    soulknifeDice: [
+      { featureKey: 'psi-bolstered-knack', name: 'Psi-Bolstered Knack', subclassKey: 'soulknife', level: 3, costs: [{ poolKey: 'subclass:rogue:soulknife:psionic-energy-dice', amount: 1 }] },
+      { featureKey: 'psychic-whispers', name: 'Psychic Whispers', subclassKey: 'soulknife', level: 3, costs: [{ poolKey: 'subclass:rogue:soulknife:psionic-energy-dice', amount: 1, additionalUse: true }] },
+      { featureKey: 'homing-strikes', name: 'Homing Strikes', subclassKey: 'soulknife', level: 9, costs: [{ poolKey: 'subclass:rogue:soulknife:psionic-energy-dice', amount: 1 }] },
+      { featureKey: 'psychic-teleportation', name: 'Psychic Teleportation', subclassKey: 'soulknife', level: 9, costs: [{ poolKey: 'subclass:rogue:soulknife:psionic-energy-dice', amount: 1 }] },
+      { featureKey: 'psychic-veil', name: 'Psychic Veil', subclassKey: 'soulknife', level: 13, costs: [{ poolKey: 'subclass:rogue:soulknife:psionic-energy-dice', amount: 1, additionalUse: true }] },
+      { featureKey: 'rend-mind', name: 'Rend Mind', subclassKey: 'soulknife', level: 17, costs: [{ poolKey: 'subclass:rogue:soulknife:psionic-energy-dice', amount: 3 }] }
+    ]
+  };
   const classResourceData = [
     { classKey: 'artificer', key: 'flash-of-genius', label: 'Flash of Genius', level: 7, maximum: { type: 'ability', ability: 'int', minimum: 1 }, cooldown: '長休', source: 'TCE' },
     { classKey: 'artificer', key: 'spell-storing-item', label: 'Spell-Storing Item', level: 11, maximum: { type: 'ability-times', factor: 2, ability: 'int', minimum: 2 }, cooldown: '長休', source: 'TCE' },
@@ -157,39 +301,43 @@
     { classKey: 'artificer', subclassKey: 'armorer', key: 'defensive-field', label: 'Defensive Field', level: 3, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE' },
     { classKey: 'artificer', subclassKey: 'artillerist', key: 'eldritch-cannon', label: 'Eldritch Cannon (free creation)', level: 3, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', concurrentLimitByLevel: [[3, 1], [15, 2]], costs: [{ type: 'spell-slot', additionalUse: true }], source: 'TCE' },
     { classKey: 'artificer', subclassKey: 'battle-smith', key: 'arcane-jolt', label: 'Arcane Jolt', level: 9, maximum: { type: 'ability', ability: 'int', minimum: 1 }, cooldown: '長休', source: 'TCE', usageGate: 'once-per-turn' },
-    { classKey: 'barbarian', key: 'rage', label: 'Rage', level: 1, maximum: { type: 'barbarian-rage' }, cooldown: '長休', source: 'PHB' },
-    { classKey: 'barbarian', subclassKey: 'ancestral-guardian', key: 'consult-the-spirits', label: 'Consult the Spirits', level: 10, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'XGE' },
+    { classKey: 'barbarian', key: 'rage', label: 'Rage', level: 1, maximum: { type: 'barbarian-rage' }, cooldown: '長休', source: 'PHB', shared: true, consumers: sharedPoolConsumers.rage },
+    { classKey: 'barbarian', subclassKey: 'ancestral-guardian', key: 'consult-the-spirits', label: 'Consult the Spirits', level: 10, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'XGE' },
     { classKey: 'barbarian', subclassKey: 'wild-magic', key: 'bolstering-magic', label: 'Bolstering Magic', level: 6, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE' },
-    { classKey: 'bard', key: 'bardic-inspiration', label: 'Bardic Inspiration', level: 1, maximum: { type: 'ability', ability: 'cha', minimum: 1 }, cooldown: '長休', recoveryFromLevel: [{ level: 5, cooldown: '短休' }], initiativeRecovery: 1, initiativeRecoveryFromLevel: 20, initiativeRecoveryWhenEmpty: true, source: 'PHB' },
+    { classKey: 'bard', key: 'bardic-inspiration', label: 'Bardic Inspiration', level: 1, maximum: { type: 'ability', ability: 'cha', minimum: 1 }, cooldown: '長休', recoveryFromLevel: [{ level: 5, cooldown: '短休' }], initiativeRecovery: 1, initiativeRecoveryFromLevel: 20, initiativeRecoveryWhenEmpty: true, source: 'PHB', shared: true, consumers: sharedPoolConsumers.bardicInspiration },
     { classKey: 'bard', subclassKey: 'glamour', key: 'enthralling-performance', label: 'Enthralling Performance', level: 3, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'XGE' },
     { classKey: 'bard', subclassKey: 'glamour', key: 'mantle-of-majesty', label: 'Mantle of Majesty', level: 6, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'XGE' },
     { classKey: 'bard', subclassKey: 'glamour', key: 'unbreakable-majesty', label: 'Unbreakable Majesty', level: 14, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'XGE' },
     { classKey: 'bard', subclassKey: 'whispers', key: 'words-of-terror', label: 'Words of Terror', level: 3, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'XGE' },
     { classKey: 'bard', subclassKey: 'whispers', key: 'mantle-of-whispers', label: 'Mantle of Whispers', level: 6, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'XGE' },
     { classKey: 'bard', subclassKey: 'whispers', key: 'shadow-lore', label: 'Shadow Lore', level: 14, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'XGE' },
-    { classKey: 'bard', subclassKey: 'creation', key: 'performance-of-creation', label: 'Performance of Creation', level: 3, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', costs: [{ type: 'spell-slot', additionalUse: true }] },
+    { classKey: 'bard', subclassKey: 'creation', key: 'performance-of-creation', label: 'Performance of Creation', level: 3, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', costs: [{ type: 'spell-slot', minimumLevel: 2, additionalUse: true }] },
+    { classKey: 'bard', subclassKey: 'creation', key: 'animating-performance', label: 'Animating Performance', level: 6, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', costs: [{ type: 'spell-slot', minimumLevel: 3, additionalUse: true }] },
     { classKey: 'bard', subclassKey: 'eloquence', key: 'universal-speech', label: 'Universal Speech', level: 6, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE' },
     { classKey: 'bard', subclassKey: 'eloquence', key: 'infectious-inspiration', label: 'Infectious Inspiration', level: 14, maximum: { type: 'ability', ability: 'cha', minimum: 1 }, cooldown: '長休', source: 'TCE' },
-    { classKey: 'cleric', key: 'channel-divinity', label: 'Channel Divinity', level: 2, maximum: { type: 'cleric-channel-divinity' }, cooldown: '短休', source: 'PHB', shared: true },
+    { classKey: 'cleric', key: 'divine-intervention', label: 'Divine Intervention', level: 10, maximum: { type: 'fixed', value: 1 }, cooldown: '成功使用後 7 日', recoveryTrigger: 'divine-intervention-success', source: 'PHB' },
+    { classKey: 'cleric', key: 'channel-divinity', label: 'Channel Divinity', level: 2, maximum: { type: 'cleric-channel-divinity' }, cooldown: '短休', source: 'PHB', shared: true, consumers: sharedPoolConsumers.clericChannelDivinity },
+    { classKey: 'cleric', subclassKey: 'knowledge', key: 'visions-of-the-past', label: 'Visions of the Past', level: 17, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'PHB' },
     { classKey: 'cleric', subclassKey: 'light', key: 'warding-flare', label: 'Warding Flare', level: 1, maximum: { type: 'ability', ability: 'wis', minimum: 1 }, cooldown: '長休', source: 'PHB' },
     { classKey: 'cleric', subclassKey: 'tempest', key: 'wrath-of-the-storm', label: 'Wrath of the Storm', level: 1, maximum: { type: 'ability', ability: 'wis', minimum: 1 }, cooldown: '長休', source: 'PHB' },
     { classKey: 'cleric', subclassKey: 'grave', key: 'sentinel-at-deaths-door', label: "Sentinel at Death's Door", level: 6, maximum: { type: 'ability', ability: 'wis', minimum: 1 }, cooldown: '長休', source: 'XGE' },
+    { classKey: 'cleric', subclassKey: 'order', key: 'embodiment-of-the-law', label: 'Embodiment of the Law', level: 6, maximum: { type: 'ability', ability: 'wis', minimum: 1 }, cooldown: '長休', source: 'TCE' },
     { classKey: 'cleric', subclassKey: 'peace', key: 'emboldening-bond', label: 'Emboldening Bond', level: 1, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE' },
     { classKey: 'cleric', subclassKey: 'twilight', key: 'steps-of-night', label: 'Steps of Night', level: 6, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE' },
     { classKey: 'cleric', subclassKey: 'twilight', key: 'eyes-of-night', label: 'Eyes of Night', level: 1, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', costs: [{ type: 'spell-slot', additionalUse: true }] },
     { classKey: 'cleric', subclassKey: 'war', key: 'war-priest', label: 'War Priest', level: 1, maximum: { type: 'ability', ability: 'wis', minimum: 1 }, cooldown: '長休', source: 'PHB' },
     { classKey: 'cleric', tceFeatureKey: 'cleric-harness-divine-power', key: 'harness-divine-power', label: 'Harness Divine Power', level: 2, maximum: { type: 'level-tiers', tiers: [[2, 1], [6, 2], [18, 3]] }, cooldown: '長休', source: 'TCE', costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }], spellSlotRecovery: { amount: 1, maxLevelFormula: { type: 'half-pb-up' } } },
-    { classKey: 'druid', key: 'wild-shape', label: 'Wild Shape', level: 2, maximum: { type: 'level-tiers', tiers: [[2, 2], [20, 0]] }, cooldown: '短休', source: 'PHB', shared: true, consumers: [{ subclassKey: 'stars', level: 2, label: 'classWildShapeConsumerStarryForm', amount: 1 }, { subclassKey: 'wildfire', level: 2, label: 'classWildShapeConsumerWildfireSpirit', amount: 1 }] },
+    { classKey: 'druid', key: 'wild-shape', label: 'Wild Shape', level: 2, maximum: { type: 'level-tiers', tiers: [[2, 2], [20, 0]] }, cooldown: '短休', source: 'PHB', shared: true, consumers: sharedPoolConsumers.wildShape },
     { classKey: 'druid', subclassKey: 'dreams', key: 'balm-of-the-summer-court', label: 'Balm of the Summer Court', level: 2, maximum: { type: 'class-level', die: 'd6' }, cooldown: '長休', source: 'XGE', poolMode: 'dice' },
     { classKey: 'druid', subclassKey: 'dreams', key: 'hidden-paths', label: 'Hidden Paths', level: 10, maximum: { type: 'ability', ability: 'wis', minimum: 1 }, cooldown: '長休', source: 'XGE' },
     { classKey: 'druid', subclassKey: 'shepherd', key: 'spirit-totem', label: 'Spirit Totem', level: 2, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'XGE' },
     { classKey: 'druid', subclassKey: 'stars', key: 'star-map-guiding-bolt', label: 'Star Map (Guiding Bolt free cast)', level: 2, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE', poolMode: 'free-cast' },
     { classKey: 'druid', subclassKey: 'stars', key: 'cosmic-omen', label: 'Cosmic Omen', level: 6, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE' },
-    { classKey: 'druid', subclassKey: 'wildfire', key: 'cauterizing-flames', label: 'Cauterizing Flames', level: 10, maximum: { type: 'ability', ability: 'wis', minimum: 1 }, cooldown: '長休', source: 'TCE' },
+    { classKey: 'druid', subclassKey: 'wildfire', key: 'cauterizing-flames', label: 'Cauterizing Flames', level: 10, maximum: { type: 'ability', ability: 'wis', minimum: 1 }, cooldown: '長休', source: 'TCE', relatedFeatureCosts: [{ featureKey: 'wildfire-spirit', name: 'Wildfire Spirit', costs: [{ poolKey: 'class:druid:wild-shape', label: 'classWildShapeUseCost', amount: 1, alternative: true }, { type: 'spell-slot', alternative: true }] }] },
     { classKey: 'fighter', key: 'second-wind', label: 'Second Wind', level: 1, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'PHB' },
     { classKey: 'fighter', key: 'action-surge', label: 'Action Surge', level: 2, maximum: { type: 'level-tiers', tiers: [[1, 1], [17, 2]] }, cooldown: '短休', source: 'PHB', usageGate: 'once-on-your-turn' },
     { classKey: 'fighter', key: 'indomitable', label: 'Indomitable', level: 9, maximum: { type: 'level-tiers', tiers: [[9, 1], [13, 2], [17, 3]] }, cooldown: '長休', source: 'PHB' },
-    { classKey: 'fighter', subclassKey: 'battle-master', key: 'superiority-dice', label: 'Superiority Dice', level: 3, maximum: { type: 'level-tiers', tiers: [[3, 4], [7, 5], [15, 6]] }, dieByLevel: [[3, 'd8'], [10, 'd10'], [18, 'd12']], cooldown: '短休', initiativeRecovery: 1, initiativeRecoveryFromLevel: 15, initiativeRecoveryWhenEmpty: true, source: 'PHB', shared: true, poolMode: 'dice' },
+    { classKey: 'fighter', subclassKey: 'battle-master', key: 'superiority-dice', label: 'Superiority Dice', level: 3, maximum: { type: 'level-tiers', tiers: [[3, 4], [7, 5], [15, 6]] }, dieByLevel: [[3, 'd8'], [10, 'd10'], [18, 'd12']], cooldown: '短休', initiativeRecovery: 1, initiativeRecoveryFromLevel: 15, initiativeRecoveryWhenEmpty: true, source: 'PHB', shared: true, poolMode: 'dice', consumers: sharedPoolConsumers.superiorityDice },
     { classKey: 'fighter', subclassKey: 'arcane-archer', key: 'arcane-shot', label: 'Arcane Shot', level: 3, maximum: { type: 'fixed', value: 2 }, cooldown: '短休', initiativeRecovery: 1, initiativeRecoveryFromLevel: 15, initiativeRecoveryWhenEmpty: true, source: 'XGE' },
     { classKey: 'fighter', subclassKey: 'cavalier', key: 'unwavering-mark', label: 'Unwavering Mark', level: 3, maximum: { type: 'ability', ability: 'str', minimum: 1 }, cooldown: '長休', source: 'XGE' },
     { classKey: 'fighter', subclassKey: 'cavalier', key: 'warding-maneuver', label: 'Warding Maneuver', level: 7, maximum: { type: 'ability', ability: 'con', minimum: 1 }, cooldown: '長休', source: 'XGE' },
@@ -197,16 +345,16 @@
     { classKey: 'fighter', subclassKey: 'samurai', key: 'strength-before-death', label: 'Strength Before Death', level: 18, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'XGE' },
     { classKey: 'fighter', subclassKey: 'rune-knight', key: 'giants-might', label: "Giant's Might", level: 3, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE' },
     { classKey: 'fighter', subclassKey: 'rune-knight', key: 'runic-shield', label: 'Runic Shield', level: 7, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE' },
-    { classKey: 'fighter', subclassKey: 'psi-warrior', key: 'psionic-energy-dice', label: 'Psionic Energy Dice', level: 3, maximum: { type: 'twice-pb' }, dieByLevel: [[3, 'd6'], [5, 'd8'], [11, 'd10'], [17, 'd12']], cooldown: '長休', source: 'TCE', shared: true, initiativeRecovery: 1, initiativeRecoveryWhenEmpty: true, poolMode: 'dice' },
+    { classKey: 'fighter', subclassKey: 'psi-warrior', key: 'psionic-energy-dice', label: 'Psionic Energy Dice', level: 3, maximum: { type: 'twice-pb' }, dieByLevel: [[3, 'd6'], [5, 'd8'], [11, 'd10'], [17, 'd12']], cooldown: '長休', source: 'TCE', shared: true, initiativeRecovery: 1, initiativeRecoveryWhenEmpty: true, poolMode: 'dice', consumers: sharedPoolConsumers.psiWarriorDice },
     { classKey: 'fighter', subclassKey: 'psi-warrior', key: 'bulwark-of-force', label: 'Bulwark of Force', level: 15, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', costs: [{ poolKey: 'subclass:fighter:psi-warrior:psionic-energy-dice', additionalUse: true }] },
     { classKey: 'fighter', subclassKey: 'psi-warrior', key: 'telekinetic-master', label: 'Telekinetic Master', level: 18, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', costs: [{ poolKey: 'subclass:fighter:psi-warrior:psionic-energy-dice', additionalUse: true }] },
-    { classKey: 'monk', key: 'ki', label: 'Ki', level: 2, maximum: { type: 'class-level' }, cooldown: '短休', initiativeRecovery: 4, initiativeRecoveryFromLevel: 20, initiativeRecoveryWhenEmpty: true, source: 'PHB', shared: true, poolMode: 'points' },
+    { classKey: 'monk', key: 'ki', label: 'Ki', level: 2, maximum: { type: 'class-level' }, cooldown: '短休', initiativeRecovery: 4, initiativeRecoveryFromLevel: 20, initiativeRecoveryWhenEmpty: true, source: 'PHB', shared: true, poolMode: 'points', consumers: sharedPoolConsumers.ki },
     { classKey: 'monk', subclassKey: 'mercy', key: 'hand-of-ultimate-mercy', label: 'Hand of Ultimate Mercy', level: 17, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', costs: [{ poolKey: 'class:monk:ki', amount: 5 }] },
     { classKey: 'monk', subclassKey: 'ascendant-dragon', key: 'breath-of-the-dragon', label: 'Breath of the Dragon', level: 3, maximum: { type: 'pb' }, cooldown: '長休', source: 'FToD', costs: [{ poolKey: 'class:monk:ki', additionalUse: true }] },
     { classKey: 'monk', subclassKey: 'ascendant-dragon', key: 'wings-of-the-dragon', label: 'Wings of the Dragon', level: 6, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'FToD', costs: [{ poolKey: 'class:monk:ki', additionalUse: true }] },
     { classKey: 'paladin', key: 'divine-sense', label: 'Divine Sense', level: 1, maximum: { type: 'ability-plus', ability: 'cha', amount: 1, minimum: 1 }, cooldown: '長休', source: 'PHB' },
     { classKey: 'paladin', key: 'lay-on-hands', label: 'Lay on Hands', level: 1, maximum: { type: 'class-level-times', factor: 5 }, cooldown: '長休', source: 'PHB', poolMode: 'hit-points' },
-    { classKey: 'paladin', key: 'channel-divinity', label: 'Channel Divinity', level: 3, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'PHB', shared: true },
+    { classKey: 'paladin', key: 'channel-divinity', label: 'Channel Divinity', level: 3, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'PHB', shared: true, consumers: sharedPoolConsumers.paladinChannelDivinity },
     { classKey: 'paladin', subclassKey: 'glory', key: 'glorious-defense', label: 'Glorious Defense', level: 15, maximum: { type: 'ability', ability: 'cha', minimum: 1 }, cooldown: '長休', source: 'TCE' },
     { classKey: 'paladin', subclassKey: 'watchers', key: 'vigilant-rebuke', label: 'Vigilant Rebuke', level: 15, maximum: { type: 'ability', ability: 'cha', minimum: 1 }, cooldown: '長休', source: 'TCE' },
     { classKey: 'paladin', tceFeatureKey: 'paladin-harness-divine-power', key: 'harness-divine-power', label: 'Harness Divine Power', level: 3, maximum: { type: 'level-tiers', tiers: [[3, 1], [7, 2], [15, 3]] }, cooldown: '長休', source: 'TCE', costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }], spellSlotRecovery: { amount: 1, maxLevelFormula: { type: 'half-pb-up' } } },
@@ -220,20 +368,24 @@
     { classKey: 'ranger', subclassKey: 'drakewarden', key: 'drakes-breath', label: "Drake's Breath", level: 11, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'FToD', costs: [{ type: 'spell-slot', minimumLevel: 3, additionalUse: true }] },
     { classKey: 'ranger', tceFeatureKey: 'ranger-favored-foe', key: 'favored-foe', label: 'Favored Foe', level: 1, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE', effectGate: 'favored-foe-damage-on-your-turn' },
     { classKey: 'ranger', tceFeatureKey: 'ranger-natures-veil', key: 'natures-veil', label: "Nature's Veil", level: 10, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE' },
-    { classKey: 'rogue', subclassKey: 'thief', key: 'stroke-of-luck', label: 'Stroke of Luck', level: 20, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'PHB' },
-    { classKey: 'rogue', subclassKey: 'phantom', key: 'wails-from-the-grave', label: 'Wails from the Grave', level: 3, maximum: { type: 'class-level-half-up' }, cooldown: '長休', source: 'TCE' },
-    { classKey: 'rogue', subclassKey: 'phantom', key: 'ghost-walk', label: 'Ghost Walk', level: 13, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE' },
-    { classKey: 'rogue', subclassKey: 'soulknife', key: 'psionic-energy-dice', label: 'Psionic Energy Dice', level: 3, maximum: { type: 'twice-pb' }, dieByLevel: [[3, 'd6'], [5, 'd8'], [11, 'd10'], [17, 'd12']], cooldown: '長休', source: 'TCE', shared: true, shortRestRecovery: 1, initiativeRecovery: 1, initiativeRecoveryWhenEmpty: true, poolMode: 'dice' },
-    { classKey: 'rogue', subclassKey: 'soulknife', key: 'psychic-whispers', label: 'Psychic Whispers', level: 3, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', costs: [{ poolKey: 'subclass:rogue:soulknife:psionic-energy-dice', additionalUse: true }] },
-    { classKey: 'rogue', subclassKey: 'soulknife', key: 'psychic-veil', label: 'Psychic Veil', level: 13, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', costs: [{ poolKey: 'subclass:rogue:soulknife:psionic-energy-dice', additionalUse: true }] },
-    { classKey: 'sorcerer', key: 'sorcery-points', label: 'Sorcery Points', level: 2, maximum: { type: 'class-level' }, cooldown: '長休', source: 'PHB', shared: true, poolMode: 'points' },
+    { classKey: 'rogue', key: 'stroke-of-luck', label: 'Stroke of Luck', level: 20, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'PHB' },
+    { classKey: 'rogue', subclassKey: 'arcane-trickster', key: 'spell-thief', label: 'Spell Thief', level: 17, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'PHB' },
+    { classKey: 'rogue', subclassKey: 'inquisitive', key: 'unerring-eye', label: 'Unerring Eye', level: 9, maximum: { type: 'ability', ability: 'wis', minimum: 1 }, cooldown: '長休', source: 'XGE' },
+    { classKey: 'rogue', subclassKey: 'swashbuckler', key: 'master-duelist', label: 'Master Duelist', level: 17, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'XGE' },
+    { classKey: 'rogue', subclassKey: 'phantom', key: 'wails-from-the-grave', label: 'Wails from the Grave', level: 3, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE', costs: [{ poolKey: 'subclass:rogue:phantom:soul-trinkets', amount: 1, alternative: true, minimumClassLevel: 9 }] },
+    { classKey: 'rogue', subclassKey: 'phantom', key: 'soul-trinkets', label: 'Soul Trinkets', level: 9, maximum: { type: 'pb' }, cooldown: '手動', source: 'TCE', initialValue: 0, poolMode: 'accumulative', accumulative: true, recoveryEvents: [{ key: 'classTriggerSoulTrinketDeath' }], notes: ['classSoulTrinketPassiveBenefits', 'classSoulTrinketAskSpirit'], longRestRecoveryFromLevel: [{ level: 17, amount: 1, whenEmpty: true }] },
+    { classKey: 'rogue', subclassKey: 'phantom', key: 'ghost-walk', label: 'Ghost Walk', level: 13, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', costs: [{ poolKey: 'subclass:rogue:phantom:soul-trinkets', amount: 1, alternative: true }] },
+    { classKey: 'rogue', subclassKey: 'soulknife', key: 'psionic-energy-dice', label: 'Psionic Energy Dice', level: 3, maximum: { type: 'twice-pb' }, dieByLevel: [[3, 'd6'], [5, 'd8'], [11, 'd10'], [17, 'd12']], cooldown: '長休', source: 'TCE', shared: true, shortRestRecovery: 1, initiativeRecovery: 1, initiativeRecoveryWhenEmpty: true, poolMode: 'dice', consumers: sharedPoolConsumers.soulknifeDice },
+    { classKey: 'rogue', subclassKey: 'soulknife', key: 'psychic-whispers', label: 'Psychic Whispers', level: 3, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', costs: [{ poolKey: 'subclass:rogue:soulknife:psionic-energy-dice', amount: 1, additionalUse: true }] },
+    { classKey: 'rogue', subclassKey: 'soulknife', key: 'psychic-veil', label: 'Psychic Veil', level: 13, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', costs: [{ poolKey: 'subclass:rogue:soulknife:psionic-energy-dice', amount: 1, additionalUse: true }] },
+    { classKey: 'sorcerer', key: 'sorcery-points', label: 'Sorcery Points', level: 2, maximum: { type: 'class-level' }, cooldown: '長休', source: 'PHB', shared: true, poolMode: 'points', consumers: sharedPoolConsumers.sorceryPoints },
     { classKey: 'sorcerer', subclassKey: 'wild-magic', key: 'tides-of-chaos', label: 'Tides of Chaos', level: 1, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'PHB', recoveryTrigger: 'wild-magic-surge' },
     { classKey: 'sorcerer', subclassKey: 'divine-soul', key: 'favored-by-the-gods', label: 'Favored by the Gods', level: 1, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'XGE' },
     { classKey: 'sorcerer', subclassKey: 'shadow-magic', key: 'strength-of-the-grave', label: 'Strength of the Grave', level: 1, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'XGE' },
     { classKey: 'sorcerer', subclassKey: 'clockwork-soul', key: 'restore-balance', label: 'Restore Balance', level: 1, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE' },
     { classKey: 'sorcerer', subclassKey: 'clockwork-soul', key: 'trance-of-order', label: 'Trance of Order', level: 14, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', costs: [{ poolKey: 'class:sorcerer:sorcery-points', amount: 5, alternative: true }] },
     { classKey: 'sorcerer', subclassKey: 'clockwork-soul', key: 'clockwork-cavalcade', label: 'Clockwork Cavalcade', level: 18, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', costs: [{ poolKey: 'class:sorcerer:sorcery-points', amount: 7, alternative: true }] },
-    { classKey: 'sorcerer', subclassKey: 'aberrant-mind', key: 'warping-implosion', label: 'Warping Implosion', level: 18, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', costs: [{ poolKey: 'class:sorcerer:sorcery-points', additionalUse: true }] },
+    { classKey: 'sorcerer', subclassKey: 'aberrant-mind', key: 'warping-implosion', label: 'Warping Implosion', level: 18, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', costs: [{ poolKey: 'class:sorcerer:sorcery-points', amount: 5, additionalUse: true }] },
     { classKey: 'warlock', key: 'eldritch-master', label: 'Eldritch Master', level: 20, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'PHB', recoveryTarget: 'class:warlock:pact-slots' },
     { classKey: 'warlock', subclassKey: 'archfey', key: 'fey-presence', label: 'Fey Presence', level: 1, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'PHB' },
     { classKey: 'warlock', subclassKey: 'archfey', key: 'misty-escape', label: 'Misty Escape', level: 6, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'PHB' },
@@ -247,7 +399,7 @@
     { classKey: 'warlock', subclassKey: 'celestial', key: 'searing-vengeance', label: 'Searing Vengeance', level: 14, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'XGE' },
     { classKey: 'warlock', subclassKey: 'fathomless', key: 'tentacle-of-the-deeps', label: 'Tentacle of the Deeps', level: 1, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE' },
     { classKey: 'warlock', subclassKey: 'fathomless', key: 'fathomless-plunge', label: 'Fathomless Plunge', level: 14, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE' },
-    { classKey: 'warlock', subclassKey: 'genie', key: 'bottled-respite', label: 'Bottled Respite', level: 1, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE' },
+    { classKey: 'warlock', subclassKey: 'genie', key: 'bottled-respite', label: 'Bottled Respite', level: 1, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', effectDuration: { formula: { type: 'twice-pb' }, unit: 'hours' } },
     { classKey: 'warlock', subclassKey: 'genie', key: 'elemental-gift', label: 'Elemental Gift', level: 6, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE' },
     { classKey: 'wizard', subclassKey: 'conjuration', key: 'benign-transposition', label: 'Benign Transposition', level: 6, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'PHB', recoveryTrigger: 'conjuration-spell-slot' },
     { classKey: 'wizard', subclassKey: 'divination', key: 'portent', label: 'Portent', level: 2, maximum: { type: 'level-tiers', tiers: [[2, 2], [14, 3]] }, cooldown: '長休', source: 'PHB' },
@@ -317,6 +469,85 @@
     return cooldown ? t(cooldown.label) : String(value == null ? '' : value);
   }
 
+  function isAccumulativeResource(resource) {
+    const metadata = resource && resource.generatedClass;
+    return Boolean(metadata && metadata.accumulative === true);
+  }
+
+  function resourceCountText(resource) {
+    const values = { current: resource.current, max: resource.max };
+    return isAccumulativeResource(resource)
+      ? t('accumulativeResourceCountTemplate', values)
+      : t('common.resourceCountTemplate', Object.assign({ prefix: t('resourceCountPrefix') }, values));
+  }
+
+  function syncAccumulativeControls(container, resource) {
+    if (!container || !isAccumulativeResource(resource)) return;
+    const current = Number(resource.current);
+    const maximum = Number(resource.max);
+    container.querySelectorAll('.accumulative-control').forEach(function (control) {
+      const input = control.querySelector('[data-accumulative-amount]');
+      const button = control.querySelector('[data-action="adjust-accumulative-resource"]');
+      const available = button.dataset.direction === 'gain'
+        ? Math.max(0, maximum - current)
+        : Math.max(0, current);
+      input.max = String(available);
+      const amount = Number(input.value);
+      button.disabled = !state.character || !Number.isSafeInteger(amount) || amount < 1 || amount > available;
+    });
+  }
+
+  function createResourceActions(resource, index, small) {
+    const actions = document.createElement('div');
+    if (isAccumulativeResource(resource)) {
+      actions.className = 'accumulative-controls';
+      [
+        { direction: 'gain', buttonLabel: 'accumulativeResourceGain', inputLabel: 'accumulativeResourceGainAmount' },
+        { direction: 'spend', buttonLabel: 'accumulativeResourceSpend', inputLabel: 'accumulativeResourceSpendAmount' }
+      ].forEach(function (controlDefinition) {
+        const control = document.createElement('div');
+        control.className = 'input-group input-group-sm accumulative-control';
+        const input = document.createElement('input');
+        input.className = 'form-control';
+        input.type = 'number';
+        input.min = '1';
+        input.step = '1';
+        input.value = '1';
+        input.dataset.accumulativeAmount = '';
+        input.setAttribute('aria-label', t(controlDefinition.inputLabel));
+        const button = document.createElement('button');
+        button.className = 'btn btn-outline-light';
+        button.type = 'button';
+        button.dataset.action = 'adjust-accumulative-resource';
+        button.dataset.direction = controlDefinition.direction;
+        button.dataset.index = String(index);
+        button.textContent = t(controlDefinition.buttonLabel);
+        control.append(input, button);
+        actions.appendChild(control);
+      });
+      syncAccumulativeControls(actions, resource);
+      return actions;
+    }
+
+    actions.className = 'd-flex gap-2 mt-2';
+    const useButton = document.createElement('button');
+    useButton.className = small ? 'btn btn-light btn-sm flex-fill' : 'btn btn-light flex-fill';
+    useButton.type = 'button';
+    useButton.dataset.action = 'use-resource';
+    useButton.dataset.index = String(index);
+    useButton.textContent = t('resourceUse');
+    useButton.disabled = !state.character || Number(resource.current) <= 0;
+    const resetButton = document.createElement('button');
+    resetButton.className = small ? 'btn btn-warning btn-sm flex-fill' : 'btn btn-warning flex-fill';
+    resetButton.type = 'button';
+    resetButton.dataset.action = 'reset-resource';
+    resetButton.dataset.index = String(index);
+    resetButton.textContent = t('resourceReset');
+    resetButton.disabled = !state.character;
+    actions.append(useButton, resetButton);
+    return actions;
+  }
+
   function classResourceDetails(resource) {
     const metadata = resource && resource.generatedClass;
     if (!metadata || metadata.kind !== 'class-resource') return '';
@@ -337,7 +568,7 @@
         const pool = currentResources().find(function (candidate) {
           return candidate.generatedClass && candidate.generatedClass.resourceKey === cost.poolKey;
         });
-        costName = pool ? displayResourceName(pool) : cost.poolKey;
+        costName = pool ? displayResourceName(pool) : cost.label ? t(cost.label) : cost.poolKey;
       }
       if (!costName) return '';
       const amount = cost.amount === undefined ? '' : String(cost.amount);
@@ -351,23 +582,43 @@
       const text = costText(cost);
       if (text) details.push(text);
     });
+    const consumers = Array.isArray(metadata.consumers) ? metadata.consumers : [];
+    const listedConsumerKeys = new Set(consumers.map(function (consumer) { return consumer.featureKey; }).filter(Boolean));
+    if (consumers.length) {
+      details.push(t('classResourceConsumersTemplate', {
+        features: consumers.map(function (consumer) {
+          const name = consumer.label ? t(consumer.label) : consumer.name;
+          const costs = (consumer.costs || []).map(costText).filter(Boolean);
+          return costs.length ? t('classResourceConsumerCostTemplate', { feature: name, costs: costs.join('／') }) : name;
+        }).join('、')
+      }));
+    }
+    (metadata.relatedFeatureCosts || []).forEach(function (feature) {
+      const costs = (feature.costs || []).map(costText).filter(Boolean);
+      if (costs.length) details.push(t('classResourceConsumerCostTemplate', { feature: feature.name, costs: costs.join('／') }));
+    });
     (Array.isArray(metadata.activeTceFeatures) ? metadata.activeTceFeatures : []).forEach(function (feature) {
       const definition = tceFeatureData.find(function (option) { return option.key === feature.key; });
-      if (!definition || !Array.isArray(feature.costs) || !feature.costs.some(function (cost) { return cost.poolKey === metadata.resourceKey; })) return;
+      if (!definition || listedConsumerKeys.has(feature.key) || !Array.isArray(feature.costs) || !feature.costs.some(function (cost) { return cost.poolKey === metadata.resourceKey; })) return;
       const costs = feature.costs.map(costText).filter(Boolean);
       if (costs.length) details.push(t('classResourceConsumerCostTemplate', { feature: t(definition.label), costs: costs.join('／') }));
     });
     if (metadata.shortRestRecovery > 0) details.push(t('classResourceRestRecoveryTemplate', { rest: t('cooldownShortRest'), amount: metadata.shortRestRecovery }));
-    if (metadata.longRestRecovery > 0) details.push(t('classResourceRestRecoveryTemplate', { rest: t('cooldownLongRest'), amount: metadata.longRestRecovery }));
+    if (metadata.longRestRecovery > 0) {
+      const recoveryKey = metadata.longRestRecoveryWhenEmpty
+        ? 'classResourceRestRecoveryWhenEmptyTemplate'
+        : 'classResourceRestRecoveryTemplate';
+      details.push(t(recoveryKey, { rest: t('cooldownLongRest'), amount: metadata.longRestRecovery }));
+    }
     if (Number.isInteger(metadata.longRestResetTo)) details.push(t('classResourceRestResetTemplate', { rest: t('cooldownLongRest'), amount: metadata.longRestResetTo }));
     if (metadata.resourceDie) details.push(t('classResourceDieTemplate', { die: formatDieLabel(metadata.resourceDie) }));
     if (metadata.spellSlotRecovery && Number.isInteger(metadata.spellSlotRecovery.maxLevel)) {
       details.push(t('classResourceSpellSlotRecoveryTemplate', { amount: metadata.spellSlotRecovery.amount, level: metadata.spellSlotRecovery.maxLevel }));
     }
-    if (metadata.consumesItem) details.push(t('classResourceConsumesItemTemplate', { item: metadata.consumesItem }));
-    if (Array.isArray(metadata.consumers) && metadata.consumers.length) {
-      details.push(t('classResourceConsumersTemplate', { features: metadata.consumers.map(function (consumer) { return t(consumer.label); }).join('、') }));
+    if (metadata.effectDuration && metadata.effectDuration.unit === 'hours' && Number.isInteger(metadata.effectDuration.value)) {
+      details.push(t('classResourceDurationHoursTemplate', { hours: metadata.effectDuration.value }));
     }
+    if (metadata.consumesItem) details.push(t('classResourceConsumesItemTemplate', { item: metadata.consumesItem }));
     if (metadata.initiativeRecovery > 0) details.push(t('classInitiativeRecoveryTemplate', { amount: metadata.initiativeRecovery }));
     if (metadata.recoveryTrigger) {
       const triggerKeys = {
@@ -379,6 +630,9 @@
     }
     (Array.isArray(metadata.recoveryEvents) ? metadata.recoveryEvents : []).forEach(function (event) {
       details.push(t('classResourceEventRecoveryTemplate', { event: t(event.key) }));
+    });
+    (Array.isArray(metadata.notes) ? metadata.notes : []).forEach(function (note) {
+      details.push(t(note));
     });
     if (metadata.recoveryTarget) {
       const target = currentResources().find(function (candidate) {
@@ -477,7 +731,7 @@
     name.textContent = displayResourceName(resource);
     const meta = document.createElement('div');
     meta.className = 'small text-secondary text-end resource-count';
-    meta.textContent = t('common.resourceCountTemplate', { prefix: t('resourceCountPrefix'), current: resource.current, max: resource.max });
+    meta.textContent = resourceCountText(resource);
     summary.append(name, meta);
     const cooldown = document.createElement('div');
     cooldown.className = 'small text-secondary resource-cooldown';
@@ -487,23 +741,7 @@
     details.className = 'small text-secondary resource-rules';
     details.textContent = classResourceDetails(resource);
     details.classList.toggle('d-none', !details.textContent);
-    const actions = document.createElement('div');
-    actions.className = 'd-flex gap-2 mt-2';
-    const useButton = document.createElement('button');
-    useButton.className = 'btn btn-light btn-sm flex-fill';
-    useButton.type = 'button';
-    useButton.dataset.action = 'use-resource';
-    useButton.dataset.index = index;
-    useButton.textContent = t('resourceUse');
-    useButton.disabled = !state.character || Number(resource.current) <= 0;
-    const resetButton = document.createElement('button');
-    resetButton.className = 'btn btn-warning btn-sm flex-fill';
-    resetButton.type = 'button';
-    resetButton.dataset.action = 'reset-resource';
-    resetButton.dataset.index = index;
-    resetButton.textContent = t('resourceReset');
-    resetButton.disabled = !state.character;
-    actions.append(useButton, resetButton);
+    const actions = createResourceActions(resource, index, true);
     row.append(summary, cooldown, details, actions);
     applyResourceStatus(row, resource);
     return row;
@@ -572,7 +810,7 @@
     body.className = 'card-body';
     const count = document.createElement('p');
     count.className = 'resource-count';
-    count.textContent = t('common.resourceCountTemplate', { prefix: t('resourceCountPrefix'), current: resource.current, max: resource.max });
+    count.textContent = resourceCountText(resource);
     const cooldown = document.createElement('p');
     cooldown.className = 'mb-3';
     cooldown.textContent = t('resourceCooldownTemplate', { cooldown: cooldownLabel(resource.cooldown) });
@@ -580,23 +818,7 @@
     details.className = 'small text-secondary resource-rules mb-3';
     details.textContent = classResourceDetails(resource);
     details.classList.toggle('d-none', !details.textContent);
-    const actions = document.createElement('div');
-    actions.className = 'd-flex gap-2';
-    const useButton = document.createElement('button');
-    useButton.className = 'btn btn-light flex-fill';
-    useButton.type = 'button';
-    useButton.dataset.action = 'use-resource';
-    useButton.dataset.index = index;
-    useButton.textContent = t('resourceUse');
-    useButton.disabled = !state.character || Number(resource.current) <= 0;
-    const resetButton = document.createElement('button');
-    resetButton.className = 'btn btn-warning flex-fill';
-    resetButton.type = 'button';
-    resetButton.dataset.action = 'reset-resource';
-    resetButton.dataset.index = index;
-    resetButton.textContent = t('resourceReset');
-    resetButton.disabled = !state.character;
-    actions.append(useButton, resetButton);
+    const actions = createResourceActions(resource, index, false);
     body.append(count, cooldown, details, actions);
     card.append(header, body);
     applyResourceStatus(card, resource);
@@ -765,11 +987,10 @@
     matches.forEach(function (match) {
       const row = match.classList.contains('resource-row') ? match : match.querySelector('.card') || match;
       const count = row.querySelector('.resource-count');
-      if (count) {
-        count.textContent = t('common.resourceCountTemplate', { prefix: t('resourceCountPrefix'), current: resource.current, max: resource.max });
-      }
+      if (count) count.textContent = resourceCountText(resource);
       const useButton = row.querySelector('[data-action="use-resource"]');
       if (useButton) useButton.disabled = Number(resource.current) <= 0;
+      syncAccumulativeControls(row, resource);
       applyResourceStatus(row, resource);
       const card = row.classList.contains('card') ? row : row.closest('.card');
       if (card && card.querySelectorAll('.resource-row').length > 1) {
@@ -999,7 +1220,7 @@
       const value = Number(element.dataset.resourceIndex);
       if (value > index) element.dataset.resourceIndex = String(value - 1);
     });
-    list.querySelectorAll('[data-action="use-resource"], [data-action="reset-resource"]').forEach(function (button) {
+    list.querySelectorAll('[data-action="use-resource"], [data-action="reset-resource"], [data-action="adjust-accumulative-resource"]').forEach(function (button) {
       const value = Number(button.dataset.index);
       if (value > index) button.dataset.index = String(value - 1);
     });
@@ -1683,13 +1904,31 @@
         const tceRecovery = activeTceFeatures.find(function (feature) {
           return feature.recovery && feature.recovery.poolKey === poolKey;
         });
+        const costs = (definition.costs || []).filter(function (cost) {
+          return !cost.minimumClassLevel || config.level >= cost.minimumClassLevel;
+        });
         const subclassChoice = classSubclassData[config.classKey].options.find(function (option) {
           return option[0] === definition.subclassKey;
+        });
+        let longRestRecovery = definition.longRestRecovery || 0;
+        let longRestRecoveryWhenEmpty = Boolean(definition.longRestRecoveryWhenEmpty);
+        (definition.longRestRecoveryFromLevel || []).forEach(function (recovery) {
+          if (config.level >= recovery.level) {
+            longRestRecovery = recovery.amount;
+            longRestRecoveryWhenEmpty = Boolean(recovery.whenEmpty);
+          }
         });
         let resourceDie = definition.maximum.die || null;
         (definition.dieByLevel || []).forEach(function (tier) {
           if (config.level >= tier[0]) resourceDie = tier[1];
         });
+        const effectDuration = definition.effectDuration
+          ? {
+            formula: definition.effectDuration.formula,
+            value: calculateResourceMaximum(definition.effectDuration.formula, config, proficiencyBonus, abilityValues, errors, errorKeys, definition.label),
+            unit: definition.effectDuration.unit
+          }
+          : null;
         const metadata = Object.assign({}, sharedMetadata, {
           kind: 'class-resource',
           resourceKey: poolKey,
@@ -1699,28 +1938,35 @@
           subclassSource: subclassChoice ? subclassChoice[2] : null,
           sourceVersion: definition.source,
           maximumFormula: definition.maximum,
+          effectDuration: effectDuration,
           initialValue: definition.initialValue === undefined ? null : definition.initialValue,
           resourceDie: resourceDie,
           recovery: cooldown,
           poolMode: definition.poolMode || (definition.maximum.die ? 'dice' : 'uses'),
+          accumulative: Boolean(definition.accumulative),
           shared: Boolean(definition.shared),
-          costs: definition.costs || [],
+          costs: costs,
           usageGate: definition.usageGate || null,
           effectGate: definition.effectGate || null,
           recoveryTrigger: definition.recoveryTrigger || null,
           initiativeRecovery: !definition.initiativeRecoveryFromLevel || config.level >= definition.initiativeRecoveryFromLevel ? definition.initiativeRecovery || 0 : 0,
           initiativeRecoveryWhenEmpty: Boolean(definition.initiativeRecoveryWhenEmpty),
           shortRestRecovery: definition.shortRestRecovery || (tceRecovery ? tceRecovery.recovery.shortRestRecovery : 0),
-          longRestRecovery: definition.longRestRecovery || 0,
+          longRestRecovery: longRestRecovery,
+          longRestRecoveryWhenEmpty: longRestRecoveryWhenEmpty,
           longRestResetTo: definition.longRestResetTo,
           spellSlotRecovery: definition.spellSlotRecovery
             ? { amount: definition.spellSlotRecovery.amount, maxLevel: Math.ceil(proficiencyBonus / 2), maxLevelFormula: definition.spellSlotRecovery.maxLevelFormula }
             : null,
           consumesItem: definition.consumesItem || null,
           consumers: (definition.consumers || []).filter(function (consumer) {
-            return config.subclass === consumer.subclassKey && config.level >= consumer.level;
+            return (!consumer.subclassKey || config.subclass === consumer.subclassKey) &&
+              (!consumer.tceFeatureKey || selections[consumer.tceFeatureKey]) &&
+              config.level >= consumer.level;
           }),
+          relatedFeatureCosts: definition.relatedFeatureCosts || [],
           recoveryEvents: definition.recoveryEvents || [],
+          notes: definition.notes || [],
           recoveryTarget: definition.recoveryTarget || null,
           concurrentLimitByLevel: definition.concurrentLimitByLevel || null
         });
@@ -1842,6 +2088,13 @@
     const cappedCasterLevel = Math.min(20, casterLevel);
     const table = regularSlots[cappedCasterLevel] || [];
     table.forEach(function (count, index) { regularCounts[index] += count; });
+    if (activeConfigs.length === 1) {
+      const config = activeConfigs[0];
+      const hasFourthLevelSlot = config.progression === 'third' && config.level >= 19 &&
+        ((config.classKey === 'fighter' && config.subclass === 'eldritch-knight') ||
+          (config.classKey === 'rogue' && config.subclass === 'arcane-trickster'));
+      if (hasFourthLevelSlot) regularCounts[3] += 1;
+    }
     regularCounts.forEach(function (count, index) {
       if (!count) return;
       const slotLevel = index + 1;
@@ -1885,7 +2138,7 @@
 
   function useResource(index) {
     const resource = currentResources()[index];
-    if (!resource || Number(resource.current) <= 0) return;
+    if (!resource || isAccumulativeResource(resource) || Number(resource.current) <= 0) return;
     resource.current = Number(resource.current) - 1;
     save();
     refreshResourceAt(index);
@@ -1893,8 +2146,22 @@
 
   function resetResource(index) {
     const resource = currentResources()[index];
-    if (!resource) return;
+    if (!resource || isAccumulativeResource(resource)) return;
     resource.current = resource.max;
+    save();
+    refreshResourceAt(index);
+  }
+
+  function adjustAccumulativeResource(index, direction, amountValue) {
+    const resource = currentResources()[index];
+    if (!resource || !isAccumulativeResource(resource)) return;
+    if (direction !== 'gain' && direction !== 'spend') throw new Error('Unsupported accumulative resource adjustment.');
+    const amount = Number(amountValue);
+    const current = Number(resource.current);
+    const maximum = Number(resource.max);
+    const available = direction === 'gain' ? Math.max(0, maximum - current) : Math.max(0, current);
+    if (!Number.isSafeInteger(amount) || amount < 1 || amount > available) return;
+    resource.current = direction === 'gain' ? current + amount : current - amount;
     save();
     refreshResourceAt(index);
   }
@@ -2034,6 +2301,11 @@
     else if (action === 'apply-class-levels') createClassConfirmation();
     else if (action === 'use-resource') useResource(index);
     else if (action === 'reset-resource') resetResource(index);
+    else if (action === 'adjust-accumulative-resource') {
+      const control = actionElement.closest('.accumulative-control');
+      const amountInput = control && control.querySelector('[data-accumulative-amount]');
+      adjustAccumulativeResource(index, actionElement.dataset.direction, amountInput ? amountInput.value : '');
+    }
     else if (action === 'reset-cooldown') resetCooldown(actionElement.dataset.level);
     else if (action === 'new-resource') {
       if (!state.character) return;
@@ -2083,6 +2355,14 @@
     }
     const sectionButton = event.target.closest('[data-section]');
     if (sectionButton && app.contains(sectionButton)) setManagementSection(sectionButton.dataset.section);
+  });
+
+  app.addEventListener('input', function (event) {
+    if (!event.target.matches('[data-accumulative-amount]')) return;
+    const resourceElement = event.target.closest('[data-resource-index]');
+    if (!resourceElement) return;
+    const index = Number.parseInt(resourceElement.dataset.resourceIndex, 10);
+    syncAccumulativeControls(resourceElement, currentResources()[index]);
   });
 
   app.addEventListener('change', function (event) {
