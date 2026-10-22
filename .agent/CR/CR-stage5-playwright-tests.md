@@ -55,7 +55,17 @@
 - SR/LR 統一為短休：既有資料中的「短休或長休」冷卻與 recovery metadata 會遷移成「短休」；資源編輯器只提供統一用語，短休批次回復仍可恢復遷移後資源。瀏覽器檢查通過且無 JavaScript page error；匯入路徑也使用同一正規化 helper。
 - Step J targeted test run（2026-10-19）：使用臨時 Ranger 1／Fighter 3（Battle Master）／Paladin 2 角色驗證總等級 PB、CHA 調整值、職業等級公式、Battle Master 骰數／骰面／冷卻、Favored Foe opt-in 及獨立使用閘；另驗證 TCE 預設關閉、啟用後生成、角色／子職業／能力值持久化與角色間隔離。全數通過，沒有 JavaScript page error。
 
-**Step K 未執行（依操作員指示）**：未跑逐一覆蓋所有子職業的 20 級案例，亦未跑計劃列出的完整多職整合矩陣。以上 focused checks 不替代該矩陣。
+**Step K 狀態更新（2026-10-22）**：Step K 控制表中的 K-S、K-B、K-T、K-M 案例均已執行及核銷；目前沒有 FAIL。Arcane Ward 與 Power Surge 累積行為保留為 DEFERRED，K-B048 付費動作為範圍外 NOT RUN。逐案狀態及證據見 [Step K 控制表](./step-k-control-table.md)。
+
+## Step L 回歸驗證 — 2026-10-22
+
+**結果：PASS。** 使用 `http://127.0.0.1:8766/cr.html` 和兩個臨時角色，逐項驗證標準法術位、自訂職業、手動資源保留及休息恢復：
+
+- **標準職業法術位：** Bard 5（Lore，CHA 14）產生 1–3 環法術位上限 4/3/2；Bardic Inspiration 為 2/2、短休恢復。消耗後確認目前次數正確。
+- **手動資源保留：** 建立長休 3/3 及短休 2/2 的手動資源；分別消耗至 2/3、1/2，重套相同 Bard 5 職業設定後，法術位 3/4、Bardic Inspiration 1/2、兩項手動資源 2/3 和 1/2 均保留。
+- **短休／長休恢復：** 短休恢復 Bardic Inspiration 及短休手動資源，不恢復 1 環法術位或長休手動資源；長休恢復已消耗法術位和長休手動資源。短休資源維持全滿。
+- **自訂職業法術位：** `Custom Adept` 3 級設為自訂法術位 `[2, 1, 0, 0, 0, 0, 0, 0, 0]`，產生 1 環 2/2、2 環 1/1；該設定保存在職業 metadata。消耗兩環各一格後，長休正確恢復至上限。
+- **清理：** 刪除兩個臨時角色，清空並確認 localStorage/sessionStorage 為空，重載頁面確認空狀態正常；pageerror 為零，臨時伺服器已停止。
 
 ## 重跑規格
 

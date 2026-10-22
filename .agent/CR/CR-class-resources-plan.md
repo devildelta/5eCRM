@@ -324,7 +324,7 @@
 
 #### 執行順序與子代理可行性評估
 
-- Step K 尚未全部完成。多職 K-M001–K-M005 和 UI 解鎖 K-B001–K-B013 已由 orchestrator 執行；相關逐案結果見 `.agent/CR/step-k-orchestrator-report.md`。其餘仍須完成：K-S001–K-S104、K-B014–K-B050、K-T001–K-T007，並讓每名 testor 的報告經 auditor 留言及同一 testor 跟進後再關閉。未經操作員要求，不進入 Step L，也不把 Step K targeted matrix 說成所有 Stage 5 驗收完成。
+- **Step K 已完成並對照控制表核銷。** 目前結果為 K-S 104 PASS / 0 FAIL、K-B 52 PASS / 0 FAIL / 1 N/A、K-T 50 PASS / 0 FAIL / 1 DEFERRED / 3 N/A、K-M 5 PASS。Arcane Ward 與 Power Surge 累積資源子項按核准範圍 DEFERRED；K-B048 付費動作執行仍為 NOT RUN，且不屬 metadata-only 範圍。操作員已批准進入 Step L；回歸結果記錄於下方及 `.agent/CR/CR-stage5-playwright-tests.md`。
 - **估計規模**：104 個子職業 level-20 case、50 個邊界／公式 case 群、7 個跨目錄 invariant case、5 個多職 case；部分案例會共用同一個資料驅動 harness，但每個列出的 ID 都需有可追溯結果。實際單元數量應在 fixture 展開後列入執行報告。
 - **可拆給較弱 subagents 的工作**：在完整、凍結且獨立核實的期望 fixture 與固定測試流程提供後，可分配互不重疊的 class batch（例如 13 class groups 分為 4 批，約 3–4 class／批），只負責執行案例、檢查輸出與回報 case ID、expected／actual 差異；並行前要確保每個 worker 使用隔離的 browser context／localStorage。subagent 不修改共用 production files，不自行裁決未核實 RAW。
 - **不建議交給弱代理的工作**：建立或裁定 RAW oracle、處理跨職業法術位／共享 pool 的規則判讀、修正共用生成器、合併彼此衝突的發現。這些需由主代理集中審核；有規則疑義時使用 D&D 5E (2014) Rules Auditor 或保留 blocked 狀態。
@@ -430,5 +430,6 @@ flowchart TD
 - 已更新核准資源參考中發現的錯誤：Paladin Channel Divinity 次數、Arcane Jolt 公式、Harness Divine Power 使用次數／法術位環級、部分 Wizard 能力，以及 Bard Eloquence 和 Druid Circle of Stars 資源。
 - 已按 `.agent/CR/CR-stage5-playwright-tests.md` 執行 targeted browser checks，涵蓋輸入解鎖、選項隔離與持久化、代表性公式、休息恢復、重套保留和法術位／自訂職業回歸。
 - **Step J targeted tests 已完成**：以臨時 Ranger 1／Fighter 3（Battle Master）／Paladin 2 角色驗證總等級 PB、Paladin CHA 與職業等級公式、Battle Master 骰池、TCE 預設關閉／啟用後生成，以及能力值、子職業與角色隔離狀態的重新載入持久化；無瀏覽器錯誤。這不是 Step K 的完整多職矩陣。
-- **Step K 未執行（依操作員指示）**；逐一覆蓋全部子職業的 20 級案例及完整多職矩陣仍未驗收，不宣稱 Stage 5 全矩陣完成。
+- **Step K 狀態已核銷**：控制表記錄的 K-S/K-B/K-T/K-M 案例均有終結狀態；不把明確 DEFERRED、N/A 或範圍外 NOT RUN 子項稱為 PASS。細項及歷史證據見 `.agent/CR/step-k-control-table.md`。
+- **Step L 回歸驗證已完成（2026-10-22）**：標準法術位、自訂職業手動法術位、手動資源重套保留，以及短休／長休恢復均通過。使用臨時角色執行，無 JavaScript page error；完整 fixtures 與實際值見 `.agent/CR/CR-stage5-playwright-tests.md` 的 Step L 記錄。
 - 先攻／事件觸發目前保存為 metadata 並顯示於資源資訊，未自動偵測戰鬥事件。Rune Knight 的 rune 使用池按已知 rune 數量分開追蹤，但目前以通用序號表示，沒有記錄各 rune 的名稱。
