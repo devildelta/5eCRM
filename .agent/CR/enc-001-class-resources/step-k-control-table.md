@@ -1,7 +1,7 @@
 # Step K Central Case Control Table
 
 **Updated:** 2026-10-22
-**Purpose:** Single control point for Step K case names, scenarios, current status, and current role assignments. The [resource plan](./CR-class-resources-plan.md) defines expected coverage; the [fix control](./step-k-fix-control.md) defines sequential remediation groups and post-fix table updates; tester and orchestrator reports retain execution evidence.
+**Purpose:** Single control point for Step K case names, scenarios, current status, and current role assignments. The [enhancement archive](./step-k-enhancement-archive.md) summarizes completed work and deferred follow-up scope. The [resource plan](./CR-class-resources-plan.md) defines expected coverage; the [fix control](./step-k-fix-control.md) defines sequential remediation groups and post-fix table updates; tester and orchestrator reports retain execution evidence.
 
 ## Control rules and current assignment state
 
