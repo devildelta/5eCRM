@@ -98,15 +98,20 @@ header {
 }
 
 .card.resource-status-green,
-.resource-row.resource-status-green { background-color: #294e35; }
+.resource-row.resource-status-green,
+.resource-compact-control.resource-status-green { background-color: #294e35; }
 .card.resource-status-yellow,
-.resource-row.resource-status-yellow { background-color: #594f20; }
+.resource-row.resource-status-yellow,
+.resource-compact-control.resource-status-yellow { background-color: #594f20; }
 .card.resource-status-orange,
-.resource-row.resource-status-orange { background-color: #633b1e; }
+.resource-row.resource-status-orange,
+.resource-compact-control.resource-status-orange { background-color: #633b1e; }
 .card.resource-status-red,
-.resource-row.resource-status-red { background-color: #632a2e; }
+.resource-row.resource-status-red,
+.resource-compact-control.resource-status-red { background-color: #632a2e; }
 .card.resource-status-zero,
-.resource-row.resource-status-zero { background-color: #1a1a1a; }
+.resource-row.resource-status-zero,
+.resource-compact-control.resource-status-zero { background-color: #1a1a1a; }
 
 .card.resource-over-max {
   border: 2px solid #a64f52;
@@ -114,6 +119,11 @@ header {
 }
 
 .resource-row.resource-over-max {
+  border: 2px solid #a64f52;
+  box-shadow: 0 0 0 1px rgba(166, 79, 82, 0.18);
+}
+
+.resource-compact-control.resource-over-max {
   border: 2px solid #a64f52;
   box-shadow: 0 0 0 1px rgba(166, 79, 82, 0.18);
 }
@@ -190,6 +200,87 @@ header {
 .card-body .btn {
   min-height: 2.5rem;
   padding: 0.55rem 0.7rem;
+}
+
+.resource-compact-grid {
+  display: grid;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.spell-slot-grid-low {
+  grid-template-columns: repeat(5, minmax(0, 3.75rem));
+  gap: 0.25rem;
+}
+
+.four-resource-grid {
+  grid-template-columns: repeat(4, minmax(0, 3.75rem));
+}
+
+.pact-magic-grid {
+  grid-template-columns: repeat(5, minmax(0, 3.75rem));
+  gap: 0.25rem;
+}
+
+.resource-compact-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  width: 100%;
+  padding: 0.25rem;
+  border: 1px solid #4b5563;
+  border-radius: 0.75rem;
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.resource-compact-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  min-height: 1.2rem;
+  color: #f3f5f7;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.resource-compact-label .resource-warning {
+  font-size: 0.9rem;
+}
+
+#skillList .resource-compact-control .resource-compact-action {
+  display: grid;
+  width: 100%;
+  min-height: 0;
+  aspect-ratio: 1;
+  place-items: center;
+  padding: 0;
+  border-radius: 0.6rem;
+}
+
+.resource-compact-action svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.resource-compact-count {
+  display: flex;
+  width: 100%;
+  aspect-ratio: 1;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 0.6rem;
+  background-color: rgba(0, 0, 0, 0.16);
+  color: #fff;
+  font-size: 1.35rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .accumulative-controls {

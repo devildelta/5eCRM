@@ -670,12 +670,22 @@
     return 5;
   }
 
+  function hitDieFaceValue(resource) {
+    const match = hitDieOf(resource).match(/^d(\d+)$/i);
+    return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
+  }
+
   function sortResourcesForDisplay(resources) {
     return resources.map(function (resource, index) { return { resource: resource, index: index }; }).sort(function (left, right) {
       const groupDelta = resourceSortGroup(left.resource) - resourceSortGroup(right.resource);
       if (groupDelta !== 0) return groupDelta;
-      const slotDelta = resourceSlotLevel(left.resource) - resourceSlotLevel(right.resource);
-      if (slotDelta !== 0) return slotDelta;
+      if (isHitDieResource(left.resource) && isHitDieResource(right.resource)) {
+        const faceDelta = hitDieFaceValue(left.resource) - hitDieFaceValue(right.resource);
+        if (faceDelta !== 0) return faceDelta;
+      } else {
+        const slotDelta = resourceSlotLevel(left.resource) - resourceSlotLevel(right.resource);
+        if (slotDelta !== 0) return slotDelta;
+      }
       return (left.resource.name || '').localeCompare(right.resource.name || '', 'zh-Hant');
     });
   }
@@ -747,10 +757,114 @@
     return row;
   }
 
-  function createGroupedResourceCard(label, items) {
+  function createCompactResourceIcon(pathData) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 16 16');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('fill', 'currentColor');
+    path.setAttribute('d', pathData);
+    svg.appendChild(path);
+    return svg;
+  }
+
+  function createCompactResourceControl(resource, index, controlType, labelText, resetLabel, useLabel, countLabel) {
+    const control = document.createElement('div');
+    control.className = 'resource-compact-control ' + controlType;
+    control.dataset.resourceIndex = String(index);
+
+    const label = document.createElement('div');
+    label.className = 'resource-compact-label';
+    const resourceLabel = document.createElement('span');
+    resourceLabel.textContent = labelText;
+    const warning = document.createElement('span');
+    warning.className = 'resource-warning d-none';
+    warning.textContent = t('common.warningSymbol');
+    warning.setAttribute('role', 'img');
+    warning.setAttribute('aria-label', '');
+    label.append(resourceLabel, warning);
+
+    const resetButton = document.createElement('button');
+    resetButton.className = 'btn btn-warning resource-compact-action';
+    resetButton.type = 'button';
+    resetButton.dataset.action = 'reset-resource';
+    resetButton.dataset.index = String(index);
+    resetButton.setAttribute('aria-label', resetLabel);
+    resetButton.title = resetLabel;
+    resetButton.disabled = !state.character;
+    resetButton.appendChild(createCompactResourceIcon('M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.418A6 6 0 1 0 8 2z M8 4.5V1.5a.5.5 0 0 0-.854-.354L4.146 4.146A.5.5 0 0 0 4.5 5h3a.5.5 0 0 0 .5-.5'));
+
+    const count = document.createElement('div');
+    count.className = 'resource-compact-count';
+    count.textContent = String(resource.current);
+    count.setAttribute('aria-label', countLabel);
+    count.setAttribute('role', 'status');
+    count.setAttribute('aria-live', 'polite');
+    count.setAttribute('aria-atomic', 'true');
+
+    const useButton = document.createElement('button');
+    useButton.className = 'btn btn-light resource-compact-action';
+    useButton.type = 'button';
+    useButton.dataset.action = 'use-resource';
+    useButton.dataset.index = String(index);
+    useButton.setAttribute('aria-label', useLabel);
+    useButton.title = useLabel;
+    useButton.disabled = !state.character || Number(resource.current) <= 0;
+    useButton.appendChild(createCompactResourceIcon('M2 8a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 8'));
+
+    control.append(label, resetButton, count, useButton);
+    applyResourceStatus(control, resource);
+    return control;
+  }
+
+  function createSpellSlotControl(resource, index) {
+    const level = resourceSlotLevel(resource);
+    return createCompactResourceControl(
+      resource,
+      index,
+      'spell-slot-control',
+      t('slotLevelLabel', { level: level }),
+      t('spellSlotResetAriaTemplate', { level: level }),
+      t('spellSlotUseAriaTemplate', { level: level }),
+      t('spellSlotRemainingAriaTemplate', { level: level, current: resource.current, max: resource.max })
+    );
+  }
+
+  function createHitDieControl(resource, index) {
+    const hitDie = hitDieOf(resource);
+    const dieLabel = hitDie ? formatDieLabel(hitDie) : displayResourceName(resource);
+    return createCompactResourceControl(
+      resource,
+      index,
+      'hit-die-control',
+      dieLabel,
+      t('hitDieResetAriaTemplate', { die: dieLabel }),
+      t('hitDieUseAriaTemplate', { die: dieLabel }),
+      t('hitDieRemainingAriaTemplate', { die: dieLabel, current: resource.current, max: resource.max })
+    );
+  }
+
+  function createPactMagicControl(resource, index) {
+    const level = resourceSlotLevel(resource);
+    const isMysticArcanum = resource.generatedClass && resource.generatedClass.kind === 'mystic-arcanum';
+    const controlType = isMysticArcanum ? 'mystic-arcanum-control' : 'pact-slot-control';
+    const templatePrefix = isMysticArcanum ? 'mysticArcanum' : 'pactSlot';
+    return createCompactResourceControl(
+      resource,
+      index,
+      controlType,
+      t(templatePrefix + 'CompactLabelTemplate', { level: level }),
+      t(templatePrefix + 'ResetAriaTemplate', { level: level }),
+      t(templatePrefix + 'UseAriaTemplate', { level: level }),
+      t(templatePrefix + 'RemainingAriaTemplate', { level: level, current: resource.current, max: resource.max })
+    );
+  }
+
+  function createGroupedResourceCard(label, items, groupType) {
     const column = document.createElement('div');
     column.className = 'col-12 col-md-6 col-xl-4';
-    column.dataset.resourceGroup = resourceGroupType(items[0].resource);
+    column.dataset.resourceGroup = groupType;
     const card = document.createElement('article');
     card.className = 'card h-100';
     const header = document.createElement('div');
@@ -771,9 +885,25 @@
     header.append(title, source);
     const body = document.createElement('div');
     body.className = 'card-body';
+    const isSpellSlotGroup = groupType === 'spell-1-5' || groupType === 'spell-6-9';
+    const isHitDiceGroup = groupType === 'hit-dice';
+    const isPactGroup = groupType === 'pact';
+    const isCompactGroup = isSpellSlotGroup || isHitDiceGroup || isPactGroup;
+    if (isCompactGroup) {
+      body.classList.add('resource-compact-grid');
+      if (groupType === 'spell-1-5') body.classList.add('spell-slot-grid-low');
+      else if (groupType === 'spell-6-9' || isHitDiceGroup) body.classList.add('four-resource-grid');
+      else if (isPactGroup) body.classList.add('pact-magic-grid');
+    }
     items.forEach(function (item) {
-      const row = createResourceRow(item.resource, item.index, isMixed);
-      row.classList.add('mb-2');
+      const row = isSpellSlotGroup
+        ? createSpellSlotControl(item.resource, item.index)
+        : isHitDiceGroup
+          ? createHitDieControl(item.resource, item.index)
+          : isPactGroup
+            ? createPactMagicControl(item.resource, item.index)
+            : createResourceRow(item.resource, item.index, isMixed);
+      if (!isCompactGroup) row.classList.add('mb-2');
       body.appendChild(row);
     });
     card.append(header, body);
@@ -866,11 +996,11 @@
   }
 
   function createResourceGroupElement(group) {
-    if (group.items.length === 1) {
+    if (group.items.length === 1 && group.type !== 'spell-1-5' && group.type !== 'spell-6-9' && group.type !== 'hit-dice' && group.type !== 'pact') {
       const item = group.items[0];
       return createResourceCard(item.resource, item.index);
     }
-    return createGroupedResourceCard(group.label, group.items);
+    return createGroupedResourceCard(group.label, group.items, group.type);
   }
 
   function setText(element, value) {
@@ -986,15 +1116,37 @@
     if (!matches.length) return;
     matches.forEach(function (match) {
       const row = match.classList.contains('resource-row') ? match : match.querySelector('.card') || match;
-      const count = row.querySelector('.resource-count');
-      if (count) count.textContent = resourceCountText(resource);
+      const compactCount = row.querySelector('.resource-compact-count');
+      if (compactCount) {
+        const values = { current: resource.current, max: resource.max };
+        let templateKey;
+        if (row.classList.contains('spell-slot-control')) {
+          templateKey = 'spellSlotRemainingAriaTemplate';
+          values.level = resourceSlotLevel(resource);
+        } else if (row.classList.contains('pact-slot-control')) {
+          templateKey = 'pactSlotRemainingAriaTemplate';
+          values.level = resourceSlotLevel(resource);
+        } else if (row.classList.contains('mystic-arcanum-control')) {
+          templateKey = 'mysticArcanumRemainingAriaTemplate';
+          values.level = resourceSlotLevel(resource);
+        } else {
+          templateKey = 'hitDieRemainingAriaTemplate';
+          const hitDie = hitDieOf(resource);
+          values.die = hitDie ? formatDieLabel(hitDie) : displayResourceName(resource);
+        }
+        compactCount.textContent = String(resource.current);
+        compactCount.setAttribute('aria-label', t(templateKey, values));
+      } else {
+        const count = row.querySelector('.resource-count');
+        if (count) count.textContent = resourceCountText(resource);
+      }
       const useButton = row.querySelector('[data-action="use-resource"]');
       if (useButton) useButton.disabled = Number(resource.current) <= 0;
       syncAccumulativeControls(row, resource);
       applyResourceStatus(row, resource);
       const card = row.classList.contains('card') ? row : row.closest('.card');
-      if (card && card.querySelectorAll('.resource-row').length > 1) {
-        const groupRows = Array.from(card.querySelectorAll('.resource-row'));
+      const groupRows = card ? Array.from(card.querySelectorAll('.resource-row, .resource-compact-control')) : [];
+      if (groupRows.length > 1) {
         const states = groupRows.map(function (item) {
           const itemIndex = Number(item.dataset.resourceIndex);
           return resourceState(currentResources()[itemIndex]);
