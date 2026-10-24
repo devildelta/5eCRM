@@ -879,6 +879,11 @@
 
   function createSpellSlotControl(resource, index) {
     const level = resourceSlotLevel(resource);
+    if (level < 1 || level > 9) {
+      const row = createResourceRow(resource, index);
+      row.style.gridColumn = '1 / -1';
+      return row;
+    }
     return createCompactResourceControl(
       resource,
       index,
