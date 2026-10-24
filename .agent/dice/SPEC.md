@@ -45,6 +45,7 @@
 *   **`parseAttackString(attackStr)`**：拆解 D20 命中模式、輔助骰與命中固定加值 `flatMod`。
 *   **`parseSingleFormula(formulaStr)`**：拆解基礎傷害公式（不含 PR 欄位）。利用 Map 結構自動合併同面數的常規武器骰數量。
 *   **`parsePrFormula(prStr)`**：特別掃描並分離帶有 `PR`（Per-Round Once）後綴的骰子標記，在單擊/單輪層級聚合為獨立資源池。
+*   **PR（Per-Round Once，每輪一次傷害）**：傷害公式中以 `PR` 後綴標記的骰子，例如 `2D6PR`，代表每輪最多可加到一次攻擊傷害上的共享傷害骰池。每輪開始時資源可用；未命中不會消耗資源，首個命中的攻擊（普通命中或爆擊）使用後，本輪其餘攻擊不再取得 PR 骰。若使用 PR 的攻擊爆擊，PR 骰按該角色的爆擊傷害倍率擲骰。每個新回合重新可用。此標記及規則是本工具的輸入／計算模型，不代表所有 D&D 5e 能力均共用相同的遊戲規則。
 *   **`parseAdvancedDamageString(damageStr)`**：
     *   **結構展開**：一個外層括號代表完整的一輪次（One Full Round DPR）。
     *   **多層嵌套展開 (Nested Expansion)**：外層逗號切分「輪次群組」（支援係數 N 重複）；內層逗號切分「打擊序列」（支援 `N 公式` 形式的前綴數字時域打擊複製展開），含 PR 字串的子項會被完全抽離移出 `attacks` 陣列，不增加打擊次數。
