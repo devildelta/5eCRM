@@ -1,3 +1,7 @@
+:root {
+  --resource-button-size: clamp(1.75rem, 12.5vw, 2.5rem);
+}
+
 html {
   color-scheme: dark;
   overflow-x: clip;
@@ -65,6 +69,20 @@ header {
   letter-spacing: 0.01em;
   border-radius: 0.7rem;
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.rest-actions .btn {
+  min-width: 0;
+  padding-right: 0.2rem;
+  padding-left: 0.2rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 359.98px) {
+  .rest-actions .btn {
+    font-size: clamp(0.58rem, 3.1vw, 0.72rem);
+    letter-spacing: 0;
+  }
 }
 
 .btn:hover:not(:disabled) {
@@ -160,6 +178,36 @@ header {
   background: rgba(255, 255, 255, 0.02);
 }
 
+.card-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.resource-rest-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  max-width: 100%;
+  padding: 0.12rem 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.18);
+  color: #d5dce5;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.resource-row .resource-rest-badge {
+  align-self: flex-start;
+}
+
+.resource-compact-control > .resource-rest-badge {
+  align-self: center;
+}
+
 .card-header strong,
 .resource-name {
   font-size: 1.02rem;
@@ -218,8 +266,101 @@ header {
 }
 
 .pact-magic-grid {
+  grid-template-columns: repeat(auto-fit, minmax(2.75rem, 3.75rem));
+  justify-content: start;
+  gap: 0.25rem;
+}
+
+.warlock-resource-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.warlock-resource-cluster {
+  min-width: 0;
+}
+
+.warlock-resource-cluster + .warlock-resource-cluster {
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.warlock-resource-cluster-title {
+  margin: 0 0 0.5rem;
+  color: #d5dce5;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.warlock-pact-rotor-grid {
+  grid-template-columns: repeat(auto-fit, minmax(2.75rem, 3.75rem));
+  justify-content: start;
+  gap: 0.25rem;
+}
+
+.warlock-pact-flat-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.35rem;
+}
+
+.pact-magic-flat-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(3, var(--resource-button-size));
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.pact-magic-flat-control .resource-compact-label {
+  justify-content: flex-start;
+  white-space: normal;
+  text-align: left;
+}
+
+.pact-magic-flat-control > .resource-rest-badge,
+.pact-magic-flat-control > .resource-compact-details {
+  grid-column: 1 / -1;
+  justify-self: end;
+}
+
+.dice-pool-grid-short {
   grid-template-columns: repeat(5, minmax(0, 3.75rem));
   gap: 0.25rem;
+}
+
+.dice-pool-grid-long {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+}
+
+.class-resource-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 4rem), 1fr));
+}
+
+@media (max-width: 359.98px) {
+  .dice-pool-grid-short {
+    grid-template-columns: repeat(4, minmax(0, 3.25rem));
+  }
+
+  .spell-slot-grid-low,
+  .warlock-pact-rotor-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.15rem;
+  }
+
+  .warlock-pact-rotor-grid .resource-compact-control {
+    min-width: 0;
+    padding: 0.15rem;
+    gap: 0.2rem;
+  }
+
+  .warlock-pact-rotor-grid .resource-compact-label {
+    gap: 0.05rem;
+    font-size: 0.68rem;
+  }
+
+  .warlock-pact-rotor-grid .resource-compact-label .resource-warning {
+    font-size: 0.75rem;
+  }
 }
 
 .resource-compact-control {
@@ -252,14 +393,119 @@ header {
   font-size: 0.9rem;
 }
 
+.dice-pool-control .resource-compact-label {
+  min-height: 1.2rem;
+  font-size: 0.76rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.class-resource-control .resource-compact-label {
+  min-height: 2.4rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+#skillList .dice-pool-control .resource-compact-action,
+#skillList .class-resource-control .resource-compact-action,
+.dice-pool-control .resource-compact-count {
+  width: 2.75rem;
+  min-width: 2.75rem;
+  max-width: 2.75rem;
+}
+
+#skillList .class-resource-control .resource-compact-count {
+  width: 2.75rem;
+  min-width: 2.75rem;
+  max-width: 2.75rem;
+}
+
+.resource-compact-details {
+  width: 100%;
+  color: #c8d0d9;
+  font-size: 0.7rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.resource-compact-details summary {
+  text-align: center;
+  cursor: pointer;
+}
+
+.resource-compact-details span {
+  display: block;
+  margin-top: 0.25rem;
+}
+
+@media (max-width: 575.98px) {
+  .single-compact-resource {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .single-compact-resource .resource-compact-control {
+    display: grid;
+    grid-template-columns: repeat(3, var(--resource-button-size));
+    justify-content: space-around;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .single-compact-resource .class-resource-control {
+    grid-template-columns: minmax(0, 1fr) repeat(3, var(--resource-button-size));
+    justify-content: stretch;
+  }
+
+  .single-compact-resource .class-resource-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+    gap: 0.15rem;
+  }
+
+  .single-compact-resource .class-resource-info .resource-compact-label {
+    justify-content: flex-start;
+    min-height: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: left;
+  }
+
+  .single-compact-resource .resource-compact-label,
+  .single-compact-resource .resource-rest-badge,
+  .single-compact-resource .resource-compact-details {
+    grid-column: 1 / -1;
+  }
+
+  .single-compact-resource .resource-compact-label {
+    min-height: 1.2rem;
+  }
+}
+
 #skillList .resource-compact-control .resource-compact-action {
   display: grid;
-  width: 100%;
-  min-height: 0;
+  width: var(--resource-button-size);
+  min-width: var(--resource-button-size);
+  max-width: var(--resource-button-size);
+  height: var(--resource-button-size);
+  min-height: var(--resource-button-size);
+  max-height: var(--resource-button-size);
   aspect-ratio: 1;
   place-items: center;
   padding: 0;
   border-radius: 0.6rem;
+}
+
+#skillList .resource-compact-control .resource-compact-count {
+  width: var(--resource-button-size);
+  min-width: var(--resource-button-size);
+  max-width: var(--resource-button-size);
+  height: var(--resource-button-size);
+  min-height: var(--resource-button-size);
+  max-height: var(--resource-button-size);
 }
 
 .resource-compact-action svg {
@@ -690,10 +936,6 @@ input {
     font-size: 1.1rem;
   }
 
-  #skillList .resource-cooldown {
-    font-size: 1.05rem !important;
-  }
-
   button.btn {
     font-size: 1.08rem;
     min-height: 3rem;
@@ -748,9 +990,74 @@ input {
     padding-right: 0.3rem;
     white-space: nowrap;
   }
+
+  #classAbilityScores.row {
+    margin-left: 0;
+    margin-right: 0;
+  }
 }
 
 .btn-group .btn {
   flex: 1 1 auto;
   min-width: 110px;
+}
+
+@media (max-width: 359.98px) {
+  .class-resource-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.25rem;
+  }
+
+  .class-resource-control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) repeat(3, var(--resource-button-size));
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.3rem;
+    max-width: none;
+    justify-self: stretch;
+  }
+
+  .class-resource-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+    gap: 0.15rem;
+  }
+
+  .class-resource-info .resource-compact-label {
+    justify-content: flex-start;
+    min-height: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: left;
+  }
+
+  .class-resource-control > .resource-compact-details {
+    grid-column: 1 / -1;
+  }
+
+  .class-resource-info .resource-rest-badge {
+    align-self: flex-start;
+  }
+
+  #skillList .class-resource-control .resource-compact-action,
+  #skillList .class-resource-control .resource-compact-count {
+    width: var(--resource-button-size);
+    min-width: var(--resource-button-size);
+    max-width: var(--resource-button-size);
+  }
+
+  .single-compact-resource .hit-die-control {
+    grid-template-columns: repeat(3, var(--resource-button-size));
+    justify-content: center;
+    gap: 0.25rem;
+    max-width: 11rem;
+    justify-self: center;
+  }
+
+  .warlock-pact-rotor-grid .resource-compact-label .resource-warning {
+    font-size: 0.75rem;
+  }
 }

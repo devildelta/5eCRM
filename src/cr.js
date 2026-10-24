@@ -6,10 +6,16 @@
   const browserLocale = navigator.language.toLowerCase().replace('_', '-').split('-').indexOf('tw') !== -1 ? 'zh-TW' : 'zh-HK';
   const storedLocale = localStorage.getItem(localeStorageKey);
   let locale = storedLocale === 'zh-HK' || storedLocale === 'zh-TW' ? storedLocale : browserLocale;
+  function localeResourceUrl(path) {
+    const url = new URL(path, scriptUrl);
+    const version = new URL(scriptUrl).searchParams.get('v');
+    if (version) url.searchParams.set('v', version);
+    return url;
+  }
   const responses = await Promise.all([
-    fetch(new URL('locales/common.json', scriptUrl)),
-    fetch(new URL('locales/zh-HK.json', scriptUrl)),
-    fetch(new URL('locales/zh-TW.json', scriptUrl))
+    fetch(localeResourceUrl('locales/common.json')),
+    fetch(localeResourceUrl('locales/zh-HK.json')),
+    fetch(localeResourceUrl('locales/zh-TW.json'))
   ]);
   const commonResponse = responses[0];
   const localeResponses = { 'zh-HK': responses[1], 'zh-TW': responses[2] };
@@ -337,7 +343,7 @@
     { classKey: 'fighter', key: 'second-wind', label: 'Second Wind', level: 1, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'PHB' },
     { classKey: 'fighter', key: 'action-surge', label: 'Action Surge', level: 2, maximum: { type: 'level-tiers', tiers: [[1, 1], [17, 2]] }, cooldown: '短休', source: 'PHB', usageGate: 'once-on-your-turn' },
     { classKey: 'fighter', key: 'indomitable', label: 'Indomitable', level: 9, maximum: { type: 'level-tiers', tiers: [[9, 1], [13, 2], [17, 3]] }, cooldown: '長休', source: 'PHB' },
-    { classKey: 'fighter', subclassKey: 'battle-master', key: 'superiority-dice', label: 'Superiority Dice', level: 3, maximum: { type: 'level-tiers', tiers: [[3, 4], [7, 5], [15, 6]] }, dieByLevel: [[3, 'd8'], [10, 'd10'], [18, 'd12']], cooldown: '短休', initiativeRecovery: 1, initiativeRecoveryFromLevel: 15, initiativeRecoveryWhenEmpty: true, source: 'PHB', shared: true, poolMode: 'dice', consumers: sharedPoolConsumers.superiorityDice },
+    { classKey: 'fighter', subclassKey: 'battle-master', key: 'superiority-dice', label: 'Superiority Dice', level: 3, maximum: { type: 'level-tiers', tiers: [[3, 4], [7, 5], [15, 6]] }, dieByLevel: [[3, 'd8'], [10, 'd10'], [18, 'd12']], cooldown: '短休', initiativeRecovery: 1, initiativeRecoveryFromLevel: 15, initiativeRecoveryWhenEmpty: true, source: 'PHB', shared: true, poolMode: 'dice', dicePoolGroup: 'superiority-dice', dicePoolLabel: 'Superiority Dice', consumers: sharedPoolConsumers.superiorityDice },
     { classKey: 'fighter', subclassKey: 'arcane-archer', key: 'arcane-shot', label: 'Arcane Shot', level: 3, maximum: { type: 'fixed', value: 2 }, cooldown: '短休', initiativeRecovery: 1, initiativeRecoveryFromLevel: 15, initiativeRecoveryWhenEmpty: true, source: 'XGE' },
     { classKey: 'fighter', subclassKey: 'cavalier', key: 'unwavering-mark', label: 'Unwavering Mark', level: 3, maximum: { type: 'ability', ability: 'str', minimum: 1 }, cooldown: '長休', source: 'XGE' },
     { classKey: 'fighter', subclassKey: 'cavalier', key: 'warding-maneuver', label: 'Warding Maneuver', level: 7, maximum: { type: 'ability', ability: 'con', minimum: 1 }, cooldown: '長休', source: 'XGE' },
@@ -467,6 +473,16 @@
   function cooldownLabel(value) {
     const cooldown = cooldownInfo[value];
     return cooldown ? t(cooldown.label) : String(value == null ? '' : value);
+  }
+
+  function createResourceRestBadge(resource) {
+    const cooldown = cooldownLabel(resource && resource.cooldown ? resource.cooldown : '手動');
+    const badge = document.createElement('span');
+    badge.className = 'resource-rest-badge';
+    badge.textContent = cooldown;
+    badge.title = cooldown;
+    badge.setAttribute('aria-label', cooldown);
+    return badge;
   }
 
   function isAccumulativeResource(resource) {
@@ -661,11 +677,12 @@
 
   function resourceSortGroup(resource) {
     if (isHitDieResource(resource)) return 0;
-    if (isMysticArcanumResource(resource)) return 3;
+    if (isDicePoolResource(resource)) return 1;
+    if (isMysticArcanumResource(resource)) return 4;
     if (isSpellSlotResource(resource)) {
-      if (resource && resource.generatedClass && resource.generatedClass.kind === 'pact-slot') return 3;
+      if (resource && resource.generatedClass && resource.generatedClass.kind === 'pact-slot') return 4;
       const slotLevel = resourceSlotLevel(resource);
-      return slotLevel <= 5 ? 1 : 2;
+      return slotLevel <= 5 ? 2 : 3;
     }
     return 5;
   }
@@ -675,12 +692,56 @@
     return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
   }
 
+  function dicePoolDieOf(resource) {
+    const metadata = resource && resource.generatedClass;
+    const die = metadata && typeof metadata.resourceDie === 'string' ? metadata.resourceDie.toLowerCase() : '';
+    return /^d\d+$/.test(die) ? die : '';
+  }
+
+  function dicePoolFaceValue(resource) {
+    const match = dicePoolDieOf(resource).match(/^d(\d+)$/i);
+    return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
+  }
+
+  const dicePoolFallbackKeys = new WeakMap();
+  let dicePoolFallbackKey = 0;
+
+  function dicePoolGroupKey(resource) {
+    const metadata = resource && resource.generatedClass;
+    if (metadata && typeof metadata.dicePoolGroup === 'string' && metadata.dicePoolGroup) return 'shared:' + metadata.dicePoolGroup;
+    if (metadata && typeof metadata.resourceKey === 'string' && metadata.resourceKey) return 'resource:' + metadata.resourceKey;
+    if (!resource || typeof resource !== 'object') return 'resource:unknown';
+    if (!dicePoolFallbackKeys.has(resource)) {
+      dicePoolFallbackKey += 1;
+      dicePoolFallbackKeys.set(resource, 'instance:' + dicePoolFallbackKey);
+    }
+    return dicePoolFallbackKeys.get(resource);
+  }
+
+  function dicePoolGroupType(resource) {
+    return 'dice-pool:' + dicePoolGroupKey(resource);
+  }
+
+  function dicePoolGroupLabel(resource) {
+    const metadata = resource && resource.generatedClass;
+    if (metadata && typeof metadata.dicePoolLabel === 'string' && metadata.dicePoolLabel) return metadata.dicePoolLabel;
+    const label = displayResourceName(resource);
+    return metadata && metadata.dicePoolGroup ? label.replace(/^.+? - /, '') : label;
+  }
+
   function sortResourcesForDisplay(resources) {
     return resources.map(function (resource, index) { return { resource: resource, index: index }; }).sort(function (left, right) {
       const groupDelta = resourceSortGroup(left.resource) - resourceSortGroup(right.resource);
       if (groupDelta !== 0) return groupDelta;
       if (isHitDieResource(left.resource) && isHitDieResource(right.resource)) {
         const faceDelta = hitDieFaceValue(left.resource) - hitDieFaceValue(right.resource);
+        if (faceDelta !== 0) return faceDelta;
+      } else if (isDicePoolResource(left.resource) && isDicePoolResource(right.resource)) {
+        const labelDelta = dicePoolGroupLabel(left.resource).localeCompare(dicePoolGroupLabel(right.resource), 'zh-Hant');
+        if (labelDelta !== 0) return labelDelta;
+        const groupDelta = dicePoolGroupKey(left.resource).localeCompare(dicePoolGroupKey(right.resource), 'zh-Hant');
+        if (groupDelta !== 0) return groupDelta;
+        const faceDelta = dicePoolFaceValue(left.resource) - dicePoolFaceValue(right.resource);
         if (faceDelta !== 0) return faceDelta;
       } else {
         const slotDelta = resourceSlotLevel(left.resource) - resourceSlotLevel(right.resource);
@@ -730,7 +791,7 @@
     };
   }
 
-  function createResourceRow(resource, index, showCooldown) {
+  function createResourceRow(resource, index) {
     const row = document.createElement('div');
     row.className = 'resource-row p-2 border rounded';
     row.dataset.resourceIndex = String(index);
@@ -743,10 +804,7 @@
     meta.className = 'small text-secondary text-end resource-count';
     meta.textContent = resourceCountText(resource);
     summary.append(name, meta);
-    const cooldown = document.createElement('div');
-    cooldown.className = 'small text-secondary resource-cooldown';
-    cooldown.textContent = t('resourceCooldownTemplate', { cooldown: cooldownLabel(resource.cooldown) });
-    cooldown.classList.toggle('d-none', showCooldown === false);
+    const cooldown = createResourceRestBadge(resource);
     const details = document.createElement('div');
     details.className = 'small text-secondary resource-rules';
     details.textContent = classResourceDetails(resource);
@@ -814,6 +872,7 @@
     useButton.appendChild(createCompactResourceIcon('M2 8a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 8'));
 
     control.append(label, resetButton, count, useButton);
+    control.appendChild(createResourceRestBadge(resource));
     applyResourceStatus(control, resource);
     return control;
   }
@@ -861,9 +920,73 @@
     );
   }
 
+  function createDicePoolControl(resource, index) {
+    const name = displayResourceName(resource);
+    const die = formatDieLabel(dicePoolDieOf(resource));
+    const control = createCompactResourceControl(
+      resource,
+      index,
+      'dice-pool-control',
+      t('dicePoolCompactLabelTemplate', { name: name, die: die }),
+      t('dicePoolResetAriaTemplate', { name: name, die: die }),
+      t('dicePoolUseAriaTemplate', { name: name, die: die }),
+      t('dicePoolRemainingAriaTemplate', { name: name, die: die, current: resource.current, max: resource.max })
+    );
+    const detailsText = classResourceDetails(resource);
+    if (detailsText) {
+      const details = document.createElement('details');
+      details.className = 'resource-compact-details';
+      const summary = document.createElement('summary');
+      summary.textContent = t('dicePoolDetailsLabel');
+      const content = document.createElement('span');
+      content.textContent = detailsText;
+      details.append(summary, content);
+      control.appendChild(details);
+    }
+    return control;
+  }
+
+  function classResourceCompactName(resource) {
+    return displayResourceName(resource).replace(/^[^-]+ - /, '');
+  }
+
+  function createClassResourceControl(resource, index) {
+    const name = classResourceCompactName(resource);
+    const control = createCompactResourceControl(
+      resource,
+      index,
+      'class-resource-control',
+      name,
+      t('classResourceControlResetTemplate', { name: name }),
+      t('classResourceControlUseTemplate', { name: name }),
+      t('classResourceControlRemainingTemplate', { name: name, current: resource.current, max: resource.max })
+    );
+    const info = document.createElement('div');
+    info.className = 'class-resource-info';
+    info.append(
+      control.querySelector('.resource-compact-label'),
+      control.querySelector('.resource-rest-badge')
+    );
+    control.insertBefore(info, control.firstChild);
+    const detailsText = classResourceDetails(resource);
+    if (detailsText) {
+      const details = document.createElement('details');
+      details.className = 'resource-compact-details';
+      const summary = document.createElement('summary');
+      summary.textContent = t('dicePoolDetailsLabel');
+      const content = document.createElement('span');
+      content.textContent = detailsText;
+      details.append(summary, content);
+      control.appendChild(details);
+    }
+    return control;
+  }
+
   function createGroupedResourceCard(label, items, groupType) {
     const column = document.createElement('div');
-    column.className = 'col-12 col-md-6 col-xl-4';
+    column.className = groupType.indexOf('class-resources:') === 0
+      ? 'col-12 col-md-6 col-xl-6'
+      : 'col-12 col-md-6 col-xl-4';
     column.dataset.resourceGroup = groupType;
     const card = document.createElement('article');
     card.className = 'card h-100';
@@ -873,26 +996,30 @@
     name.textContent = label;
     const source = document.createElement('span');
     source.className = 'tag-source';
-    source.textContent = sourceLabel('角色職業');
-    const cooldownValues = Array.from(new Set(items.map(function (item) { return item.resource.cooldown; })));
-    const isMixed = cooldownValues.length > 1;
-    const cooldownSummary = document.createElement('small');
-    cooldownSummary.className = 'text-secondary d-block';
-    cooldownSummary.textContent = !isMixed ? t('resourceCooldownTemplate', { cooldown: cooldownLabel(cooldownValues[0]) }) : '';
+    const dicePoolSources = Array.from(new Set(items.map(function (item) { return item.resource.source; }).filter(Boolean)));
+    const isDicePoolGroup = groupType.indexOf('dice-pool:') === 0;
+    const isClassResourceGroup = groupType.indexOf('class-resources:') === 0;
+    source.textContent = (isDicePoolGroup || isClassResourceGroup) && dicePoolSources.length
+      ? dicePoolSources.map(function (value) { return sourceLabel(value); }).join(' / ')
+      : sourceLabel('角色職業');
     const title = document.createElement('div');
     title.appendChild(name);
-    if (!isMixed) title.appendChild(cooldownSummary);
     header.append(title, source);
     const body = document.createElement('div');
     body.className = 'card-body';
     const isSpellSlotGroup = groupType === 'spell-1-5' || groupType === 'spell-6-9';
     const isHitDiceGroup = groupType === 'hit-dice';
     const isPactGroup = groupType === 'pact';
-    const isCompactGroup = isSpellSlotGroup || isHitDiceGroup || isPactGroup;
+    const isCompactGroup = isSpellSlotGroup || isHitDiceGroup || isDicePoolGroup || isClassResourceGroup || isPactGroup;
     if (isCompactGroup) {
       body.classList.add('resource-compact-grid');
+      if (items.length === 1) body.classList.add('single-compact-resource');
       if (groupType === 'spell-1-5') body.classList.add('spell-slot-grid-low');
       else if (groupType === 'spell-6-9' || isHitDiceGroup) body.classList.add('four-resource-grid');
+      else if (isDicePoolGroup) {
+        const labelLength = Array.from(label).length;
+        body.classList.add(labelLength <= 18 ? 'dice-pool-grid-short' : 'dice-pool-grid-long');
+      } else if (isClassResourceGroup) body.classList.add('class-resource-grid');
       else if (isPactGroup) body.classList.add('pact-magic-grid');
     }
     items.forEach(function (item) {
@@ -900,14 +1027,79 @@
         ? createSpellSlotControl(item.resource, item.index)
         : isHitDiceGroup
           ? createHitDieControl(item.resource, item.index)
-          : isPactGroup
+          : isDicePoolGroup
+            ? createDicePoolControl(item.resource, item.index)
+            : isClassResourceGroup
+              ? createClassResourceControl(item.resource, item.index)
+            : isPactGroup
             ? createPactMagicControl(item.resource, item.index)
-            : createResourceRow(item.resource, item.index, isMixed);
+            : createResourceRow(item.resource, item.index);
       if (!isCompactGroup) row.classList.add('mb-2');
       body.appendChild(row);
     });
     card.append(header, body);
     const states = items.map(function (item) { return resourceState(item.resource); });
+    const allDepleted = states.length > 0 && states.every(function (value) { return value.depleted; });
+    card.classList.toggle('resource-over-max', states.length > 0 && states.every(function (value) { return value.overMax; }) && !allDepleted);
+    column.appendChild(card);
+    return column;
+  }
+
+  function createWarlockResourceCard(group) {
+    const column = document.createElement('div');
+    column.className = 'col-12 col-md-6 col-xl-6';
+    column.dataset.resourceGroup = group.type;
+    const card = document.createElement('article');
+    card.className = 'card h-100';
+    const header = document.createElement('div');
+    header.className = 'card-header d-flex justify-content-between align-items-start gap-2';
+    const name = document.createElement('strong');
+    name.textContent = group.label;
+    const sources = Array.from(new Set(group.items.map(function (item) { return item.resource.source; }).filter(Boolean)));
+    const source = document.createElement('span');
+    source.className = 'tag-source';
+    source.textContent = sources.map(function (value) { return sourceLabel(value); }).join(' / ');
+    header.append(name, source);
+
+    const body = document.createElement('div');
+    body.className = 'card-body warlock-resource-body';
+    if (group.pactItems.length) {
+      const hasArcanumBeyondSixth = group.pactItems.some(function (item) {
+        return isMysticArcanumResource(item.resource) && resourceSlotLevel(item.resource) > 6;
+      });
+      const cluster = document.createElement('section');
+      cluster.className = 'warlock-resource-cluster';
+      const clusterTitle = document.createElement('h3');
+      clusterTitle.className = 'warlock-resource-cluster-title';
+      clusterTitle.textContent = t('groupPactMagic');
+      const grid = document.createElement('div');
+      grid.className = 'resource-compact-grid ' + (hasArcanumBeyondSixth ? 'warlock-pact-rotor-grid' : 'warlock-pact-flat-grid');
+      if (group.pactItems.length === 1) grid.classList.add('single-compact-resource');
+      group.pactItems.forEach(function (item) {
+        const control = createPactMagicControl(item.resource, item.index);
+        if (!hasArcanumBeyondSixth) control.classList.add('pact-magic-flat-control');
+        grid.appendChild(control);
+      });
+      cluster.append(clusterTitle, grid);
+      body.appendChild(cluster);
+    }
+    if (group.classItems.length) {
+      const cluster = document.createElement('section');
+      cluster.className = 'warlock-resource-cluster';
+      const clusterTitle = document.createElement('h3');
+      clusterTitle.className = 'warlock-resource-cluster-title';
+      clusterTitle.textContent = t('classResourceGroupLabel');
+      const grid = document.createElement('div');
+      grid.className = 'resource-compact-grid class-resource-grid';
+      if (group.classItems.length === 1) grid.classList.add('single-compact-resource');
+      group.classItems.forEach(function (item) {
+        grid.appendChild(createClassResourceControl(item.resource, item.index));
+      });
+      cluster.append(clusterTitle, grid);
+      body.appendChild(cluster);
+    }
+    card.append(header, body);
+    const states = group.items.map(function (item) { return resourceState(item.resource); });
     const allDepleted = states.length > 0 && states.every(function (value) { return value.depleted; });
     card.classList.toggle('resource-over-max', states.length > 0 && states.every(function (value) { return value.overMax; }) && !allDepleted);
     column.appendChild(card);
@@ -941,16 +1133,17 @@
     const count = document.createElement('p');
     count.className = 'resource-count';
     count.textContent = resourceCountText(resource);
-    const cooldown = document.createElement('p');
-    cooldown.className = 'mb-3';
-    cooldown.textContent = t('resourceCooldownTemplate', { cooldown: cooldownLabel(resource.cooldown) });
     const details = document.createElement('p');
     details.className = 'small text-secondary resource-rules mb-3';
     details.textContent = classResourceDetails(resource);
     details.classList.toggle('d-none', !details.textContent);
     const actions = createResourceActions(resource, index, false);
-    body.append(count, cooldown, details, actions);
+    body.append(count, details, actions);
+    const footer = document.createElement('footer');
+    footer.className = 'card-footer d-flex justify-content-end';
+    footer.appendChild(createResourceRestBadge(resource));
     card.append(header, body);
+    card.appendChild(footer);
     applyResourceStatus(card, resource);
     column.appendChild(card);
     return column;
@@ -964,10 +1157,24 @@
       { label: t('groupPactMagic'), type: 'pact', items: [] },
       { label: t('groupOther'), type: 'other', items: [] }
     ];
+    const dicePoolGroups = new Map();
+    const classResourceGroups = new Map();
     entries.forEach(function (entry) {
       const resource = entry.resource;
       if (isHitDieResource(resource)) {
         groups[0].items.push({ resource: resource, index: entry.index });
+      } else if (isDicePoolResource(resource)) {
+        const type = dicePoolGroupType(resource);
+        if (!dicePoolGroups.has(type)) {
+          dicePoolGroups.set(type, { label: dicePoolGroupLabel(resource), type: type, items: [] });
+        }
+        dicePoolGroups.get(type).items.push({ resource: resource, index: entry.index });
+      } else if (isClassFeatureResource(resource)) {
+        const type = classResourceGroupType(resource);
+        if (!classResourceGroups.has(type)) {
+          classResourceGroups.set(type, { label: t(classPresets[resource.generatedClass.ownerClass].label), type: type, items: [] });
+        }
+        classResourceGroups.get(type).items.push({ resource: resource, index: entry.index });
       } else if (isMysticArcanumResource(resource)) {
         groups[3].items.push({ resource: resource, index: entry.index });
       } else if (isSpellSlotResource(resource)) {
@@ -982,21 +1189,54 @@
         groups[4].items.push({ resource: resource, index: entry.index });
       }
     });
-    return groups.filter(function (group) { return group.items.length > 0; });
+    const warlockFeatureGroup = classResourceGroups.get('class-resources:warlock');
+    const warlockItems = groups[3].items.concat(warlockFeatureGroup ? warlockFeatureGroup.items : []);
+    const warlockGroup = warlockItems.length
+      ? {
+        label: t(classPresets.warlock.label),
+        type: 'warlock',
+        items: warlockItems,
+        pactItems: groups[3].items,
+        classItems: warlockFeatureGroup ? warlockFeatureGroup.items : []
+      }
+      : null;
+    const otherClassGroups = Array.from(classResourceGroups.values()).filter(function (group) {
+      return group.type !== 'class-resources:warlock';
+    });
+    return [groups[0]].concat(
+      Array.from(dicePoolGroups.values()),
+      groups.slice(1, 3),
+      warlockGroup ? [warlockGroup] : [],
+      otherClassGroups,
+      [groups[4]]
+    ).filter(function (group) { return group.items.length > 0; });
+  }
+
+  function isClassFeatureResource(resource) {
+    const metadata = resource && resource.generatedClass;
+    return Boolean(metadata && metadata.kind === 'class-resource' && metadata.ownerClass && classPresets[metadata.ownerClass]);
+  }
+
+  function classResourceGroupType(resource) {
+    return 'class-resources:' + resource.generatedClass.ownerClass;
   }
 
   function resourceGroupType(resource) {
     if (isHitDieResource(resource)) return 'hit-dice';
-    if (isMysticArcanumResource(resource)) return 'pact';
+    if (isDicePoolResource(resource)) return dicePoolGroupType(resource);
+    if (isMysticArcanumResource(resource)) return 'warlock';
+    if (resource && resource.generatedClass && resource.generatedClass.kind === 'pact-slot') return 'warlock';
+    if (isClassFeatureResource(resource) && resource.generatedClass.ownerClass === 'warlock') return 'warlock';
+    if (isClassFeatureResource(resource)) return classResourceGroupType(resource);
     if (isSpellSlotResource(resource)) {
-      if (resource && resource.generatedClass && resource.generatedClass.kind === 'pact-slot') return 'pact';
       return resourceSlotLevel(resource) <= 5 ? 'spell-1-5' : 'spell-6-9';
     }
     return 'other';
   }
 
   function createResourceGroupElement(group) {
-    if (group.items.length === 1 && group.type !== 'spell-1-5' && group.type !== 'spell-6-9' && group.type !== 'hit-dice' && group.type !== 'pact') {
+    if (group.type === 'warlock') return createWarlockResourceCard(group);
+    if (group.items.length === 1 && group.type !== 'spell-1-5' && group.type !== 'spell-6-9' && group.type !== 'hit-dice' && group.type.indexOf('dice-pool:') !== 0 && group.type.indexOf('class-resources:') !== 0 && group.type !== 'pact') {
       const item = group.items[0];
       return createResourceCard(item.resource, item.index);
     }
@@ -1083,9 +1323,12 @@
   function refreshResourceGroups(groupTypes) {
     const list = document.getElementById('skillList');
     const grouped = groupResourcesForDisplay(sortResourcesForDisplay(currentResources()));
-    const order = ['hit-dice', 'spell-1-5', 'spell-6-9', 'pact', 'other'];
+    function groupOrder(type) {
+      const index = grouped.findIndex(function (group) { return group.type === type; });
+      return index < 0 ? Number.MAX_SAFE_INTEGER : index;
+    }
     Array.from(new Set(groupTypes)).sort(function (left, right) {
-      return order.indexOf(left) - order.indexOf(right);
+      return groupOrder(left) - groupOrder(right) || left.localeCompare(right);
     }).forEach(function (type) {
       const existing = Array.from(list.children).find(function (element) {
         return element.dataset.resourceGroup === type;
@@ -1101,7 +1344,7 @@
         return;
       }
       const nextGroup = Array.from(list.children).find(function (element) {
-        return order.indexOf(element.dataset.resourceGroup) > order.indexOf(type);
+        return groupOrder(element.dataset.resourceGroup) > groupOrder(type);
       });
       list.insertBefore(replacement, nextGroup || null);
     });
@@ -1129,6 +1372,13 @@
         } else if (row.classList.contains('mystic-arcanum-control')) {
           templateKey = 'mysticArcanumRemainingAriaTemplate';
           values.level = resourceSlotLevel(resource);
+        } else if (row.classList.contains('dice-pool-control')) {
+          templateKey = 'dicePoolRemainingAriaTemplate';
+          values.name = displayResourceName(resource);
+          values.die = formatDieLabel(dicePoolDieOf(resource));
+        } else if (row.classList.contains('class-resource-control')) {
+          templateKey = 'classResourceControlRemainingTemplate';
+          values.name = classResourceCompactName(resource);
         } else {
           templateKey = 'hitDieRemainingAriaTemplate';
           const hitDie = hitDieOf(resource);
@@ -1495,6 +1745,11 @@
     return Boolean(resource && ((resource.generatedClass && resource.generatedClass.kind === 'hit-dice') || (/^(生命骰|hit die|hit dice)/i.test(resource.name || '') && hitDieOf(resource))));
   }
 
+  function isDicePoolResource(resource) {
+    const metadata = resource && resource.generatedClass;
+    return Boolean(metadata && metadata.poolMode === 'dice' && dicePoolDieOf(resource) && !isHitDieResource(resource));
+  }
+
   function isSpellSlotResource(resource) {
     return Boolean(resource && resource.generatedClass && ['spell-slot', 'pact-slot'].includes(resource.generatedClass.kind)) || Boolean(resource && !resource.generatedClass && /^(法術位|契約魔法|spell slots?|pact magic)/i.test(resource.name || ''));
   }
@@ -1826,7 +2081,7 @@
   function classConfigFromMetadata(resources) {
     const metadata = classBuilderMetadataFromResources(resources);
     return metadata && Array.isArray(metadata.classConfigs)
-      ? metadata.classConfigs.filter(function (config) { return config && typeof config === 'object'; })
+      ? metadata.classConfigs.filter(function (config) { return config && typeof config === 'object' && Number(config.level) > 0; })
       : [];
   }
 
@@ -2093,6 +2348,8 @@
           effectDuration: effectDuration,
           initialValue: definition.initialValue === undefined ? null : definition.initialValue,
           resourceDie: resourceDie,
+          dicePoolGroup: definition.dicePoolGroup || null,
+          dicePoolLabel: definition.dicePoolLabel || null,
           recovery: cooldown,
           poolMode: definition.poolMode || (definition.maximum.die ? 'dice' : 'uses'),
           accumulative: Boolean(definition.accumulative),
@@ -2196,7 +2453,7 @@
 
   function calculateClassResources(configs, abilityValues, selections) {
     const activeConfigs = configs.filter(function (config) { return config.level > 0; });
-    const configSnapshot = JSON.parse(JSON.stringify(configs));
+    const configSnapshot = JSON.parse(JSON.stringify(activeConfigs));
     const normalizedSelections = normalizedClassFeatureSelections(selections);
     const tceFeatures = selectedTceFeatureRules(activeConfigs, normalizedSelections);
     const metadataBase = {
