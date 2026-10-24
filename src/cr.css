@@ -304,7 +304,7 @@ header {
   gap: 0.35rem;
 }
 
-.pact-magic-flat-control {
+.resource-compact-control.pact-magic-flat-control {
   display: grid;
   grid-template-columns: minmax(0, 1fr) repeat(3, var(--resource-button-size));
   align-items: center;
