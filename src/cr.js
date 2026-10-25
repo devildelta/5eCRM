@@ -956,6 +956,11 @@
   }
 
   function createClassResourceControl(resource, index) {
+    if (isAccumulativeResource(resource)) {
+      const row = createResourceRow(resource, index);
+      row.style.gridColumn = '1 / -1';
+      return row;
+    }
     const name = classResourceCompactName(resource);
     const control = createCompactResourceControl(
       resource,
