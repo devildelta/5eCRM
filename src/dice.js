@@ -734,34 +734,50 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
     let analyticalMaxTotalDmg = 0;
 
     for (const roundData of roundSequencePool) {
-        let roundWeaponAndFlatMax = 0;
+        const attackMaxima = [];
         for (const attack of roundData.attacks) {
-            // 正向武器骰：爆擊時面數翻倍
+            let weaponMaxNormal = 0;
             let weaponMaxCrit = 0;
             for (const dice of attack.weaponDice) {
+                weaponMaxNormal += dice.sides * dice.count;
                 weaponMaxCrit += dice.sides * dice.count * critMultiplier;
             }
-            
-            // 負向減傷骰：爆擊時不翻倍。且為了求「最大可能傷害」，減傷骰應貢獻其最小減傷量 (即 count * 1)
+
             let reductionMinContribution = 0;
             if (attack.negativeDice && attack.negativeDice.length > 0) {
                 for (const dice of attack.negativeDice) {
-                    reductionMinContribution -= dice.count * 1; // 減傷越少，最終傷害越高
+                    reductionMinContribution -= dice.count;
                 }
             }
-            
-            roundWeaponAndFlatMax += weaponMaxCrit + reductionMinContribution + attack.flatMod;
+
+            const normalDamageMax = weaponMaxNormal + reductionMinContribution + attack.flatMod;
+            const critDamageMax = weaponMaxCrit + reductionMinContribution + attack.flatMod;
+            attackMaxima.push({
+                withoutPr: Math.max(0, normalDamageMax, critDamageMax),
+                withPrNormal: normalDamageMax,
+                withPrCrit: critDamageMax
+            });
         }
 
+        let prMaxNormal = 0;
         let prMaxCrit = 0;
         if (roundData.prDices && roundData.prDices.length > 0) {
             for (const dice of roundData.prDices) {
+                prMaxNormal += dice.sides * dice.count;
                 prMaxCrit += dice.sides * dice.count * critMultiplier;
             }
         }
 
-        const roundMaxPossible = roundWeaponAndFlatMax + prMaxCrit;
-        analyticalMaxTotalDmg += Math.max(roundMaxPossible, 0);
+        const roundWithoutPrMax = attackMaxima.reduce((sum, attack) => sum + attack.withoutPr, 0);
+        const bestPrIncrease = attackMaxima.reduce((bestIncrease, attack) => {
+            const withPrMax = Math.max(
+                0,
+                attack.withPrNormal + prMaxNormal,
+                attack.withPrCrit + prMaxCrit
+            );
+            return Math.max(bestIncrease, withPrMax - attack.withoutPr);
+        }, 0);
+        analyticalMaxTotalDmg += roundWithoutPrMax + bestPrIncrease;
     }
 
 

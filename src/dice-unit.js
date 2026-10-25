@@ -218,6 +218,60 @@ function testPipelineCasePRStateDP() {
     console.log("✅ testPipelineCasePRStateDP 通過：PR 單次消耗、未命中延後使用及機率守恆。");
 }
 
+function testPipelineCaseMaximumDamageCap() {
+    const assert = (condition, message) => {
+        if (!condition) throw new Error(`[失敗] ${message}`);
+    };
+    const highestSupportedDamage = distribution => {
+        for (let damage = distribution.length - 1; damage >= 0; damage--) {
+            if (distribution[damage] > BUCKET_EPSILON) return damage;
+        }
+        return 0;
+    };
+
+    const clippedNegativeAttack = calculate(
+        "Per-attack zero floor maximum",
+        "D20 + 99",
+        10,
+        { threshold: 20, multiplier: 2 },
+        "(-1D4, 1D4)"
+    );
+    assert(
+        clippedNegativeAttack.details.totalMaxPossibleDmg === 8
+            && highestSupportedDamage(clippedNegativeAttack.distribution) === 8,
+        "負傷害攻擊須逐擊歸零，不可抵銷另一擊；理論上限及 PMF 上限應同為 8"
+    );
+
+    const prOnly = calculate(
+        "PR without an attack",
+        "D20 + 99",
+        10,
+        { threshold: 20, multiplier: 2 },
+        "(1D4PR)"
+    );
+    assert(
+        prOnly.details.totalMaxPossibleDmg === 0
+            && prOnly.distribution.length === 1
+            && prOnly.distribution[0] === 1,
+        "沒有攻擊可承接 PR 時，理論上限須為 0，PMF 須集中於零傷害"
+    );
+
+    const onePrForRound = calculate(
+        "One PR contribution to round maximum",
+        "D20 + 99",
+        10,
+        { threshold: 20, multiplier: 2 },
+        "(1D4, 1D4, 1D4PR)"
+    );
+    assert(
+        onePrForRound.details.totalMaxPossibleDmg === 24
+            && highestSupportedDamage(onePrForRound.distribution) === 24,
+        "每輪最大傷害只能將一次 PR 加至一擊，且理論上限須等於 PMF 上限"
+    );
+
+    console.log("✅ testPipelineCaseMaximumDamageCap 通過：零傷下限、PR 可用性及上限一致。");
+}
+
 /**
  * 針對 5級心靈刃賊非對稱輸出序列進行全方位數值斷言測試
  */
@@ -623,6 +677,7 @@ function testPipelineCaseSubclassModifiers() {
 testParser();
 testParserStrictValidation();
 testPipelineCasePRStateDP();
+testPipelineCaseMaximumDamageCap();
 testPipelineCaseSoulKnife();
 testPipelineCaseAC25();
 testPipelineCaseOffsetLoss();

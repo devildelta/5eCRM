@@ -62,7 +62,7 @@
 *   **`calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)`**：
     *   **處理流程**：
         1.  設定爆擊門檻與傷害骰倍率 `critMultiplier`。呼叫命中函數取得 `pHit, pCrit, pMiss`。
-        2.  **純代數解析法 (Analytical Max Damage Counter)**：全戰鬥絕對理論上限累加由獨立兩層迴圈在靜態藍圖上執行代數加總：`roundMaxPossible = 武器最大爆擊面 + 該輪唯一PR最大爆擊面 + 該輪所有打擊固定值總和`。完美對齊 `219` 點理論上限。
+        2.  **純代數解析法 (Analytical Max Damage Counter)**：每次打擊先分別計算普通／爆擊上限，並將該擊上限截斷至最少 0，再加總該輪無 PR 的上限。若該輪有 PR 且至少有一擊，計算每擊加入 PR 後的上限增量，僅將 PR 最大增量計入一次；無打擊時 PR 不產生傷害。這條代數上限必須與最終 PMF 的最高非零桶一致。
         3.  遍歷輪次，初始化兩個狀態分佈：`PR_AVAILABLE` 的總傷害 PMF 初始為 `[1]`；`PR_CONSUMED` 初始為零質量。
         4.  依序處理該輪每次打擊，將目前各狀態的傷害 PMF 分支轉移：
             *   `PR_AVAILABLE` 遇未命中時保持可用，傷害為 0；遇普通命中或爆擊時，對應傷害加入 PR 骰（爆擊按倍率），並轉移至 `PR_CONSUMED`。
