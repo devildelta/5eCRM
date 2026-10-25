@@ -1406,7 +1406,7 @@
       applyResourceStatus(row, resource);
       const card = row.classList.contains('card') ? row : row.closest('.card');
       const groupRows = card ? Array.from(card.querySelectorAll('.resource-row, .resource-compact-control')) : [];
-      if (groupRows.length > 1) {
+      if (groupRows.length > 0) {
         const states = groupRows.map(function (item) {
           const itemIndex = Number(item.dataset.resourceIndex);
           return resourceState(currentResources()[itemIndex]);
