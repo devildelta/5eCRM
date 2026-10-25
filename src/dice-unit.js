@@ -88,6 +88,88 @@ function testParser() {
     }
 }
 
+function testParserStrictValidation() {
+    const assert = (condition, message) => {
+        if (!condition) throw new Error(`[失敗] ${message}`);
+    };
+    const assertThrows = (action, message) => {
+        let didThrow = false;
+        try {
+            action();
+        } catch (error) {
+            didThrow = true;
+        }
+        assert(didThrow, message);
+    };
+
+    const opposingDice = parseSingleFormula("1D6 - 1D6");
+    assert(
+        opposingDice.weaponDice.length === 1
+            && opposingDice.weaponDice[0].sides === 6
+            && opposingDice.weaponDice[0].count === 1,
+        "同面數正向骰應獨立保留"
+    );
+    assert(
+        opposingDice.negativeDice.length === 1
+            && opposingDice.negativeDice[0].sides === 6
+            && opposingDice.negativeDice[0].count === 1,
+        "同面數負向骰不應與正向骰互相抵銷"
+    );
+
+    const separateDice = parseSingleFormula("2D6 - 1D6 + 1D4 - 2D4 + 3");
+    assert(
+        separateDice.weaponDice.length === 2
+            && separateDice.weaponDice[0].count === 2
+            && separateDice.weaponDice[1].count === 1,
+        "正向同面數骰應合併，但不可與負向骰合併"
+    );
+    assert(
+        separateDice.negativeDice.length === 2
+            && separateDice.negativeDice[0].count === 1
+            && separateDice.negativeDice[1].count === 2
+            && separateDice.flatMod === 3,
+        "負向同面數骰及固定值應正確解析"
+    );
+
+    const toHitFormula = parseAttackString("D20 - 1D6 + 4");
+    assert(
+        toHitFormula.advantageMode === 0
+            && toHitFormula.bonusDice.length === 1
+            && toHitFormula.bonusDice[0].sides === 6
+            && toHitFormula.bonusDice[0].count === -1
+            && toHitFormula.flatMod === 4,
+        "典型命中公式 D20 - 1D6 + 4 應正確解析 D20、負向輔助骰及固定值"
+    );
+    const toHitProbabilities = evaluateAttackProbabilities("D20 - 1D6 + 4", 10);
+    assert(
+        Math.abs(toHitProbabilities.pHit - 0.525) < MACHINE_EPSILON
+            && Math.abs(toHitProbabilities.pCrit - 0.05) < MACHINE_EPSILON
+            && Math.abs(toHitProbabilities.pMiss - 0.425) < MACHINE_EPSILON,
+        "AC 10 時 D20 - 1D6 + 4 命中率應為 52.5%、爆擊率 5%、未命中率 42.5%"
+    );
+
+    assertThrows(() => parseSingleFormula("1D6oops"), "傷害公式不得部分解析無效尾綴");
+    assertThrows(() => parseSingleFormula("1D6 + nope"), "傷害公式不得忽略無效項目");
+    assertThrows(() => parseSingleFormula("1 D6"), "骰數及骰面標記之間不得有空格");
+    assertThrows(() => parseSingleFormula("1D20"), "傷害公式必須拒絕不支援骰種");
+    assertThrows(() => parseSingleFormula("1D6PR"), "一般傷害公式必須拒絕 PR 骰標記");
+    assertThrows(() => parseAttackString("D20 + 1D20"), "命中公式必須拒絕不支援輔助骰種");
+    assertThrows(() => parseAttackString("D20 + 5oops"), "命中公式不得部分解析無效尾綴");
+    assertThrows(() => parsePrFormula("1D6PR + 1"), "PR 公式只可包含 PR 骰");
+    assertThrows(() => parsePrFormula("1D20PR"), "PR 公式必須拒絕不支援骰種");
+    assertThrows(() => parseAdvancedDamageString("(1D6 + 1"), "傷害序列必須拒絕未配對括號");
+    assertThrows(
+        () => parseAdvancedDamageString("junk (1D6 + 1) trailing"),
+        "傷害序列不得忽略括號組以外的文字"
+    );
+    assertThrows(
+        () => parseAdvancedDamageString("(1D6 + 1, nope)"),
+        "傷害序列不得忽略輪次內的無效項目"
+    );
+
+    console.log("✅ testParserStrictValidation 通過：正負骰分流及傷害語法嚴格驗證。");
+}
+
 /**
  * 針對 5級心靈刃賊非對稱輸出序列進行全方位數值斷言測試
  */
@@ -491,6 +573,7 @@ function testPipelineCaseSubclassModifiers() {
 
 
 testParser();
+testParserStrictValidation();
 testPipelineCaseSoulKnife();
 testPipelineCaseAC25();
 testPipelineCaseOffsetLoss();

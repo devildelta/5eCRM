@@ -42,11 +42,12 @@
     *   **處理流程**：遍歷過濾 `BUCKET_EPSILON` 前端零點，將長度擴展至大於最大可能跨度（`maxPossibleSpan`）的最小 2 的冪次方，於頻域點對點複數相乘，逆向 IFFT 轉回時域，並執行 `MACHINE_EPSILON` 級別的唯一一次單次除法歸一化。
 
 #### 3. 語法解析器規格 (Parsers)
-*   **`parseAttackString(attackStr)`**：拆解 D20 命中模式、輔助骰與命中固定加值 `flatMod`。
-*   **`parseSingleFormula(formulaStr)`**：拆解基礎傷害公式（不含 PR 欄位）。利用 Map 結構自動合併同面數的常規武器骰數量。
-*   **`parsePrFormula(prStr)`**：特別掃描並分離帶有 `PR`（Per-Round Once）後綴的骰子標記，在單擊/單輪層級聚合為獨立資源池。
+*   **`parseAttackString(attackStr)`**：拆解 D20 命中模式、輔助骰與命中固定加值 `flatMod`。公式必須完整匹配；輔助骰只支援 D4、D6、D8、D10、D12。
+*   **`parseSingleFormula(formulaStr)`**：拆解基礎傷害公式（不含 PR 欄位）。利用 Map 結構分別合併同面數的正向武器骰和負向減傷骰，正負骰不可互相抵銷。公式必須完整匹配，拒絕無效項目及不支援骰種。
+*   **`parsePrFormula(prStr)`**：特別掃描並分離帶有 `PR`（Per-Round Once）後綴的骰子標記，在單擊/單輪層級聚合為獨立資源池。只接受格式正確且使用支援骰種的 PR 骰公式。
 *   **PR（Per-Round Once，每輪一次傷害）**：傷害公式中以 `PR` 後綴標記的骰子，例如 `2D6PR`，代表每輪最多可加到一次攻擊傷害上的共享傷害骰池。每輪開始時資源可用；未命中不會消耗資源，首個命中的攻擊（普通命中或爆擊）使用後，本輪其餘攻擊不再取得 PR 骰。若使用 PR 的攻擊爆擊，PR 骰按該角色的爆擊傷害倍率擲骰。每個新回合重新可用。此標記及規則是本工具的輸入／計算模型，不代表所有 D&D 5e 能力均共用相同的遊戲規則。
 *   **`parseAdvancedDamageString(damageStr)`**：
+    *   必須完整解析所有輪次群組及公式項目；不匹配的括號、組外額外文字、空項目及無效骰式均須明確報錯，不可跳過或部分解析。
     *   **結構展開**：一個外層括號代表完整的一輪次（One Full Round DPR）。
     *   **多層嵌套展開 (Nested Expansion)**：外層逗號切分「輪次群組」（支援係數 N 重複）；內層逗號切分「打擊序列」（支援 `N 公式` 形式的前綴數字時域打擊複製展開），含 PR 字串的子項會被完全抽離移出 `attacks` 陣列，不增加打擊次數。
 
