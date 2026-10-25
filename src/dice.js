@@ -645,6 +645,77 @@ function printDamageDistribution(summary) {
 }
 
 
+function scaleDistribution(dist, weight) {
+    const scaledDist = new Float64Array(dist.length);
+    for (let i = 0; i < dist.length; i++) scaledDist[i] = dist[i] * weight;
+    return scaledDist;
+}
+
+function convolveDamageDistributions(left, right) {
+    if (left.every(value => value === 0) || right.every(value => value === 0)) {
+        return new Float64Array([0]);
+    }
+
+    const result = convolveMultipleFFT([
+        { dist: left, isNegative: false },
+        { dist: right, isNegative: false }
+    ]);
+    const aligned = new Float64Array(result.offset + result.dist.length);
+    for (let i = 0; i < result.dist.length; i++) {
+        aligned[i + result.offset] = result.dist[i];
+    }
+    return aligned;
+}
+
+function sumDistributions(distributions) {
+    const length = distributions.reduce((maxLength, dist) => Math.max(maxLength, dist.length), 1);
+    const total = new Float64Array(length);
+    for (const dist of distributions) {
+        for (let i = 0; i < dist.length; i++) total[i] += dist[i];
+    }
+    return total;
+}
+
+function createAttackHitDistribution(
+    weaponNormalDist,
+    weaponNormalOffset,
+    weaponCritDist,
+    weaponCritOffset,
+    prNormalDist,
+    prNormalOffset,
+    prCritDist,
+    prCritOffset,
+    flatMod,
+    pHit,
+    pCrit,
+    includePr
+) {
+    const normalPrDist = includePr ? prNormalDist : new Float64Array([1]);
+    const normalPrOffset = includePr ? prNormalOffset : 0;
+    const critPrDist = includePr ? prCritDist : new Float64Array([1]);
+    const critPrOffset = includePr ? prCritOffset : 0;
+    const maxNormalDamage = weaponNormalDist.length - 1 + weaponNormalOffset
+        + normalPrDist.length - 1 + normalPrOffset + flatMod;
+    const maxCritDamage = weaponCritDist.length - 1 + weaponCritOffset
+        + critPrDist.length - 1 + critPrOffset + flatMod;
+    const hitDist = new Float64Array(Math.max(maxNormalDamage, maxCritDamage, 0) + 1);
+
+    for (let weapon = 0; weapon < weaponNormalDist.length; weapon++) {
+        for (let pr = 0; pr < normalPrDist.length; pr++) {
+            const damage = Math.max(0, weapon + weaponNormalOffset + pr + normalPrOffset + flatMod);
+            hitDist[damage] += weaponNormalDist[weapon] * normalPrDist[pr] * pHit;
+        }
+    }
+    for (let weapon = 0; weapon < weaponCritDist.length; weapon++) {
+        for (let pr = 0; pr < critPrDist.length; pr++) {
+            const damage = Math.max(0, weapon + weaponCritOffset + pr + critPrOffset + flatMod);
+            hitDist[damage] += weaponCritDist[weapon] * critPrDist[pr] * pCrit;
+        }
+    }
+    return hitDist;
+}
+
+
 
 function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr) {
     const critMultiplier = criticalOptions.multiplier !== undefined ? Math.floor(criticalOptions.multiplier) : 2;
@@ -698,9 +769,6 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
     // 3. 進入巨觀跨輪迴圈，逐一解算每個獨立輪次的分佈耦合
     // ================================================================================
     for (const roundData of roundSequencePool) {
-        let pPR_Available = 1.0;
-        const singleRoundAttackPDFs = [];
-
         // 全輪唯一的 PR 資源骰池預摺積
         let prNormalDist = new Float64Array([1.0]), prCritDist = new Float64Array([1.0]);
         let prNormalOffset = 0, prCritOffset = 0; 
@@ -720,101 +788,70 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
             prCritOffset = prCritRes.offset;
         }
 
-        // 微觀打擊迴圈
-		for (const attack of roundData.attacks) {
-			const weaponNormalPool = [], weaponCritPool = [];
-			
-			// 1. 注入正向武器骰
-			for (const dice of attack.weaponDice) {
-				const baseDist = PREGENERATED_DICE_NORMAL[`D${dice.sides}`];
-				for (let i = 0; i < dice.count; i++) weaponNormalPool.push({ dist: baseDist, isNegative: false });
-				for (let i = 0; i < dice.count * critMultiplier; i++) weaponCritPool.push({ dist: baseDist, isNegative: false });
-			}
-			
+        let prAvailableDist = new Float64Array([1.0]);
+        let prConsumedDist = new Float64Array([0]);
+
+        for (const attack of roundData.attacks) {
+            const weaponNormalPool = [], weaponCritPool = [];
+
+            for (const dice of attack.weaponDice) {
+                const baseDist = PREGENERATED_DICE_NORMAL[`D${dice.sides}`];
+                for (let i = 0; i < dice.count; i++) weaponNormalPool.push({ dist: baseDist, isNegative: false });
+                for (let i = 0; i < dice.count * critMultiplier; i++) weaponCritPool.push({ dist: baseDist, isNegative: false });
+            }
+
             // 2. 【核心修正】：注入負向減傷骰 ── 爆擊時維持 1 倍數量，絕不翻倍！
             if (attack.negativeDice && attack.negativeDice.length > 0) {
                 for (const dice of attack.negativeDice) {
                     const baseDist = PREGENERATED_DICE_NORMAL[`D${dice.sides}`];
                     for (let i = 0; i < dice.count; i++) {
                         weaponNormalPool.push({ dist: baseDist, isNegative: true });
-                        weaponCritPool.push({ dist: baseDist, isNegative: true }); // 🚀 保持 1 倍，封殺二次相乘
+                        weaponCritPool.push({ dist: baseDist, isNegative: true });
                     }
                 }
             }
 
-			const weaponNormalRes = convolveMultipleFFT(weaponNormalPool);
-			const weaponCritRes = convolveMultipleFFT(weaponCritPool);
-			
-			const weaponNormalDist = weaponNormalRes.dist;
-			const weaponNormalOffset = weaponNormalRes.offset; // 👈 此時若有減傷骰，offset 包含負向平移量
-			const weaponCritDist = weaponCritRes.dist;
-			const weaponCritOffset = weaponCritRes.offset;     
+            const weaponNormalRes = convolveMultipleFFT(weaponNormalPool);
+            const weaponCritRes = convolveMultipleFFT(weaponCritPool);
+            const hitWithPr = createAttackHitDistribution(
+                weaponNormalRes.dist,
+                weaponNormalRes.offset,
+                weaponCritRes.dist,
+                weaponCritRes.offset,
+                prNormalDist,
+                prNormalOffset,
+                prCritDist,
+                prCritOffset,
+                attack.flatMod,
+                pHit,
+                pCrit,
+                true
+            );
+            const hitWithoutPr = createAttackHitDistribution(
+                weaponNormalRes.dist,
+                weaponNormalRes.offset,
+                weaponCritRes.dist,
+                weaponCritRes.offset,
+                prNormalDist,
+                prNormalOffset,
+                prCritDist,
+                prCritOffset,
+                attack.flatMod,
+                pHit,
+                pCrit,
+                false
+            );
 
-			// 3. 安全計算定義域最大跨度
-			const maxHitWithPr = (weaponNormalDist.length - 1) + (prNormalDist.length - 1) + weaponNormalOffset + prNormalOffset + attack.flatMod;
-			const maxCritWithPr = (weaponCritDist.length - 1) + (prCritDist.length - 1) + weaponCritOffset + prCritOffset + attack.flatMod;
-			const maxSingleAttackDmg = Math.max(maxHitWithPr, maxCritWithPr, attack.flatMod, 0);
-			
-			const singleAttackPDF = new Float64Array(maxSingleAttackDmg + 1);
-			singleAttackPDF[0] = pMiss; // 未命中基礎沉澱
-
-			// 4. 時域遍歷加總 (依靠 dmg > 0 ? dmg : 0 執行 5e 零傷保底沉澱)
-			// 狀態 B：普通首擊觸發
-			const w1_weight = pHit * pPR_Available;
-			if (w1_weight > BUCKET_EPSILON) {
-				for (let w = 0; w < weaponNormalDist.length; w++) {
-					for (let p = 0; p < prNormalDist.length; p++) {
-						const dmg = (w + weaponNormalOffset) + (p + prNormalOffset) + attack.flatMod;
-						// 🚀 5e 規則防禦：小於 0 點的傷害全部安全沉澱在第 0 格
-						singleAttackPDF[dmg > 0 ? dmg : 0] += weaponNormalDist[w] * prNormalDist[p] * w1_weight;
-					}
-				}
-			}
-
-			// 狀態 C：爆擊首擊觸發
-			const w2_weight = pCrit * pPR_Available;
-			if (w2_weight > BUCKET_EPSILON) {
-				for (let w = 0; w < weaponCritDist.length; w++) {
-					for (let p = 0; p < prCritDist.length; p++) {
-						const dmg = (w + weaponCritOffset) + (p + prCritOffset) + attack.flatMod;
-						singleAttackPDF[dmg > 0 ? dmg : 0] += weaponCritDist[w] * prCritDist[p] * w2_weight;
-					}
-				}
-			}
-
-			// 狀態 D：常規武器傷
-			const pPR_Consumed = 1.0 - pPR_Available;
-			if (pPR_Consumed > BUCKET_EPSILON) {
-				const w3_normal_weight = pHit * pPR_Consumed;
-				if (w3_normal_weight > BUCKET_EPSILON) {
-					for (let w = 0; w < weaponNormalDist.length; w++) {
-						const dmg = (w + weaponNormalOffset) + attack.flatMod;
-						singleAttackPDF[dmg > 0 ? dmg : 0] += weaponNormalDist[w] * w3_normal_weight;
-					}
-				}
-				const w3_crit_weight = pCrit * pPR_Consumed;
-				if (w3_crit_weight > BUCKET_EPSILON) {
-					for (let w = 0; w < weaponCritDist.length; w++) {
-						const dmg = (w + weaponCritOffset) + attack.flatMod;
-						singleAttackPDF[dmg > 0 ? dmg : 0] += weaponCritDist[w] * w3_crit_weight;
-					}
-				}
-			}
-
-			pPR_Available *= pMiss;
-			singleRoundAttackPDFs.push({ dist: singleAttackPDF, isNegative: false });
-		}
-
-        // 單輪合併：接收返回的 roundOffset
-        const { dist: roundCombinedDmgDist, offset: roundOffset } = convolveMultipleFFT(singleRoundAttackPDFs);
-        
-        // 【核心修正 B】：落實位移不滅定理，將單輪裁剪產生的 offset 完整平移對齊
-        const alignedRoundDist = new Float64Array(roundCombinedDmgDist.length + roundOffset);
-        for (let i = 0; i < roundCombinedDmgDist.length; i++) {
-            alignedRoundDist[i + roundOffset] = roundCombinedDmgDist[i];
+            const nextAvailable = scaleDistribution(prAvailableDist, pMiss);
+            const availableHits = convolveDamageDistributions(prAvailableDist, hitWithPr);
+            const consumedMisses = scaleDistribution(prConsumedDist, pMiss);
+            const consumedHits = convolveDamageDistributions(prConsumedDist, hitWithoutPr);
+            prConsumedDist = sumDistributions([availableHits, consumedMisses, consumedHits]);
+            prAvailableDist = nextAvailable;
         }
-        
-        finalRoundCombinedPDFs.push({ dist: alignedRoundDist, isNegative: false });
+
+        const roundDistribution = sumDistributions([prAvailableDist, prConsumedDist]);
+        finalRoundCombinedPDFs.push({ dist: roundDistribution, isNegative: false });
     }
 
     // 4. 跨輪總結摺積：接收最終全域原點平移量 finalTotalOffset

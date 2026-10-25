@@ -63,15 +63,12 @@
     *   **處理流程**：
         1.  設定爆擊門檻與傷害骰倍率 `critMultiplier`。呼叫命中函數取得 `pHit, pCrit, pMiss`。
         2.  **純代數解析法 (Analytical Max Damage Counter)**：全戰鬥絕對理論上限累加由獨立兩層迴圈在靜態藍圖上執行代數加總：`roundMaxPossible = 武器最大爆擊面 + 該輪唯一PR最大爆擊面 + 該輪所有打擊固定值總和`。完美對齊 `219` 點理論上限。
-        3.  遍歷輪次，初始化全輪二態鎖 `pPR_Available = 1.0`。
-        4.  遍歷該輪次內的打擊序列：
-            *   *狀態 A*：本擊完全未命中 $\rightarrow$ `singleAttackPDF[0] = pMiss`。
-            *   *狀態 B (普通首擊)*：權重 `pHit * pPR_Available` $\rightarrow$ 武器普通分佈與 PR 普通分佈在實質對齊座標下相加，平移固定值累加至單擊 PDF。
-            *   *狀態 C (爆擊首擊)*：權重 `pCrit * pPR_Available` $\rightarrow$ 武器爆擊分佈與 PR 爆擊分佈在實質對齊座標下相加，平移固定值累加至單擊 PDF。
-            *   *狀態 D (資源消耗常規傷)*：引入 `pPR_Consumed = 1.0 - pPR_Available`。**當且僅當 `pPR_Consumed > BUCKET_EPSILON` 時才允許分支進場**。依照 `pHit * pPR_Consumed`（普通）與 `pCrit * pPR_Consumed`（爆擊）獨立四象限權重平移累加（不計 PR 骰）。
-            *   *狀態更新*：該擊結束後，執行 `pPR_Available *= pMiss` 資源遞減。
-            *   *進場過濾*：單擊 PDF 推入單輪 pool 前，執行 `if (singleAttackPDF[k] <= BUCKET_EPSILON) singleAttackPDF[k] = 0` 微觀噪點抹平。
-        5.  將單輪 PDF 與跨輪總 PDF 進行連環直通摺積，加總 CDF 提取四分位數，附加完整的 `finalTotalDist` 陣列作 `distribution` 欄位傳回。
+        3.  遍歷輪次，初始化兩個狀態分佈：`PR_AVAILABLE` 的總傷害 PMF 初始為 `[1]`；`PR_CONSUMED` 初始為零質量。
+        4.  依序處理該輪每次打擊，將目前各狀態的傷害 PMF 分支轉移：
+            *   `PR_AVAILABLE` 遇未命中時保持可用，傷害為 0；遇普通命中或爆擊時，對應傷害加入 PR 骰（爆擊按倍率），並轉移至 `PR_CONSUMED`。
+            *   `PR_CONSUMED` 遇未命中時保持已消耗，傷害為 0；遇普通命中或爆擊時只加入武器傷害，不再加入 PR 骰。
+            *   不可將各次打擊各自的邊際傷害 PMF 當作互相獨立的分佈摺積，因 PR 使用事件依賴先前打擊結果。
+        5.  輪次結束時合併 `PR_AVAILABLE` 與 `PR_CONSUMED` 狀態 PMF，所得輪次分佈再與其他獨立輪次摺積；加總 CDF 提取四分位數，並將完整 `finalTotalDist` 作為 `distribution` 欄位傳回。
 
 #### 5. 高階列印與雙軌自動化斷言工具 (Telemetry Tools)
 *   **`printDamageDistribution(summary)`**：

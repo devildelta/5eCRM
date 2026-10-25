@@ -170,6 +170,54 @@ function testParserStrictValidation() {
     console.log("✅ testParserStrictValidation 通過：正負骰分流及傷害語法嚴格驗證。");
 }
 
+function testPipelineCasePRStateDP() {
+    const assert = (condition, message) => {
+        if (!condition) throw new Error(`[失敗] ${message}`);
+    };
+
+    const threeStrikeCase = calculate(
+        "PR single-use support bound",
+        "D20 + 99",
+        10,
+        { threshold: 20, multiplier: 2 },
+        "(1D4, 1D4, 1D4PR)"
+    );
+    const threeStrikeDist = threeStrikeCase.distribution;
+    let totalMass = 0;
+    let aboveSinglePrMaximum = 0;
+    for (let damage = 0; damage < threeStrikeDist.length; damage++) {
+        totalMass += threeStrikeDist[damage];
+        if (damage > 24) aboveSinglePrMaximum += threeStrikeDist[damage];
+    }
+    assert(
+        threeStrikeCase.details.totalMaxPossibleDmg === 24
+            && threeStrikeDist.length <= 25
+            && aboveSinglePrMaximum <= BUCKET_EPSILON,
+        "兩擊輪次只可套用一次 PR；傷害不得超過 24"
+    );
+    assert(
+        Math.abs(totalMass - 1) < MACHINE_EPSILON,
+        "PR 狀態轉移後的總機率質量必須守恆"
+    );
+
+    const delayedPrCase = calculate(
+        "PR remains available after miss",
+        "D20 + 99",
+        10,
+        { threshold: 20, multiplier: 2 },
+        "(100, 1D4, 1D4PR)"
+    );
+    const delayedPrMass = delayedPrCase.distribution
+        .slice(1, 100)
+        .reduce((sum, probability) => sum + probability, 0);
+    assert(
+        Math.abs(delayedPrMass - 0.0475) < MACHINE_EPSILON,
+        "首擊未命中而次擊命中時，PR 應於次擊使用一次（機率 0.05 × 0.95）"
+    );
+
+    console.log("✅ testPipelineCasePRStateDP 通過：PR 單次消耗、未命中延後使用及機率守恆。");
+}
+
 /**
  * 針對 5級心靈刃賊非對稱輸出序列進行全方位數值斷言測試
  */
@@ -574,6 +622,7 @@ function testPipelineCaseSubclassModifiers() {
 
 testParser();
 testParserStrictValidation();
+testPipelineCasePRStateDP();
 testPipelineCaseSoulKnife();
 testPipelineCaseAC25();
 testPipelineCaseOffsetLoss();
