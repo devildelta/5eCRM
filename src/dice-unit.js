@@ -319,6 +319,63 @@ function testMultipleD20Normalization() {
     console.log("✅ testMultipleD20Normalization 通過：多重條件按優劣勢規則正規化。");
 }
 
+function testConvolutionTailPreservation() {
+    const assert = (condition, message) => {
+        if (!condition) throw new Error(`[失敗] ${message}`);
+    };
+    const d4 = PREGENERATED_DICE_NORMAL.D4;
+    const smallTail = convolveMultipleFFT(
+        Array.from({ length: 30 }, () => ({ dist: d4, isNegative: false }))
+    );
+    const expectedExtremeTail = Math.pow(0.25, 30);
+    let smallMass = 0;
+    for (const probability of smallTail.dist) smallMass += probability;
+    assert(
+        smallTail.offset === 30
+            && Math.abs(smallTail.dist[smallTail.dist.length - 1] - expectedExtremeTail)
+                <= expectedExtremeTail * 1e-12,
+        "每顆 D4 全擲出最高點的真實長尾機率不可因 epsilon 門檻而被剪除"
+    );
+    assert(
+        Math.abs(smallMass - 1) < 1e-14,
+        "小型直接摺積必須在不重分配長尾機率下保持總質量"
+    );
+
+    const diceCount = 300;
+    const fftResult = convolveMultipleFFT(
+        Array.from({ length: diceCount }, () => ({ dist: d4, isNegative: false }))
+    );
+    let reference = new Float64Array([1]);
+    for (let die = 0; die < diceCount; die++) {
+        const next = new Float64Array(reference.length + 3);
+        for (let total = 0; total < reference.length; total++) {
+            for (let face = 1; face <= 4; face++) {
+                next[total + face - 1] += reference[total] / 4;
+            }
+        }
+        reference = next;
+    }
+
+    let fftMass = 0;
+    let maximumBucketError = 0;
+    for (let i = 0; i < fftResult.dist.length; i++) {
+        fftMass += fftResult.dist[i];
+        maximumBucketError = Math.max(maximumBucketError, Math.abs(fftResult.dist[i] - reference[i]));
+    }
+    const fftMean = fftResult.dist.reduce(
+        (mean, probability, index) => mean + (index + fftResult.offset) * probability,
+        0
+    );
+    assert(
+        Math.abs(fftMass - 1) < 1e-10
+            && maximumBucketError < 1e-10
+            && Math.abs(fftMean - diceCount * 2.5) < 1e-8,
+        "FFT 摺積須在不把截斷長尾按比例灌回各桶的前提下，符合直接摺積基準及理論平均值"
+    );
+
+    console.log("✅ testConvolutionTailPreservation 通過：長尾保留及 FFT 與直接摺積基準一致。");
+}
+
 /**
  * 針對 5級心靈刃賊非對稱輸出序列進行全方位數值斷言測試
  */
@@ -726,6 +783,7 @@ testParserStrictValidation();
 testPipelineCasePRStateDP();
 testPipelineCaseMaximumDamageCap();
 testMultipleD20Normalization();
+testConvolutionTailPreservation();
 testPipelineCaseSoulKnife();
 testPipelineCaseAC25();
 testPipelineCaseOffsetLoss();

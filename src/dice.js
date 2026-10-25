@@ -181,10 +181,9 @@ function convolveMultipleFFT(pool) {
 
     let globalMinOffset = 0;
     const standardizedPool = [];
-    const expectedMass = pool.reduce(
-        (mass, item) => mass * item.dist.reduce((sum, probability) => sum + probability, 0),
-        1
-    );
+    const expectedMass = pool.reduce((mass, item) => {
+        return mass * item.dist.reduce((sum, probability) => sum + probability, 0);
+    }, 1);
 
     for (const item of pool) {
         if (item.isNegative) {
@@ -198,7 +197,7 @@ function convolveMultipleFFT(pool) {
         } else {
 			let firstValid = 0;
 			for (let i = 0; i < item.dist.length; i++) {
-				if (item.dist[i] > BUCKET_EPSILON) { 
+				if (item.dist[i] > 0) {
 					firstValid = i; 
 					break; 
 				}
@@ -215,6 +214,31 @@ function convolveMultipleFFT(pool) {
     }
 
     let maxPossibleSpan = standardizedPool.reduce((sum, dist) => sum + (dist.length - 1), 0);
+    let directConvolutionWork = 0;
+    let directLength = 1;
+    for (const dist of standardizedPool) {
+        directConvolutionWork += directLength * dist.length;
+        directLength += dist.length - 1;
+    }
+
+    if (expectedMass === 0) {
+        return { dist: new Float64Array(maxPossibleSpan + 1), offset: globalMinOffset };
+    }
+
+    if (directConvolutionWork <= 500000) {
+        let directDist = new Float64Array([1]);
+        for (const dist of standardizedPool) {
+            const nextDist = new Float64Array(directDist.length + dist.length - 1);
+            for (let i = 0; i < directDist.length; i++) {
+                for (let j = 0; j < dist.length; j++) {
+                    nextDist[i + j] += directDist[i] * dist[j];
+                }
+            }
+            directDist = nextDist;
+        }
+        return { dist: directDist, offset: globalMinOffset };
+    }
+
     let fftSize = 1;
     while (fftSize <= maxPossibleSpan) fftSize <<= 1;
 
@@ -245,13 +269,13 @@ function convolveMultipleFFT(pool) {
 	for (let i = 0; i <= maxPossibleSpan; i++) {
 		const val = mainFreqBuffer[2 * i];
 		// 只有大於 EPSILON 的數值才會被保留，其餘微小正負噪點一律抹平成 0
-		const cleanVal = val > BUCKET_EPSILON ? val : 0;
+		const cleanVal = val > 0 ? val : 0;
 		finalDist[i] = cleanVal;
 		currentSum += cleanVal;
 	}
 
-	// Restore numerical drift without changing the input probability mass.
-	if (currentSum > 0 && Math.abs(currentSum - expectedMass) > MACHINE_EPSILON) {
+	const roundoffTolerance = MACHINE_EPSILON * Math.max(expectedMass, Number.MIN_VALUE);
+	if (currentSum > 0 && Math.abs(currentSum - expectedMass) <= roundoffTolerance) {
 		for (let i = 0; i <= maxPossibleSpan; i++) {
 			finalDist[i] *= expectedMass / currentSum;
 		}
@@ -316,7 +340,7 @@ function evaluateAttackProbabilities(attackStr, targetAC, critThreshold = 20) {
     // 4. 在實質絕對座標補償下，精確累加通過 AC 檢定的純命中機率
     let pHit = 0;
     for (let i = 0; i < attackDist.length; i++) {
-        if (attackDist[i] <= BUCKET_EPSILON) continue;
+        if (attackDist[i] <= 0) continue;
         
         // 實質物理座標 = 陣列索引 + 摺積動態原點補償
         const realRollTotal = i + attackOffset;
