@@ -272,6 +272,53 @@ function testPipelineCaseMaximumDamageCap() {
     console.log("✅ testPipelineCaseMaximumDamageCap 通過：零傷下限、PR 可用性及上限一致。");
 }
 
+function testMultipleD20Normalization() {
+    const assert = (condition, message) => {
+        if (!condition) throw new Error(`[失敗] ${message}`);
+    };
+    const assertThrows = (formula, message) => {
+        let didThrow = false;
+        try {
+            parseAttackString(formula);
+        } catch (error) {
+            didThrow = true;
+        }
+        assert(didThrow, message);
+    };
+
+    for (const formula of [
+        "D20A1 + D20D1 + 5",
+        "D20D1 + D20A1 + 5",
+        "D20A2 + D20D1 + 5",
+        "D20D1 + D20A2 + D20A1 + 5"
+    ]) {
+        assert(
+            parseAttackString(formula).advantageMode === 0,
+            `${formula} 同時含優勢及劣勢，必須正規化為常規 D20`
+        );
+        const probabilities = evaluateAttackProbabilities(formula, 15);
+        assert(
+            Math.abs(probabilities.pHit - 0.5) < MACHINE_EPSILON
+                && Math.abs(probabilities.pCrit - 0.05) < MACHINE_EPSILON
+                && Math.abs(probabilities.pMiss - 0.45) < MACHINE_EPSILON,
+            `${formula} 的實際命中機率亦必須與常規 D20 相同`
+        );
+    }
+
+    assert(
+        parseAttackString("D20A1 + D20A2 + 5").advantageMode === 2,
+        "多個同向優勢條件須取最高階 Elven Accuracy"
+    );
+    assert(
+        parseAttackString("D20D1 + D20D1 + 5").advantageMode === -1,
+        "重複劣勢條件不得累加投骰，只保留劣勢模式"
+    );
+    assertThrows("D20A3 + 5", "不支援的優勢階數必須明確報錯");
+    assertThrows("D20D2 + 5", "不支援的劣勢階數必須明確報錯");
+
+    console.log("✅ testMultipleD20Normalization 通過：多重條件按優劣勢規則正規化。");
+}
+
 /**
  * 針對 5級心靈刃賊非對稱輸出序列進行全方位數值斷言測試
  */
@@ -678,6 +725,7 @@ testParser();
 testParserStrictValidation();
 testPipelineCasePRStateDP();
 testPipelineCaseMaximumDamageCap();
+testMultipleD20Normalization();
 testPipelineCaseSoulKnife();
 testPipelineCaseAC25();
 testPipelineCaseOffsetLoss();

@@ -337,7 +337,9 @@ function evaluateAttackProbabilities(attackStr, targetAC, critThreshold = 20) {
 function parseAttackString(attackStr) {
     const tokens = tokenizeFormula(attackStr, "命中公式", false, true);
     
-    let advantageMode = 0;
+    let hasAdvantage = false;
+    let hasElvenAccuracy = false;
+    let hasDisadvantage = false;
     const bonusDice = [];
     let flatMod = 0;
 
@@ -355,12 +357,15 @@ function parseAttackString(attackStr) {
                 throw new Error("核心 D20 命中骰前方不允許帶有負號！");
             }
 
-            // 嚴格狀態機判定：D20A0 或 D20D0 會精確落入 else 分支，降級為常規模式 (0)
-            if (type === 'A' && count === 1) advantageMode = 1;       // D20A1 (優勢)
-            else if (type === 'A' && count === 2) advantageMode = 2;  // D20A2 (精靈準確)
-            else if (type === 'D' && count === 1) advantageMode = -1; // D20D1 (劣勢)
-            else advantageMode = 0;                                   // 常規 D20 / D20A0 / D20D0
-            
+            if (type === 'A') {
+                if (count > 2) throw new Error(`不支援的核心 D20 優勢模式: ${token}`);
+                hasAdvantage = hasAdvantage || count === 1 || count === 2;
+                hasElvenAccuracy = hasElvenAccuracy || count === 2;
+            } else if (type === 'D') {
+                if (count > 1) throw new Error(`不支援的核心 D20 劣勢模式: ${token}`);
+                hasDisadvantage = hasDisadvantage || count === 1;
+            }
+
             continue; 
         }
 
@@ -373,6 +378,15 @@ function parseAttackString(attackStr) {
         flatMod += Number(token);
     }
 
+    const advantageMode = hasAdvantage && hasDisadvantage
+        ? 0
+        : hasElvenAccuracy
+            ? 2
+            : hasAdvantage
+                ? 1
+                : hasDisadvantage
+                    ? -1
+                    : 0;
     return { advantageMode, bonusDice, flatMod };
 }
 
