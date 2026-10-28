@@ -1,8 +1,8 @@
 // Pre-generated constants
-/** @const {number} 時域微小機率漣漪抹平門檻 (用於剪枝與進出場雜訊消減) */
+/** @const {number} 低於此絕對機率的桶只保留其可能性，不再參與數值摺積 */
 const BUCKET_EPSILON = 1e-12;
-/** @const {number} IEEE 754 雙精度浮點數機器精度極限 (用於硬體級歸一化檢核) */
-const MACHINE_EPSILON = 1e-15;
+/** @const {number} FFT 總質量浮點捨入漂移的相對校正容差 */
+const MASS_CORRECTION_REL_TOLERANCE = 1e-15;
 const MAX_DICE_POOL = 600;
 const MAX_DAMAGE_DICE_PER_CALCULATION = 300;
 const MAX_EXPANDED_ATTACKS = 300;
@@ -24,6 +24,79 @@ const { PREGENERATED_DICE_NORMAL } = (function() {
     };
 })();
 const SUPPORTED_DICE_SIDES = new Set(Object.keys(PREGENERATED_DICE_NORMAL).map(key => Number(key.slice(1))));
+
+function createPmf(dist, support, discardedMass = 0) {
+    const resolvedSupport = support || Uint8Array.from(dist, value => value > 0 ? 1 : 0);
+    if (resolvedSupport.length !== dist.length) {
+        throw new Error("PMF 機率陣列與支撐遮罩長度必須一致。");
+    }
+    if (!Number.isFinite(discardedMass) || discardedMass < 0) {
+        throw new Error("PMF 已忽略質量必須是非負有限數值。");
+    }
+    return { dist, support: resolvedSupport, discardedMass };
+}
+
+function supportRanges(support) {
+    const ranges = [];
+    let start = -1;
+    for (let i = 0; i <= support.length; i++) {
+        if (i < support.length && support[i]) {
+            if (start < 0) start = i;
+        } else if (start >= 0) {
+            ranges.push([start, i - 1]);
+            start = -1;
+        }
+    }
+    return ranges;
+}
+
+function mergeSupportRanges(ranges) {
+    if (ranges.length < 2) return ranges;
+    ranges.sort((left, right) => left[0] - right[0] || left[1] - right[1]);
+    const merged = [ranges[0]];
+    for (let i = 1; i < ranges.length; i++) {
+        const previous = merged[merged.length - 1];
+        const current = ranges[i];
+        if (current[0] <= previous[1] + 1) {
+            previous[1] = Math.max(previous[1], current[1]);
+        } else {
+            merged.push(current);
+        }
+    }
+    return merged;
+}
+
+function convolveSupportMasks(left, right) {
+    const leftRanges = supportRanges(left);
+    const rightRanges = supportRanges(right);
+    const ranges = [];
+    for (const [leftStart, leftEnd] of leftRanges) {
+        for (const [rightStart, rightEnd] of rightRanges) {
+            ranges.push([leftStart + rightStart, leftEnd + rightEnd]);
+        }
+    }
+    const mergedRanges = mergeSupportRanges(ranges);
+    const length = left.length + right.length - 1;
+    const support = new Uint8Array(Math.max(0, length));
+    for (const [start, end] of mergedRanges) {
+        support.fill(1, start, end + 1);
+    }
+    return support;
+}
+
+function prunePmf(pmf) {
+    let newlyDiscardedMass = 0;
+    for (let i = 0; i < pmf.dist.length; i++) {
+        if (!pmf.support[i]) {
+            pmf.dist[i] = 0;
+        } else if (pmf.dist[i] > 0 && pmf.dist[i] < BUCKET_EPSILON) {
+            newlyDiscardedMass += pmf.dist[i];
+            pmf.dist[i] = 0;
+        }
+    }
+    pmf.discardedMass += newlyDiscardedMass;
+    return newlyDiscardedMass > 0;
+}
 
 function assertDicePoolSize(count, contextName) {
     if (!Number.isSafeInteger(count) || count < 0 || count > MAX_DICE_POOL) {
@@ -187,16 +260,24 @@ function fftInPlace(buffer, inverse = false) {
         }
     }
 }
-function convolveMultipleFFT(pool) {
+function convolveMultipleFFT(pool, options = {}) {
     assertDicePoolSize(pool.length, "FFT 摺積");
-    if (pool.length === 0) return { dist: new Float64Array([1.0]), offset: 0 };
+    const applyBucketEpsilon = options.applyBucketEpsilon !== false;
+    if (pool.length === 0) {
+        return { ...createPmf(new Float64Array([1.0]), new Uint8Array([1])), offset: 0 };
+    }
 
     // pass through if pool only contains one item -> means no fft is required.
     if (pool.length === 1 && !pool[0].isNegative) {
-        return { 
-            dist: new Float64Array(pool[0].dist), // 直接複製，不給計算機任何製造 1e-15 底噪的機會
-            offset: 0 
-        };
+        const pmf = createPmf(
+            new Float64Array(pool[0].dist),
+            pool[0].support ? new Uint8Array(pool[0].support) : undefined,
+            pool[0].discardedMass || 0
+        );
+        const offset = pool[0].offset === undefined ? 0 : pool[0].offset;
+        if (!Number.isSafeInteger(offset)) throw new Error("PMF 偏移量必須是安全整數。");
+        if (applyBucketEpsilon) prunePmf(pmf);
+        return { ...pmf, offset };
     }
 
     let globalMinOffset = 0;
@@ -204,59 +285,110 @@ function convolveMultipleFFT(pool) {
     const expectedMass = pool.reduce((mass, item) => {
         return mass * item.dist.reduce((sum, probability) => sum + probability, 0);
     }, 1);
+    const inheritedDiscardedMass = pool.reduce(
+        (sum, item) => sum + (item.discardedMass || 0),
+        0
+    );
 
     for (const item of pool) {
+        const itemOffset = item.offset === undefined ? 0 : item.offset;
+        if (!Number.isSafeInteger(itemOffset)) {
+            throw new Error("PMF 偏移量必須是安全整數。");
+        }
+        const itemSupport = item.support
+            ? new Uint8Array(item.support)
+            : Uint8Array.from(item.dist, probability => probability > 0 ? 1 : 0);
+        if (itemSupport.length !== item.dist.length) {
+            throw new Error("PMF 機率陣列與支撐遮罩長度必須一致。");
+        }
+
         if (item.isNegative) {
             const sides = item.dist.length - 1;
-            globalMinOffset -= sides;
-            const reversedDist = new Float64Array(sides + 1);
+            globalMinOffset -= itemOffset + sides;
+            let lastValid = -1;
             for (let s = 1; s <= sides; s++) {
-                reversedDist[sides - s] = item.dist[s]; 
+                if (itemSupport[s]) lastValid = Math.max(lastValid, sides - s);
             }
-            standardizedPool.push(reversedDist);
+            const length = Math.max(1, lastValid + 1);
+            const reversedDist = new Float64Array(length);
+            const reversedSupport = new Uint8Array(length);
+            for (let s = 1; s <= sides; s++) {
+                const index = sides - s;
+                if (index < length) {
+                    reversedDist[index] = item.dist[s];
+                    reversedSupport[index] = itemSupport[s];
+                }
+            }
+            standardizedPool.push({ dist: reversedDist, support: reversedSupport });
         } else {
-			let firstValid = 0;
-			for (let i = 0; i < item.dist.length; i++) {
-				if (item.dist[i] > 0) {
-					firstValid = i; 
-					break; 
-				}
-			}
-            globalMinOffset += firstValid;
+            let firstValid = -1;
+            let lastValid = -1;
+            for (let i = 0; i < itemSupport.length; i++) {
+                if (itemSupport[i]) {
+                    if (firstValid < 0) firstValid = i;
+                    lastValid = i;
+                }
+            }
+            if (firstValid < 0) {
+                standardizedPool.push({
+                    dist: new Float64Array([0]),
+                    support: new Uint8Array([0])
+                });
+                continue;
+            }
 
-            const croppedLength = item.dist.length - firstValid;
+            globalMinOffset += itemOffset + firstValid;
+            const croppedLength = lastValid - firstValid + 1;
             const croppedDist = new Float64Array(croppedLength);
+            const croppedSupport = new Uint8Array(croppedLength);
             for (let i = 0; i < croppedLength; i++) {
                 croppedDist[i] = item.dist[i + firstValid];
+                croppedSupport[i] = itemSupport[i + firstValid];
             }
-            standardizedPool.push(croppedDist);
+            standardizedPool.push({ dist: croppedDist, support: croppedSupport });
         }
     }
 
-    let maxPossibleSpan = standardizedPool.reduce((sum, dist) => sum + (dist.length - 1), 0);
+    let maxPossibleSpan = standardizedPool.reduce((sum, item) => sum + (item.dist.length - 1), 0);
     let directConvolutionWork = 0;
     let directLength = 1;
-    for (const dist of standardizedPool) {
-        directConvolutionWork += directLength * dist.length;
-        directLength += dist.length - 1;
+    for (const item of standardizedPool) {
+        directConvolutionWork += directLength * item.dist.length;
+        directLength += item.dist.length - 1;
+    }
+
+    let outputSupport = new Uint8Array([1]);
+    for (const item of standardizedPool) {
+        outputSupport = convolveSupportMasks(outputSupport, item.support);
     }
 
     if (expectedMass === 0) {
-        return { dist: new Float64Array(maxPossibleSpan + 1), offset: globalMinOffset };
+        const pmf = createPmf(
+            new Float64Array(maxPossibleSpan + 1),
+            outputSupport,
+            inheritedDiscardedMass
+        );
+        return { ...pmf, offset: globalMinOffset };
     }
 
     if (directConvolutionWork <= 500000) {
         let directDist = new Float64Array([1]);
-        for (const dist of standardizedPool) {
-            const nextDist = new Float64Array(directDist.length + dist.length - 1);
+        for (const item of standardizedPool) {
+            const nextDist = new Float64Array(directDist.length + item.dist.length - 1);
             for (let i = 0; i < directDist.length; i++) {
-                for (let j = 0; j < dist.length; j++) {
-                    nextDist[i + j] += directDist[i] * dist[j];
+                for (let j = 0; j < item.dist.length; j++) {
+                    nextDist[i + j] += directDist[i] * item.dist[j];
                 }
             }
             directDist = nextDist;
         }
-        return { dist: directDist, offset: globalMinOffset };
+        const computedMass = directDist.reduce((sum, probability) => sum + probability, 0);
+        const pmf = createPmf(directDist, outputSupport, inheritedDiscardedMass);
+        if (applyBucketEpsilon) {
+            prunePmf(pmf);
+            pmf.discardedMass += Math.max(0, expectedMass - computedMass);
+        }
+        return { ...pmf, offset: globalMinOffset };
     }
 
     let fftSize = 1;
@@ -266,9 +398,9 @@ function convolveMultipleFFT(pool) {
     mainFreqBuffer[0] = 1.0; 
     fftInPlace(mainFreqBuffer);
 
-    for (const dist of standardizedPool) {
+    for (const item of standardizedPool) {
         let tempBuffer = new Float64Array(fftSize * 2);
-        for (let i = 0; i < dist.length; i++) tempBuffer[2 * i] = dist[i];
+        for (let i = 0; i < item.dist.length; i++) tempBuffer[2 * i] = item.dist[i];
         
         fftInPlace(tempBuffer);
 
@@ -284,24 +416,27 @@ function convolveMultipleFFT(pool) {
     fftInPlace(mainFreqBuffer, true);
 
     let finalDist = new Float64Array(maxPossibleSpan + 1);
-	let currentSum = 0;
+    for (let i = 0; i <= maxPossibleSpan; i++) {
+        const val = mainFreqBuffer[2 * i];
+        finalDist[i] = outputSupport[i] && val > 0 ? val : 0;
+    }
 
-	for (let i = 0; i <= maxPossibleSpan; i++) {
-		const val = mainFreqBuffer[2 * i];
-		// 只有大於 EPSILON 的數值才會被保留，其餘微小正負噪點一律抹平成 0
-		const cleanVal = val > 0 ? val : 0;
-		finalDist[i] = cleanVal;
-		currentSum += cleanVal;
-	}
+    const computedMass = finalDist.reduce((sum, probability) => sum + probability, 0);
+    const pmf = createPmf(finalDist, outputSupport, inheritedDiscardedMass);
+    const didPrune = applyBucketEpsilon && prunePmf(pmf);
+    const currentSum = pmf.dist.reduce((sum, probability) => sum + probability, 0);
+    const roundoffTolerance = MASS_CORRECTION_REL_TOLERANCE
+        * Math.max(expectedMass, Number.MIN_VALUE);
+    if (!didPrune && currentSum > 0 && Math.abs(currentSum - expectedMass) <= roundoffTolerance) {
+        const correction = expectedMass / currentSum;
+        for (let i = 0; i < pmf.dist.length; i++) {
+            pmf.dist[i] *= correction;
+        }
+    } else if (applyBucketEpsilon) {
+        pmf.discardedMass += Math.max(0, expectedMass - computedMass);
+    }
 
-	const roundoffTolerance = MACHINE_EPSILON * Math.max(expectedMass, Number.MIN_VALUE);
-	if (currentSum > 0 && Math.abs(currentSum - expectedMass) <= roundoffTolerance) {
-		for (let i = 0; i <= maxPossibleSpan; i++) {
-			finalDist[i] *= expectedMass / currentSum;
-		}
-	}
-
-    return { dist: finalDist, offset: globalMinOffset };
+    return { ...pmf, offset: globalMinOffset };
 }
 
 // Helper Subroutine
@@ -356,7 +491,10 @@ function evaluateAttackProbabilities(attackStr, targetAC, critThreshold = 20) {
     assertDicePoolSize(distPoolForFFT.length, "命中公式");
 
     // 執行傅立葉高效摺積 (此時 attackDist 僅包含「純常規命中 D20」與輔助骰的複合可能)
-    const { dist: attackDist, offset: attackOffset } = convolveMultipleFFT(distPoolForFFT);
+    const { dist: attackDist, offset: attackOffset } = convolveMultipleFFT(
+        distPoolForFFT,
+        { applyBucketEpsilon: false }
+    );
 
     // 4. 在實質絕對座標補償下，精確累加通過 AC 檢定的純命中機率
     let pHit = 0;
@@ -732,44 +870,54 @@ function printDamageDistribution(summary) {
     }
 
     const dist = summary.distribution;
+    const support = summary.distributionSupport
+        || Uint8Array.from(dist, probability => probability > 0 ? 1 : 0);
     const tableData = [];
     const copyableArray = []; // 專門收集供測試腳本一鍵複製比對的乾淨 JSON 結構
 
     // 顯示精度防線：低於 5e-9 的實質機率值在 .toFixed(6) 下會變成 0.000000%
     const DISPLAY_THRESHOLD = 5e-9;
 
-    let isInTailMode = false;
     let tailStartDamage = null;
     let tailEndDamage = null;
     let tailProbabilitySum = 0;
+    let tailSupportOnlyCount = 0;
+
+    const flushTail = () => {
+        if (tailStartDamage === null) return;
+        const label = `${tailStartDamage}~${tailEndDamage}`;
+        const pct = (tailProbabilitySum * 100).toFixed(6);
+        const note = tailSupportOnlyCount > 0
+            ? "應用層無窮小／長尾聚合"
+            : "長尾聚合";
+
+        tableData.push({ "傷害 / 區間": `${label} 點傷害`, "機率百分比": `${pct}%`, "備註": note });
+        copyableArray.push({ damage: label, percentage: `${pct}%`, note });
+        tailStartDamage = null;
+        tailEndDamage = null;
+        tailProbabilitySum = 0;
+        tailSupportOnlyCount = 0;
+    };
 
     console.log(`\n📊 傷害機率質量分佈 (PMF) 表格 ── 測試案例: ${summary.caseName}`);
 
     for (let d = 0; d < dist.length; d++) {
         const prob = dist[d];
         
-        // 跳過完全沒有機率的絕對零點 (全域防禦常數)
-        if (prob <= BUCKET_EPSILON) continue;
+        if (!support[d]) {
+            flushTail();
+            continue;
+        }
 
         if (prob < DISPLAY_THRESHOLD) {
-            if (!isInTailMode) {
-                isInTailMode = true;
+            if (tailStartDamage === null) {
                 tailStartDamage = d;
             }
             tailEndDamage = d;
             tailProbabilitySum += prob;
+            if (prob === 0) tailSupportOnlyCount++;
         } else {
-            // 如果從長尾模式切回常規模式，先結算並推入先前的長尾區間
-            if (isInTailMode && tailProbabilitySum > 0) {
-                const label = `${tailStartDamage}~${tailEndDamage}`;
-                const pct = (tailProbabilitySum * 100).toFixed(6);
-                
-                tableData.push({ "傷害 / 區間": `${label} 點傷害`, "機率百分比": `${pct}%`, "備註": "長尾聚合" });
-                copyableArray.push({ damage: label, percentage: `${pct}%`, note: "長尾聚合" });
-                
-                isInTailMode = false;
-                tailProbabilitySum = 0;
-            }
+            flushTail();
 
             // 常規顯性機率點推入資料結構
             const pct = (prob * 100).toFixed(6);
@@ -778,14 +926,7 @@ function printDamageDistribution(summary) {
         }
     }
 
-    // 遍歷收尾：結算最後殘留的極端暴擊長尾
-    if (isInTailMode && tailProbabilitySum > 0) {
-        const label = `${tailStartDamage}~${tailEndDamage}`;
-        const pct = (tailProbabilitySum * 100).toFixed(6);
-        
-        tableData.push({ "傷害 / 區間": `${label} 點傷害`, "機率百分比": `${pct}%`, "備註": "極端暴擊尾" });
-        copyableArray.push({ damage: label, percentage: `${pct}%`, note: "極端暴擊尾" });
-    }
+    flushTail();
 
     // 軌道一：印出由瀏覽器/Node.js 自動分配最優欄寬的完美表格邊框
     console.table(tableData);
@@ -796,74 +937,107 @@ function printDamageDistribution(summary) {
 }
 
 
-function scaleDistribution(dist, weight) {
-    const scaledDist = new Float64Array(dist.length);
-    for (let i = 0; i < dist.length; i++) scaledDist[i] = dist[i] * weight;
-    return scaledDist;
+function scaleDistribution(pmf, weight) {
+    const scaledDist = new Float64Array(pmf.dist.length);
+    const support = weight > 0
+        ? new Uint8Array(pmf.support)
+        : new Uint8Array(pmf.support.length);
+    for (let i = 0; i < pmf.dist.length; i++) scaledDist[i] = pmf.dist[i] * weight;
+    const scaled = createPmf(scaledDist, support, pmf.discardedMass * weight);
+    prunePmf(scaled);
+    return scaled;
 }
 
 function convolveDamageDistributions(left, right) {
-    if (left.every(value => value === 0) || right.every(value => value === 0)) {
-        return new Float64Array([0]);
-    }
-
     const result = convolveMultipleFFT([
-        { dist: left, isNegative: false },
-        { dist: right, isNegative: false }
+        {
+            dist: left.dist,
+            support: left.support,
+            discardedMass: left.discardedMass,
+            isNegative: false
+        },
+        {
+            dist: right.dist,
+            support: right.support,
+            discardedMass: right.discardedMass,
+            isNegative: false
+        }
     ]);
     const aligned = new Float64Array(result.offset + result.dist.length);
+    const alignedSupport = new Uint8Array(aligned.length);
     for (let i = 0; i < result.dist.length; i++) {
         aligned[i + result.offset] = result.dist[i];
+        alignedSupport[i + result.offset] = result.support[i];
     }
-    return aligned;
+    return createPmf(aligned, alignedSupport, result.discardedMass);
 }
 
 function sumDistributions(distributions) {
-    const length = distributions.reduce((maxLength, dist) => Math.max(maxLength, dist.length), 1);
+    const length = distributions.reduce((maxLength, pmf) => Math.max(maxLength, pmf.dist.length), 1);
     const total = new Float64Array(length);
-    for (const dist of distributions) {
-        for (let i = 0; i < dist.length; i++) total[i] += dist[i];
+    const support = new Uint8Array(length);
+    let discardedMass = 0;
+    for (const pmf of distributions) {
+        discardedMass += pmf.discardedMass;
+        for (let i = 0; i < pmf.dist.length; i++) {
+            total[i] += pmf.dist[i];
+            if (pmf.support[i]) support[i] = 1;
+        }
     }
-    return total;
+    const result = createPmf(total, support, discardedMass);
+    prunePmf(result);
+    return result;
 }
 
 function createAttackHitDistribution(
-    weaponNormalDist,
+    weaponNormalPmf,
     weaponNormalOffset,
-    weaponCritDist,
+    weaponCritPmf,
     weaponCritOffset,
-    prNormalDist,
+    prNormalPmf,
     prNormalOffset,
-    prCritDist,
+    prCritPmf,
     prCritOffset,
     flatMod,
     pHit,
     pCrit,
     includePr
 ) {
-    const normalPrDist = includePr ? prNormalDist : new Float64Array([1]);
+    const identityPmf = createPmf(new Float64Array([1]), new Uint8Array([1]));
+    const normalPrPmf = includePr ? prNormalPmf : identityPmf;
     const normalPrOffset = includePr ? prNormalOffset : 0;
-    const critPrDist = includePr ? prCritDist : new Float64Array([1]);
+    const critPrPmf = includePr ? prCritPmf : identityPmf;
     const critPrOffset = includePr ? prCritOffset : 0;
-    const maxNormalDamage = weaponNormalDist.length - 1 + weaponNormalOffset
-        + normalPrDist.length - 1 + normalPrOffset + flatMod;
-    const maxCritDamage = weaponCritDist.length - 1 + weaponCritOffset
-        + critPrDist.length - 1 + critPrOffset + flatMod;
+    const maxNormalDamage = weaponNormalPmf.dist.length - 1 + weaponNormalOffset
+        + normalPrPmf.dist.length - 1 + normalPrOffset + flatMod;
+    const maxCritDamage = weaponCritPmf.dist.length - 1 + weaponCritOffset
+        + critPrPmf.dist.length - 1 + critPrOffset + flatMod;
     const hitDist = new Float64Array(Math.max(maxNormalDamage, maxCritDamage, 0) + 1);
+    const hitSupport = new Uint8Array(hitDist.length);
+    let discardedMass = pHit * (weaponNormalPmf.discardedMass + normalPrPmf.discardedMass)
+        + pCrit * (weaponCritPmf.discardedMass + critPrPmf.discardedMass);
 
-    for (let weapon = 0; weapon < weaponNormalDist.length; weapon++) {
-        for (let pr = 0; pr < normalPrDist.length; pr++) {
+    for (let weapon = 0; weapon < weaponNormalPmf.dist.length; weapon++) {
+        for (let pr = 0; pr < normalPrPmf.dist.length; pr++) {
             const damage = Math.max(0, weapon + weaponNormalOffset + pr + normalPrOffset + flatMod);
-            hitDist[damage] += weaponNormalDist[weapon] * normalPrDist[pr] * pHit;
+            if (pHit > 0 && weaponNormalPmf.support[weapon] && normalPrPmf.support[pr]) {
+                hitSupport[damage] = 1;
+            }
+            hitDist[damage] += weaponNormalPmf.dist[weapon] * normalPrPmf.dist[pr] * pHit;
         }
     }
-    for (let weapon = 0; weapon < weaponCritDist.length; weapon++) {
-        for (let pr = 0; pr < critPrDist.length; pr++) {
+    for (let weapon = 0; weapon < weaponCritPmf.dist.length; weapon++) {
+        for (let pr = 0; pr < critPrPmf.dist.length; pr++) {
             const damage = Math.max(0, weapon + weaponCritOffset + pr + critPrOffset + flatMod);
-            hitDist[damage] += weaponCritDist[weapon] * critPrDist[pr] * pCrit;
+            if (pCrit > 0 && weaponCritPmf.support[weapon] && critPrPmf.support[pr]) {
+                hitSupport[damage] = 1;
+            }
+            hitDist[damage] += weaponCritPmf.dist[weapon] * critPrPmf.dist[pr] * pCrit;
         }
     }
-    return hitDist;
+    const result = createPmf(hitDist, hitSupport, discardedMass);
+    prunePmf(result);
+    return result;
 }
 
 
@@ -963,7 +1137,8 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
     // ================================================================================
     for (const roundData of roundSequencePool) {
         // 全輪唯一的 PR 資源骰池預摺積
-        let prNormalDist = new Float64Array([1.0]), prCritDist = new Float64Array([1.0]);
+        let prNormalPmf = createPmf(new Float64Array([1.0]), new Uint8Array([1]));
+        let prCritPmf = createPmf(new Float64Array([1.0]), new Uint8Array([1]));
         let prNormalOffset = 0, prCritOffset = 0; 
         
         if (roundData.prDices && roundData.prDices.length > 0) {
@@ -975,14 +1150,14 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
             }
             const prNormalRes = convolveMultipleFFT(prNormalPool);
             const prCritRes = convolveMultipleFFT(prCritPool);
-            prNormalDist = prNormalRes.dist;
+            prNormalPmf = prNormalRes;
             prNormalOffset = prNormalRes.offset;
-            prCritDist = prCritRes.dist;
+            prCritPmf = prCritRes;
             prCritOffset = prCritRes.offset;
         }
 
-        let prAvailableDist = new Float64Array([1.0]);
-        let prConsumedDist = new Float64Array([0]);
+        let prAvailableDist = createPmf(new Float64Array([1.0]), new Uint8Array([1]));
+        let prConsumedDist = createPmf(new Float64Array([0]), new Uint8Array([0]));
 
         for (const attack of roundData.attacks) {
             const weaponNormalPool = [], weaponCritPool = [];
@@ -1007,13 +1182,13 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
             const weaponNormalRes = convolveMultipleFFT(weaponNormalPool);
             const weaponCritRes = convolveMultipleFFT(weaponCritPool);
             const hitWithPr = createAttackHitDistribution(
-                weaponNormalRes.dist,
+                weaponNormalRes,
                 weaponNormalRes.offset,
-                weaponCritRes.dist,
+                weaponCritRes,
                 weaponCritRes.offset,
-                prNormalDist,
+                prNormalPmf,
                 prNormalOffset,
-                prCritDist,
+                prCritPmf,
                 prCritOffset,
                 attack.flatMod,
                 pHit,
@@ -1021,13 +1196,13 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
                 true
             );
             const hitWithoutPr = createAttackHitDistribution(
-                weaponNormalRes.dist,
+                weaponNormalRes,
                 weaponNormalRes.offset,
-                weaponCritRes.dist,
+                weaponCritRes,
                 weaponCritRes.offset,
-                prNormalDist,
+                prNormalPmf,
                 prNormalOffset,
-                prCritDist,
+                prCritPmf,
                 prCritOffset,
                 attack.flatMod,
                 pHit,
@@ -1044,16 +1219,24 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
         }
 
         const roundDistribution = sumDistributions([prAvailableDist, prConsumedDist]);
-        finalRoundCombinedPDFs.push({ dist: roundDistribution, isNegative: false });
+        finalRoundCombinedPDFs.push({
+            dist: roundDistribution.dist,
+            support: roundDistribution.support,
+            discardedMass: roundDistribution.discardedMass,
+            isNegative: false
+        });
     }
 
     // 4. 跨輪總結摺積：接收最終全域原點平移量 finalTotalOffset
-    const { dist: finalTotalDist, offset: finalTotalOffset } = convolveMultipleFFT(finalRoundCombinedPDFs);
+    const finalTotal = convolveMultipleFFT(finalRoundCombinedPDFs);
+    const { dist: finalTotalDist, offset: finalTotalOffset } = finalTotal;
     
     // 同步還原具有絕對座標對齊的完整分佈陣列
     const absoluteDomainDist = new Float64Array(finalTotalDist.length + finalTotalOffset);
+    const absoluteDomainSupport = new Uint8Array(absoluteDomainDist.length);
     for (let d = 0; d < finalTotalDist.length; d++) {
         absoluteDomainDist[d + finalTotalOffset] = finalTotalDist[d];
+        absoluteDomainSupport[d + finalTotalOffset] = finalTotal.support[d];
     }
 
     // 5. 掃描實質絕對 PMF 的 CDF 提取精準的統計四分位數
@@ -1074,6 +1257,8 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
     return { 
         caseName, q1, q2, q3, 
         distribution: absoluteDomainDist, 
+        distributionSupport: absoluteDomainSupport,
+        discardedMass: finalTotal.discardedMass,
         details: { 
             attackStr, targetAC, critThreshold, critMultiplier, rawDamageStr, pHit, pCrit, pMiss,
             totalMaxPossibleDmg: analyticalMaxTotalDmg 

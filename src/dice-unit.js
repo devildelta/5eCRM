@@ -2,6 +2,8 @@
  * 語法解析器自動化斷言檢驗群組
  * @name testParser
  */
+const UNIT_TEST_NUMERIC_TOLERANCE = 1e-15;
+
 function testParser() {
     console.log("🧪 [啟動測試群組] -> testParser: 多層嵌套語法與 PR 抽離解析檢驗...");
     try {
@@ -142,9 +144,9 @@ function testParserStrictValidation() {
     );
     const toHitProbabilities = evaluateAttackProbabilities("D20 - 1D6 + 4", 10);
     assert(
-        Math.abs(toHitProbabilities.pHit - 0.525) < MACHINE_EPSILON
-            && Math.abs(toHitProbabilities.pCrit - 0.05) < MACHINE_EPSILON
-            && Math.abs(toHitProbabilities.pMiss - 0.425) < MACHINE_EPSILON,
+        Math.abs(toHitProbabilities.pHit - 0.525) < UNIT_TEST_NUMERIC_TOLERANCE
+            && Math.abs(toHitProbabilities.pCrit - 0.05) < UNIT_TEST_NUMERIC_TOLERANCE
+            && Math.abs(toHitProbabilities.pMiss - 0.425) < UNIT_TEST_NUMERIC_TOLERANCE,
         "AC 10 時 D20 - 1D6 + 4 命中率應為 52.5%、爆擊率 5%、未命中率 42.5%"
     );
 
@@ -191,8 +193,14 @@ function testDicePoolLimits() {
         )
     );
     assert(
-        maximumPool.dist.length === MAX_DICE_POOL * 3 + 1,
-        "最大 600 骰池必須可完成摺積"
+        maximumPool.dist.length === MAX_DICE_POOL * 3 + 1
+            && maximumPool.offset === MAX_DICE_POOL
+            && maximumPool.support[0] === 1
+            && maximumPool.support[maximumPool.support.length - 1] === 1
+            && maximumPool.dist[0] === 0
+            && maximumPool.dist[maximumPool.dist.length - 1] === 0
+            && maximumPool.dist.every(Number.isFinite),
+        "最大 600 骰 FFT 池須保留有限數值及兩端支撐，即使端點質量已截尾"
     );
     assertThrows(
         () => convolveMultipleFFT(
@@ -237,7 +245,13 @@ function testDicePoolLimits() {
     );
     assert(
         maximumDamage.details.totalMaxPossibleDmg === 2400
-            && maximumDamage.distribution.length === 2401,
+            && maximumDamage.distribution.length === 2401
+            && maximumDamage.distributionSupport[299] === 0
+            && maximumDamage.distributionSupport[300] === 1
+            && maximumDamage.distribution[300] === 0
+            && maximumDamage.distributionSupport[2400] === 1
+            && maximumDamage.distribution[2400] === 0
+            && maximumDamage.discardedMass > 0,
         "300 顆基礎傷害骰及 600 顆爆擊骰必須完成完整計算"
     );
 
@@ -270,8 +284,9 @@ function testPipelineCasePRStateDP() {
         "兩擊輪次只可套用一次 PR；傷害不得超過 24"
     );
     assert(
-        Math.abs(totalMass - 1) < MACHINE_EPSILON,
-        "PR 狀態轉移後的總機率質量必須守恆"
+        totalMass <= 1
+            && 1 - totalMass <= threeStrikeCase.discardedMass + UNIT_TEST_NUMERIC_TOLERANCE,
+        "PR 狀態轉移的截尾質量必須由省略質量上界涵蓋"
     );
 
     const delayedPrCase = calculate(
@@ -285,7 +300,7 @@ function testPipelineCasePRStateDP() {
         .slice(1, 100)
         .reduce((sum, probability) => sum + probability, 0);
     assert(
-        Math.abs(delayedPrMass - 0.0475) < MACHINE_EPSILON,
+        Math.abs(delayedPrMass - 0.0475) < UNIT_TEST_NUMERIC_TOLERANCE,
         "首擊未命中而次擊命中時，PR 應於次擊使用一次（機率 0.05 × 0.95）"
     );
 
@@ -298,7 +313,7 @@ function testPipelineCaseMaximumDamageCap() {
     };
     const highestSupportedDamage = distribution => {
         for (let damage = distribution.length - 1; damage >= 0; damage--) {
-            if (distribution[damage] > BUCKET_EPSILON) return damage;
+            if (distribution[damage] > 0) return damage;
         }
         return 0;
     };
@@ -312,7 +327,7 @@ function testPipelineCaseMaximumDamageCap() {
     );
     assert(
         clippedNegativeAttack.details.totalMaxPossibleDmg === 8
-            && highestSupportedDamage(clippedNegativeAttack.distribution) === 8,
+            && highestSupportedDamage(clippedNegativeAttack.distributionSupport) === 8,
         "負傷害攻擊須逐擊歸零，不可抵銷另一擊；理論上限及 PMF 上限應同為 8"
     );
 
@@ -339,7 +354,7 @@ function testPipelineCaseMaximumDamageCap() {
     );
     assert(
         onePrForRound.details.totalMaxPossibleDmg === 24
-            && highestSupportedDamage(onePrForRound.distribution) === 24,
+            && highestSupportedDamage(onePrForRound.distributionSupport) === 24,
         "每輪最大傷害只能將一次 PR 加至一擊，且理論上限須等於 PMF 上限"
     );
 
@@ -372,9 +387,9 @@ function testMultipleD20Normalization() {
         );
         const probabilities = evaluateAttackProbabilities(formula, 15);
         assert(
-            Math.abs(probabilities.pHit - 0.5) < MACHINE_EPSILON
-                && Math.abs(probabilities.pCrit - 0.05) < MACHINE_EPSILON
-                && Math.abs(probabilities.pMiss - 0.45) < MACHINE_EPSILON,
+            Math.abs(probabilities.pHit - 0.5) < UNIT_TEST_NUMERIC_TOLERANCE
+                && Math.abs(probabilities.pCrit - 0.05) < UNIT_TEST_NUMERIC_TOLERANCE
+                && Math.abs(probabilities.pMiss - 0.45) < UNIT_TEST_NUMERIC_TOLERANCE,
             `${formula} 的實際命中機率亦必須與常規 D20 相同`
         );
     }
@@ -398,29 +413,51 @@ function testConvolutionTailPreservation() {
         if (!condition) throw new Error(`[失敗] ${message}`);
     };
     const d4 = PREGENERATED_DICE_NORMAL.D4;
-    const smallTail = convolveMultipleFFT(
+    const thirtyD4 = convolveMultipleFFT(
         Array.from({ length: 30 }, () => ({ dist: d4, isNegative: false }))
     );
-    const expectedExtremeTail = Math.pow(0.25, 30);
-    let smallMass = 0;
-    for (const probability of smallTail.dist) smallMass += probability;
+    const thirtyOneD4 = convolveMultipleFFT([
+        {
+            dist: thirtyD4.dist,
+            support: thirtyD4.support,
+            discardedMass: thirtyD4.discardedMass,
+            offset: thirtyD4.offset,
+            isNegative: false
+        },
+        { dist: d4, isNegative: false }
+    ]);
+    const supportAt = (pmf, damage) => {
+        const index = damage - pmf.offset;
+        return index >= 0 && index < pmf.support.length ? pmf.support[index] : 0;
+    };
     assert(
-        smallTail.offset === 30
-            && Math.abs(smallTail.dist[smallTail.dist.length - 1] - expectedExtremeTail)
-                <= expectedExtremeTail * 1e-12,
-        "每顆 D4 全擲出最高點的真實長尾機率不可因 epsilon 門檻而被剪除"
+        thirtyD4.offset === 30
+            && thirtyD4.dist[0] === 0
+            && thirtyD4.dist[thirtyD4.dist.length - 1] === 0
+            && supportAt(thirtyD4, 29) === 0
+            && supportAt(thirtyD4, 30) === 1
+            && supportAt(thirtyD4, 120) === 1,
+        "30D4 的 29 點以下須無支撐，最低及最高桶則以應用層無窮小保留可能性"
     );
     assert(
-        Math.abs(smallMass - 1) < 1e-14,
-        "小型直接摺積必須在不重分配長尾機率下保持總質量"
+        thirtyD4.discardedMass > 0
+            && thirtyD4.dist.reduce((sum, probability) => sum + probability, 0) < 1,
+        "低於門檻的真實質量須被記錄並從後續數值摺積中移除"
+    );
+    assert(
+        thirtyOneD4.offset === 31
+            && thirtyOneD4.dist[0] === 0
+            && thirtyOneD4.dist[thirtyOneD4.dist.length - 1] === 0
+            && thirtyOneD4.support[0] === 1
+            && thirtyOneD4.support[thirtyOneD4.support.length - 1] === 1,
+        "下一次摺積須沿用支撐狀態，保留 31D4 的兩個邊界可能值"
     );
 
-    const diceCount = 300;
-    const fftResult = convolveMultipleFFT(
-        Array.from({ length: diceCount }, () => ({ dist: d4, isNegative: false }))
+    const fftFirstHalf = convolveMultipleFFT(
+        Array.from({ length: 300 }, () => ({ dist: d4, isNegative: false }))
     );
     let reference = new Float64Array([1]);
-    for (let die = 0; die < diceCount; die++) {
+    for (let die = 0; die < 300; die++) {
         const next = new Float64Array(reference.length + 3);
         for (let total = 0; total < reference.length; total++) {
             for (let face = 1; face <= 4; face++) {
@@ -429,22 +466,115 @@ function testConvolutionTailPreservation() {
         }
         reference = next;
     }
-
-    let fftMass = 0;
     let maximumBucketError = 0;
-    for (let i = 0; i < fftResult.dist.length; i++) {
-        fftMass += fftResult.dist[i];
-        maximumBucketError = Math.max(maximumBucketError, Math.abs(fftResult.dist[i] - reference[i]));
+    for (let i = 0; i < fftFirstHalf.dist.length; i++) {
+        maximumBucketError = Math.max(
+            maximumBucketError,
+            Math.abs(fftFirstHalf.dist[i] - reference[i])
+        );
     }
-    const fftMean = fftResult.dist.reduce(
-        (mean, probability, index) => mean + (index + fftResult.offset) * probability,
+    const fftMean = fftFirstHalf.dist.reduce(
+        (mean, probability, index) => mean + (index + fftFirstHalf.offset) * probability,
         0
     );
     assert(
-        Math.abs(fftMass - 1) < 1e-10
-            && maximumBucketError < 1e-10
-            && Math.abs(fftMean - diceCount * 2.5) < 1e-8,
-        "FFT 摺積須在不把截斷長尾按比例灌回各桶的前提下，符合直接摺積基準及理論平均值"
+        maximumBucketError < 1e-10
+            && Math.abs(fftMean - 300 * 2.5) < 1e-8,
+        "FFT 中心區分佈仍須符合直接摺積基準及理論平均值"
+    );
+
+    const fftSecondHalf = convolveMultipleFFT([
+        {
+            dist: fftFirstHalf.dist,
+            support: fftFirstHalf.support,
+            discardedMass: fftFirstHalf.discardedMass,
+            offset: fftFirstHalf.offset,
+            isNegative: false
+        },
+        ...Array.from({ length: 300 }, () => ({ dist: d4, isNegative: false }))
+    ]);
+    const fftRetainedMass = fftSecondHalf.dist.reduce((sum, probability) => sum + probability, 0);
+    assert(
+        fftFirstHalf.dist[0] === 0
+            && fftFirstHalf.dist[fftFirstHalf.dist.length - 1] === 0
+            && fftFirstHalf.support[0] === 1
+            && fftFirstHalf.support[fftFirstHalf.support.length - 1] === 1
+            && fftSecondHalf.offset === 600
+            && fftSecondHalf.dist[0] === 0
+            && fftSecondHalf.dist[fftSecondHalf.dist.length - 1] === 0
+            && fftSecondHalf.support[0] === 1
+            && fftSecondHalf.support[fftSecondHalf.support.length - 1] === 1,
+        "長 FFT 的後續摺積須保留 300D4 到 600D4 的極端邊界支撐"
+    );
+    assert(
+        fftRetainedMass < 1
+            && fftSecondHalf.discardedMass > 0
+            && fftSecondHalf.dist.every(Number.isFinite)
+            && fftSecondHalf.dist.every(probability => probability >= 0)
+            && 1 - fftRetainedMass
+                <= fftSecondHalf.discardedMass + UNIT_TEST_NUMERIC_TOLERANCE,
+        "FFT 不得產生非有限／負質量或重新分配截尾質量，且須記錄省略質量"
+    );
+
+    const exactThreshold = convolveMultipleFFT([{
+        dist: new Float64Array([1 - BUCKET_EPSILON, BUCKET_EPSILON]),
+        isNegative: false
+    }]);
+    const belowThreshold = convolveMultipleFFT([{
+        dist: new Float64Array([1 - BUCKET_EPSILON / 2, BUCKET_EPSILON / 2]),
+        isNegative: false
+    }]);
+    assert(
+        exactThreshold.dist[1] === BUCKET_EPSILON
+            && exactThreshold.support[1] === 1
+            && belowThreshold.dist[1] === 0
+            && belowThreshold.support[1] === 1
+            && belowThreshold.discardedMass === BUCKET_EPSILON / 2,
+        "epsilon 相等值須保留數值，低於 epsilon 的值則只保留支撐並計入截尾質量"
+    );
+
+    const sparseSupport = convolveMultipleFFT([
+        {
+            dist: new Float64Array([0.5, 0, 0.5]),
+            support: new Uint8Array([1, 0, 1]),
+            isNegative: false
+        },
+        {
+            dist: new Float64Array([0.5, 0, 0.5]),
+            support: new Uint8Array([1, 0, 1]),
+            isNegative: false
+        }
+    ]);
+    assert(
+        sparseSupport.support[0] === 1
+            && sparseSupport.support[1] === 0
+            && sparseSupport.support[2] === 1
+            && sparseSupport.support[3] === 0
+            && sparseSupport.support[4] === 1,
+        "布林支撐摺積須保留內部不可能桶，不能只以最小／最大值填滿整段"
+    );
+
+    let printedRows = [];
+    const originalConsoleTable = console.table;
+    const originalConsoleLog = console.log;
+    try {
+        console.table = rows => { printedRows = rows; };
+        console.log = () => {};
+        printDamageDistribution({
+            caseName: "support-only printer",
+            distribution: new Float64Array([0, 0, 0]),
+            distributionSupport: new Uint8Array([1, 0, 1])
+        });
+    } finally {
+        console.table = originalConsoleTable;
+        console.log = originalConsoleLog;
+    }
+    assert(
+        printedRows.length === 2
+            && printedRows[0]["傷害 / 區間"] === "0~0 點傷害"
+            && printedRows[1]["傷害 / 區間"] === "2~2 點傷害"
+            && printedRows.every(row => row["備註"] === "應用層無窮小／長尾聚合"),
+        "列印器須展示支撐存在的零數值桶，並略過內部不可能桶"
     );
 
     console.log("✅ testConvolutionTailPreservation 通過：長尾保留及 FFT 與直接摺積基準一致。");
@@ -482,15 +612,15 @@ function testPipelineCaseSoulKnife() {
         const expectedMiss = 0.3025;
 
         console.assert(
-            Math.abs(d.pHit - expectedHit) < MACHINE_EPSILON, 
+            Math.abs(d.pHit - expectedHit) < UNIT_TEST_NUMERIC_TOLERANCE,
             `[失敗] 狀態機普通命中率錯誤: 預期 ${expectedHit}, 實測值 ${d.pHit}`
         );
         console.assert(
-            Math.abs(d.pCrit - expectedCrit) < MACHINE_EPSILON, 
+            Math.abs(d.pCrit - expectedCrit) < UNIT_TEST_NUMERIC_TOLERANCE,
             `[失敗] 狀態機爆擊率錯誤: 預期 ${expectedCrit}, 實測值 ${d.pCrit}`
         );
         console.assert(
-            Math.abs(d.pMiss - expectedMiss) < MACHINE_EPSILON, 
+            Math.abs(d.pMiss - expectedMiss) < UNIT_TEST_NUMERIC_TOLERANCE,
             `[失敗] 狀態機未命中率錯誤: 預期 ${expectedMiss}, 實測值 ${d.pMiss}`
         );
         console.log("  ├─ ✅ 檢查點 A 通過: 優勢三態命中率(普通60%/爆擊9.75%/未命中30.25%) ── 數據對齊完全無偏誤。");
@@ -559,7 +689,7 @@ function testPipelineCaseAC25() {
         
         // 斷言 A: D20A0 必須被正確識別並降級為常規 NORMAL 模式，爆擊率與大失敗率皆必須精確為 5% (1/20)
         console.assert(
-            Math.abs(d.pCrit - 0.05) < MACHINE_EPSILON, 
+            Math.abs(d.pCrit - 0.05) < UNIT_TEST_NUMERIC_TOLERANCE,
             `[失敗] 檢查點 A 錯誤: 爆擊率不符合常規 D20 期望 (預期 0.05, 實測值 ${d.pCrit})`
         );
         console.log("  ├─ ✅ 檢查點 A 通過: D20A0 語法精確降級為常規 D20 分佈 ── 數據對齊完全無偏誤。");
@@ -567,14 +697,14 @@ function testPipelineCaseAC25() {
         // 斷言 B: 在 AC 25 的防線下，即使 D20 投出常規上限 19 且 1D4 投出 4 點，總和 19+4+1=24 依舊無法命中。
         // 因此純普通命中率 pHit 理論上必須精確等於 0.0
         console.assert(
-            Math.abs(d.pHit - 0.0) < MACHINE_EPSILON, 
+            Math.abs(d.pHit - 0.0) < UNIT_TEST_NUMERIC_TOLERANCE,
             `[失敗] 檢查點 B 錯誤: 普通命中率應為 0 (預期 0.0, 實測值 ${d.pHit})`
         );
         console.log("  ├─ ✅ 檢查點 B 通過: AC 25 極端防禦下純普通命中率精確歸零 ── 數據對齊完全無偏誤。");
 
         // 斷言 C: 根據機率質量守恆，未命中率 pMiss 必須精確收網在 1.0 - 0.0 - 0.05 = 0.95 (95%)
         console.assert(
-            Math.abs(d.pMiss - 0.95) < MACHINE_EPSILON, 
+            Math.abs(d.pMiss - 0.95) < UNIT_TEST_NUMERIC_TOLERANCE,
             `[失敗] 檢查點 C 錯誤: 未命中率未完整收網 (預期 0.95, 實測值 ${d.pMiss})`
         );
         console.log("  ├─ ✅ 檢查點 C 通過: 核心大失敗與未命中質量完全流向未命中軌道 ── 數據對齊完全無偏誤。");
@@ -622,7 +752,7 @@ function testPipelineCaseAC25() {
             totalMassSum += summary.distribution[i];
         }
         console.assert(
-            Math.abs(totalMassSum - 1.0) < MACHINE_EPSILON,
+            Math.abs(totalMassSum - 1.0) < UNIT_TEST_NUMERIC_TOLERANCE,
             `[失敗] 檢查點 G 錯誤: 機率質量未守恆 (預期 1.0, 實測值 ${totalMassSum})`
         );
         console.log("  ├─ ✅ 檢查點 G 通過: 最終絕對定義域 PMF 全陣列總機率質量守恆 ── 數據對齊完全無偏誤。");
@@ -662,7 +792,7 @@ function testPipelineCaseOffsetLoss() {
 
         // 斷言 A: 5% 大失敗強制未命中，故單擊 pMiss 恆為 0.05
         console.assert(
-            Math.abs(d.pMiss - 0.05) < MACHINE_EPSILON,
+            Math.abs(d.pMiss - 0.05) < UNIT_TEST_NUMERIC_TOLERANCE,
             `[失敗] 狀態機未命中率未對齊 5e 規則: 預期 0.05, 實測值 ${d.pMiss}`
         );
         console.log("  ├─ ✅ 檢查點 A 通過: 核心大失敗強制未命中率狀態分離 ── 數據對齊完全無偏誤。");
@@ -747,7 +877,7 @@ function testPipelineCaseDamageReduction() {
         const actualZeroBucketMass = summary.distribution[0];
 
         console.assert(
-            Math.abs(actualZeroBucketMass - expectedZeroBucketMass) < MACHINE_EPSILON,
+            Math.abs(actualZeroBucketMass - expectedZeroBucketMass) < UNIT_TEST_NUMERIC_TOLERANCE,
             `[失敗] 檢查點 B 錯誤: 5e 零傷保底時域沉澱率未與真理交匯 (預期 ${expectedZeroBucketMass}, 實測值 ${actualZeroBucketMass})`
         );
         console.log("  ├─ ✅ 檢查點 B 通過: 減傷幅度溢出時 5e 零傷保底時域沈澱防線 ── 數據對齊完全無偏誤。");
@@ -791,12 +921,12 @@ function testPipelineCaseSubclassModifiers() {
 
         // 斷言 A-1: 優勢下 19+ 爆擊率必須精確等於 19.0%
         console.assert(
-            Math.abs(dA.pCrit - 0.1900) < MACHINE_EPSILON,
+            Math.abs(dA.pCrit - 0.1900) < UNIT_TEST_NUMERIC_TOLERANCE,
             `[失敗] 檢查點 A-1 錯誤: 冠軍 19 門檻優勢爆擊率未對齊 (預期 0.19, 實測值 ${dA.pCrit})`
         );
         // 斷言 A-2: 普通命中率必須精確等於 60.75%
         console.assert(
-            Math.abs(dA.pHit - 0.6075) < MACHINE_EPSILON,
+            Math.abs(dA.pHit - 0.6075) < UNIT_TEST_NUMERIC_TOLERANCE,
             `[失敗] 檢查點 A-2 錯誤: 冠軍 19 門檻優勢普通命中率未對齊 (預期 0.6075, 實測值 ${dA.pHit})`
         );
         console.log("  ├─ ✅ 檢查點 A 通過: 戰士冠軍 19 門檻優勢三態機率流 ── 數據對齊完全無偏誤。");
@@ -809,12 +939,12 @@ function testPipelineCaseSubclassModifiers() {
 
         // 斷言 B-1: 優勢下 18+ 爆擊率必須精確等於 27.75%
         console.assert(
-            Math.abs(dB.pCrit - 0.2775) < MACHINE_EPSILON,
+            Math.abs(dB.pCrit - 0.2775) < UNIT_TEST_NUMERIC_TOLERANCE,
             `[失敗] 檢查點 B-1 錯誤: 冠軍 18 門檻優勢爆擊率未對齊 (預期 0.2775, 實測值 ${dB.pCrit})`
         );
         // 斷言 B-2: 普通命中率必須精確等於 52.00%
         console.assert(
-            Math.abs(dB.pHit - 0.5200) < MACHINE_EPSILON,
+            Math.abs(dB.pHit - 0.5200) < UNIT_TEST_NUMERIC_TOLERANCE,
             `[失敗] 檢查點 B-2 錯誤: 冠軍 18 門檻優勢普通命中率未對齊 (預期 0.52, 實測值 ${dB.pHit})`
         );
         console.log("  ├─ ✅ 檢查點 B 通過: 戰士冠軍 18 門檻優勢三態機率流 ── 數據對齊完全無偏誤。");

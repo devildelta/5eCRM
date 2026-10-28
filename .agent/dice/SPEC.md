@@ -20,9 +20,9 @@
 *   **PR 資源模型**：目前採用每輪一個共享 PR 池、由該輪第一個命中消耗的計算假設。多個獨立資源池、不同觸發條件或只適用於特定打擊的規則尚未定義；擴充前須先另行檢視規則語義及輸入表示法。
 
 #### 0. 全域離散統計防禦常數 (Top-level Defense Constants)
-*   **`BUCKET_EPSILON = 1e-12`**：巨觀的時域剪枝與噪點抹平防線。用於切除傅立葉變換在時域邊界產生的微小機率漣漪，防止其干擾邊界判定與位移追蹤。
-*   **`MACHINE_EPSILON = 1e-15`**：微觀的硬體精度防線。對齊 IEEE 754 雙精度浮點數在硬體暫存器上的精度極限，用於校正多層次摺積後的二進位制精度損耗。
-*   **`DISPLAY_THRESHOLD = 5e-9`**：除錯印表機專用顯示極限。低於此實質機率值的長尾桶位，在 `.toFixed(6)` 百分比化時會被四捨五入為 `0.000000%`，故在此防線觸發狀態機自動長尾聚合。
+*   **`BUCKET_EPSILON = 1e-12`**：應用層無窮小的絕對機率門檻。支撐存在而機率值嚴格小於此門檻的桶，會將數值質量設為 0、保留可能性支撐標記，並停止參與後續數值摺積；支撐標記須獨立於數值 PMF 傳遞。等於門檻的桶仍保留數值。這是截尾近似語義，不是 IEEE 754 精度常數，也不表示數學機率為零。
+*   **`MASS_CORRECTION_REL_TOLERANCE = 1e-15`**：專案自訂的 FFT 總質量相對捨入漂移校正容差，並非 IEEE 754 machine epsilon。若本次摺積已因 `BUCKET_EPSILON` 截尾，不得透過整體正規化把被省略質量灌回保留桶。
+*   **`DISPLAY_THRESHOLD = 5e-9`**：除錯印表機專用顯示門檻。低於此門檻的有支撐桶聚合為長尾；其中數值為零但支撐仍存在的桶，標示為「應用層無窮小」，不可當作不可能值略過。
 
 #### 1. 離散機率質量函數快取 (Probability Mass Function Registry)
 *   **`PREGENERATED_DICE_NORMAL`**：
@@ -41,12 +41,13 @@
     *   **輸入**：長度為 2N 的 `Float64Array`（實部與虛部交錯），`inverse` 佈林值旗標。
     *   **處理流程**：執行位元反轉置換（Bit-reversal）與對數層級（$\log_2 N$）的蝴蝶定理頻域疊加，複數旋轉因子角度為 ± 2π / len。
 *   **`convolveMultipleFFT(pool)`**：
-    *   **輸入**：物件陣列 `pool`，每個物件含 `{ dist: Float64Array, isNegative: 佈林值 }`。
-    *   **核心斷言與假設**：輸入的基本骰皆為有限、非負的離散 PMF；負向分佈透過反轉並記錄 offset 轉為非負索引表示。
+    *   **輸入**：物件陣列 `pool`，每個物件含 `{ dist: Float64Array, support?: Uint8Array, discardedMass?: number, offset?: 整數, isNegative: 佈林值 }`。若未提供 `support`，由正機率桶推導；`offset` 表示 `dist[0]` 的絕對座標。
+    *   **輸出**：`{ dist, support, discardedMass, offset }`。`support[i]` 表示該桶理論上仍可能出現；因此 `support[i] === 1 && dist[i] === 0` 代表應用層無窮小，而非數學上的零機率。`discardedMass` 累積已截尾質量及計算質量缺口的保守記錄，並非 FFT 全域誤差的形式化證明。
+    *   **核心斷言與假設**：輸入的基本骰皆為有限、非負的離散 PMF；負向分佈透過反轉並記錄 offset 轉為非負索引表示。支撐範圍以整數區間集合傳播，支撐摺積獨立於數值摺積執行，以保留內部不可能桶。
     *   **時域直通車優化 (Pass-through Optimization)**：
-        *   若 `pool.length === 1` 且其 `isNegative` 為假，則**直接深拷貝克隆該分佈並直通返回**，100% 阻斷傅立葉正逆向變換對空分佈或單一分佈引發的微觀定義域污染。
+        *   若 `pool.length === 1` 且其 `isNegative` 為假，則直接複製數值 PMF 及支撐遮罩，不執行 FFT；仍依呼叫選項套用應用層 epsilon 截尾。
     *   **位移整數限制守恆 (Integer Offset Constraint)**：所有偏移量在數學計算與傳遞過程必須保證完全為整數（Integer），直接應用於 `0-based` 陣列索引。
-    *   **處理流程**：只裁去精確為零的前端桶位，保留所有正機率（包括小於 `BUCKET_EPSILON` 的真實長尾）。估算逐次離散摺積工作量；工作量不超過 500,000 時採用直接 PMF 摺積，否則將長度擴展至大於最大可能跨度（`maxPossibleSpan`）的最小 2 的冪次方，以 FFT 計算。FFT 結果只將負值數值噪點截為零，不裁除正值長尾；只有總質量差在 `MACHINE_EPSILON` 相對容差內時才可校正捨入漂移，不可將已截除的真實尾部機率重新分配至其他桶。
+    *   **處理流程**：以支撐標記裁去不可能的前後端桶位，而非以數值大於零推斷支撐。估算逐次離散摺積工作量；工作量不超過 500,000 時採用直接 PMF 摺積，否則將長度擴展至大於最大可能跨度（`maxPossibleSpan`）的最小 2 的冪次方，以 FFT 計算。直接摺積或 FFT 後，所有正機率桶若嚴格小於 `BUCKET_EPSILON`，即將數值設為零、累計其已截尾質量並保留支撐標記；FFT 負值與支撐以外的數值噪點設為零。只有本次沒有桶被截尾，且質量漂移在 `MASS_CORRECTION_REL_TOLERANCE` 範圍內，才可校正浮點捨入漂移；截尾質量不得重新分配到其他桶。支撐仍可能存在但數值摺積不再納入，故結果是明確的 epsilon 截尾近似。
 
 #### 3. 語法解析器規格 (Parsers)
 *   **`parseAttackString(attackStr)`**：拆解 D20 命中模式、輔助骰與命中固定加值 `flatMod`。公式必須完整匹配；輔助骰只支援 D4、D6、D8、D10、D12。多個 D20 條件標記按整體條件正規化，而非視作多次獨立攻擊：若同時包含優勢（`A1`／`A2`）與劣勢（`D1`），依 PHB 優劣勢規則互相抵銷為常規 D20；若只含同向標記，採用最高階（`A2` 高於 `A1`，重複劣勢不疊加）。拒絕不支援階數。
@@ -63,23 +64,24 @@
     *   命中軌道與傷害軌道解構接收的變數名稱（如 `dist`、`offset`）必須進行嚴格的專屬命名隔離（例如 `attackDist`、`weaponNormalOffset`），絕對不允許在外層或閉包生命週期中重疊覆蓋。
 *   **爆擊判定的規則正當性 & 大失敗剪枝**：
     *   爆擊完全、唯一取決於核心 D20 骰子的原生面點數。在計算總成功率 `pValidSuccess` 的遍歷中，若 `i + offset === 1`（代表核心 D20 投出大失敗 Natural 1），依 5e 規則**強制執行時域剪枝（continue 跳過）**，不計入成功率。總成功率扣除 `pCrit` 後即為純普通命中率 `pHit`。
+    *   命中率所用的暫存攻擊骰分佈以 `applyBucketEpsilon: false` 計算，避免把低機率擲骰結果轉成 support-only 後，無法判定它是否達到 AC；傷害 PMF 管線仍使用應用層 epsilon 截尾。
 *   **絕對座標系位移補償機制 (Offset Compensation)**：
     *   由於經由 `convolveMultipleFFT` 摺積返回的傷害 PMF 陣列，其相對索引 `w` 和 `p` 已經是被向左推到 `0` 的相對坐標。
     *   在微觀打擊迴圈遍歷時，**必須顯式同步接收並將實質的位移補償量（`weaponCritOffset` 與 `prCritOffset`）加回實質傷害加總中**：`dmg = (w + weaponCritOffset) + (p + prCritOffset) + attack.flatMod`。否則將導致爆擊高傷波峰向左錯位 6 格（流失至 7~12 點）。
 *   **`calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)`**：
     *   **處理流程**：
         1.  設定爆擊門檻與傷害骰倍率 `critMultiplier`。呼叫命中函數取得 `pHit, pCrit, pMiss`。
-        2.  **純代數解析法 (Analytical Max Damage Counter)**：每次打擊先分別計算普通／爆擊上限，並將該擊上限截斷至最少 0，再加總該輪無 PR 的上限。若該輪有 PR 且至少有一擊，計算每擊加入 PR 後的上限增量，僅將 PR 最大增量計入一次；無打擊時 PR 不產生傷害。這條代數上限必須與最終 PMF 的最高非零桶一致。
+        2.  **純代數解析法 (Analytical Max Damage Counter)**：每次打擊先分別計算普通／爆擊上限，並將該擊上限截斷至最少 0，再加總該輪無 PR 的上限。若該輪有 PR 且至少有一擊，計算每擊加入 PR 後的上限增量，僅將 PR 最大增量計入一次；無打擊時 PR 不產生傷害。這條代數上限必須與最終 PMF 的最高支撐桶一致，即使其數值質量已被 epsilon 截尾。
         3.  遍歷輪次，初始化兩個狀態分佈：`PR_AVAILABLE` 的總傷害 PMF 初始為 `[1]`；`PR_CONSUMED` 初始為零質量。
         4.  依序處理該輪每次打擊，將目前各狀態的傷害 PMF 分支轉移：
             *   `PR_AVAILABLE` 遇未命中時保持可用，傷害為 0；遇普通命中或爆擊時，對應傷害加入 PR 骰（爆擊按倍率），並轉移至 `PR_CONSUMED`。
             *   `PR_CONSUMED` 遇未命中時保持已消耗，傷害為 0；遇普通命中或爆擊時只加入武器傷害，不再加入 PR 骰。
             *   不可將各次打擊各自的邊際傷害 PMF 當作互相獨立的分佈摺積，因 PR 使用事件依賴先前打擊結果。
-        5.  輪次結束時合併 `PR_AVAILABLE` 與 `PR_CONSUMED` 狀態 PMF，所得輪次分佈再與其他獨立輪次摺積；加總 CDF 提取四分位數，並將完整 `finalTotalDist` 作為 `distribution` 欄位傳回。
+        5.  輪次結束時合併 `PR_AVAILABLE` 與 `PR_CONSUMED` 狀態 PMF，所得輪次分佈再與其他獨立輪次摺積；加總保留數值質量的 CDF 提取四分位數。`calculate(...)` 維持 `distribution` 數值陣列，並另回傳 `distributionSupport` 與 `discardedMass`，供呼叫端分辨應用層無窮小和不可能桶。
 
 #### 5. 高階列印與雙軌自動化斷言工具 (Telemetry Tools)
 *   **`printDamageDistribution(summary)`**：
-    *   **長尾自動聚合狀態機 (Tail Aggregation)**：遍歷 `distribution` 陣列，若桶位機率大於 `BUCKET_EPSILON` 但低於顯示極限 `DISPLAY_THRESHOLD = 5e-9`，狀態機自動啟動長尾鎖，將後續所有微小點位相加，並以 `156 ~ 177 點傷害` 的單行區間摘要格式推入資料結構。
+    *   **長尾自動聚合狀態機 (Tail Aggregation)**：按 `distributionSupport` 遍歷可能桶，低於顯示門檻 `DISPLAY_THRESHOLD = 5e-9` 的相鄰桶聚合成區間；數值為零但支撐存在的桶仍須輸出，並標示為應用層無窮小。只有支撐為零的桶才可略過。
     *   **雙軌輸出形式**：
         1.  *軌道一*：呼叫原生高階 `console.table()` 輸出完美對齊、自動計算最優欄寬的三欄位（傷害區間、機率百分比、備註）視覺網格表格。
         2.  *軌道二*：在表格正下方噴出單行序列化 `JSON.stringify(copyableArray)` 純文字字串，允許開發者一鍵複製黏貼進自動化測試腳本中，完成 100% 程式碼級的無噪點回歸斷言檢查。
