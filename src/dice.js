@@ -84,6 +84,94 @@ function convolveSupportMasks(left, right) {
     return support;
 }
 
+function convolveSupportPool(pool, outputLength) {
+    let minimumIndex = 0;
+    let maximumIndex = 0;
+    let hasContiguousSupports = true;
+
+    for (const item of pool) {
+        const ranges = supportRanges(item.support);
+        if (ranges.length !== 1) {
+            hasContiguousSupports = false;
+            break;
+        }
+        minimumIndex += ranges[0][0];
+        maximumIndex += ranges[0][1];
+    }
+
+    if (hasContiguousSupports) {
+        const support = new Uint8Array(outputLength);
+        support.fill(1, minimumIndex, maximumIndex + 1);
+        return support;
+    }
+
+    let support = new Uint8Array([1]);
+    for (const item of pool) {
+        support = convolveSupportMasks(support, item.support);
+    }
+    return support;
+}
+
+function groupIdenticalDistributions(pool) {
+    const groups = [];
+    const groupsByDistribution = new Map();
+    const implicitSupportKey = {};
+
+    for (const item of pool) {
+        let groupsBySupport = groupsByDistribution.get(item.sourceDist);
+        if (!groupsBySupport) {
+            groupsBySupport = new Map();
+            groupsByDistribution.set(item.sourceDist, groupsBySupport);
+        }
+
+        const supportKey = item.sourceSupport || implicitSupportKey;
+        let groupsByDirection = groupsBySupport.get(supportKey);
+        if (!groupsByDirection) {
+            groupsByDirection = new Map();
+            groupsBySupport.set(supportKey, groupsByDirection);
+        }
+
+        const direction = Boolean(item.isNegative);
+        let group = groupsByDirection.get(direction);
+        if (group) {
+            group.count++;
+        } else {
+            group = { dist: item.dist, count: 1 };
+            groupsByDirection.set(direction, group);
+            groups.push(group);
+        }
+    }
+
+    return groups;
+}
+
+function raiseComplexBufferToIntegerPower(buffer, exponent) {
+    for (let index = 0; index < buffer.length; index += 2) {
+        let power = exponent;
+        let factorReal = buffer[index];
+        let factorImaginary = buffer[index + 1];
+        let resultReal = 1;
+        let resultImaginary = 0;
+
+        while (power > 0) {
+            if (power % 2 === 1) {
+                const nextReal = resultReal * factorReal - resultImaginary * factorImaginary;
+                resultImaginary = resultReal * factorImaginary + resultImaginary * factorReal;
+                resultReal = nextReal;
+            }
+            power = Math.floor(power / 2);
+            if (power > 0) {
+                const nextReal = factorReal * factorReal - factorImaginary * factorImaginary;
+                factorImaginary *= 2 * factorReal;
+                factorReal = nextReal;
+            }
+        }
+
+        buffer[index] = resultReal;
+        buffer[index + 1] = resultImaginary;
+    }
+}
+
 function prunePmf(pmf) {
     let newlyDiscardedMass = 0;
     for (let i = 0; i < pmf.dist.length; i++) {
@@ -319,7 +407,13 @@ function convolveMultipleFFT(pool, options = {}) {
                     reversedSupport[index] = itemSupport[s];
                 }
             }
-            standardizedPool.push({ dist: reversedDist, support: reversedSupport });
+            standardizedPool.push({
+                dist: reversedDist,
+                support: reversedSupport,
+                sourceDist: item.dist,
+                sourceSupport: item.support || null,
+                isNegative: true
+            });
         } else {
             let firstValid = -1;
             let lastValid = -1;
@@ -332,7 +426,10 @@ function convolveMultipleFFT(pool, options = {}) {
             if (firstValid < 0) {
                 standardizedPool.push({
                     dist: new Float64Array([0]),
-                    support: new Uint8Array([0])
+                    support: new Uint8Array([0]),
+                    sourceDist: item.dist,
+                    sourceSupport: item.support || null,
+                    isNegative: false
                 });
                 continue;
             }
@@ -345,7 +442,13 @@ function convolveMultipleFFT(pool, options = {}) {
                 croppedDist[i] = item.dist[i + firstValid];
                 croppedSupport[i] = itemSupport[i + firstValid];
             }
-            standardizedPool.push({ dist: croppedDist, support: croppedSupport });
+            standardizedPool.push({
+                dist: croppedDist,
+                support: croppedSupport,
+                sourceDist: item.dist,
+                sourceSupport: item.support || null,
+                isNegative: false
+            });
         }
     }
 
@@ -357,10 +460,7 @@ function convolveMultipleFFT(pool, options = {}) {
         directLength += item.dist.length - 1;
     }
 
-    let outputSupport = new Uint8Array([1]);
-    for (const item of standardizedPool) {
-        outputSupport = convolveSupportMasks(outputSupport, item.support);
-    }
+    let outputSupport = convolveSupportPool(standardizedPool, maxPossibleSpan + 1);
 
     if (expectedMass === 0) {
         const pmf = createPmf(
@@ -394,15 +494,21 @@ function convolveMultipleFFT(pool, options = {}) {
     let fftSize = 1;
     while (fftSize <= maxPossibleSpan) fftSize <<= 1;
 
-    let mainFreqBuffer = new Float64Array(fftSize * 2);
-    mainFreqBuffer[0] = 1.0; 
-    fftInPlace(mainFreqBuffer);
-
-    for (const item of standardizedPool) {
+    let mainFreqBuffer = null;
+    for (const item of groupIdenticalDistributions(standardizedPool)) {
         let tempBuffer = new Float64Array(fftSize * 2);
         for (let i = 0; i < item.dist.length; i++) tempBuffer[2 * i] = item.dist[i];
         
         fftInPlace(tempBuffer);
+
+        if (item.count > 1) {
+            raiseComplexBufferToIntegerPower(tempBuffer, item.count);
+        }
+
+        if (mainFreqBuffer === null) {
+            mainFreqBuffer = tempBuffer;
+            continue;
+        }
 
         for (let i = 0; i < fftSize; i++) {
             const idx = 2 * i;

@@ -483,6 +483,22 @@ function testConvolutionTailPreservation() {
         "FFT 中心區分佈仍須符合直接摺積基準及理論平均值"
     );
 
+    const negativeFft = convolveMultipleFFT(
+        Array.from({ length: 300 }, () => ({ dist: d4, isNegative: true }))
+    );
+    const negativeFftMean = negativeFft.dist.reduce(
+        (mean, probability, index) => mean + (index + negativeFft.offset) * probability,
+        0
+    );
+    assert(
+        negativeFft.offset === -1200
+            && negativeFft.dist.length === 901
+            && negativeFft.support[0] === 1
+            && negativeFft.support[negativeFft.support.length - 1] === 1
+            && Math.abs(negativeFftMean + 300 * 2.5) < 1e-8,
+        "重複負骰的 FFT 頻域冪運算須保留反向分佈及整數位移"
+    );
+
     const fftSecondHalf = convolveMultipleFFT([
         {
             dist: fftFirstHalf.dist,
