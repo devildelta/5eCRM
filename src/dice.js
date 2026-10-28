@@ -3,6 +3,11 @@
 const BUCKET_EPSILON = 1e-12;
 /** @const {number} IEEE 754 雙精度浮點數機器精度極限 (用於硬體級歸一化檢核) */
 const MACHINE_EPSILON = 1e-15;
+const MAX_DICE_POOL = 600;
+const MAX_DAMAGE_DICE_PER_CALCULATION = 300;
+const MAX_EXPANDED_ATTACKS = 300;
+const MAX_EXPANDED_ROUNDS = 300;
+const MAX_PMF_BUCKETS = 100000;
 const { PREGENERATED_DICE_NORMAL } = (function() {
     const diceSizes = [4,6,8,10,12];
     const normalRegistry = {};
@@ -19,6 +24,18 @@ const { PREGENERATED_DICE_NORMAL } = (function() {
     };
 })();
 const SUPPORTED_DICE_SIDES = new Set(Object.keys(PREGENERATED_DICE_NORMAL).map(key => Number(key.slice(1))));
+
+function assertDicePoolSize(count, contextName) {
+    if (!Number.isSafeInteger(count) || count < 0 || count > MAX_DICE_POOL) {
+        throw new Error(`${contextName} 的骰池上限為 ${MAX_DICE_POOL} 顆骰。`);
+    }
+}
+
+function assertExpandedCount(count, maximum, contextName) {
+    if (!Number.isSafeInteger(count) || count < 0 || count > maximum) {
+        throw new Error(`${contextName} 的展開上限為 ${maximum}。`);
+    }
+}
 
 function tokenizeFormula(formulaStr, formulaName, allowPr = false, allowD20Mode = false) {
     if (typeof formulaStr !== "string") {
@@ -56,6 +73,7 @@ function parseDiceTerm(token, formulaName, allowPr = false) {
     if (!Number.isSafeInteger(count)) {
         throw new Error(`${formulaName} 的骰數必須是安全範圍內的整數。`);
     }
+    assertDicePoolSize(count, formulaName);
 
     return {
         sides,
@@ -95,6 +113,7 @@ function parsePositiveRepeatCount(value, contextName) {
     if (!Number.isSafeInteger(count) || count < 1) {
         throw new Error(`${contextName} 重複次數必須是正整數。`);
     }
+    assertExpandedCount(count, MAX_EXPANDED_ROUNDS, contextName);
     return count;
 }
 
@@ -169,6 +188,7 @@ function fftInPlace(buffer, inverse = false) {
     }
 }
 function convolveMultipleFFT(pool) {
+    assertDicePoolSize(pool.length, "FFT 摺積");
     if (pool.length === 0) return { dist: new Float64Array([1.0]), offset: 0 };
 
     // pass through if pool only contains one item -> means no fft is required.
@@ -333,6 +353,7 @@ function evaluateAttackProbabilities(attackStr, targetAC, critThreshold = 20) {
             distPoolForFFT.push({ dist: baseBonusDist, isNegative: isNegativeDice });
         }
     }
+    assertDicePoolSize(distPoolForFFT.length, "命中公式");
 
     // 執行傅立葉高效摺積 (此時 attackDist 僅包含「純常規命中 D20」與輔助骰的複合可能)
     const { dist: attackDist, offset: attackOffset } = convolveMultipleFFT(distPoolForFFT);
@@ -402,6 +423,11 @@ function parseAttackString(attackStr) {
         flatMod += Number(token);
     }
 
+    assertDicePoolSize(
+        1 + bonusDice.reduce((count, dice) => count + Math.abs(dice.count), 0),
+        "命中公式"
+    );
+
     const advantageMode = hasAdvantage && hasDisadvantage
         ? 0
         : hasElvenAccuracy
@@ -439,6 +465,17 @@ function parseSingleFormula(formulaStr) {
         flatMod += Number(token);
     }
 
+    assertDicePoolSize(
+        Array.from(weaponDiceMap.values()).reduce(
+            (count, dice) => count + dice.positive + dice.negative,
+            0
+        ),
+        "傷害公式"
+    );
+    if (!Number.isSafeInteger(flatMod)) {
+        throw new Error("傷害公式的固定加值必須是安全範圍內的整數。");
+    }
+
     const weaponDice = [];
     const negativeDice = [];
 
@@ -463,6 +500,10 @@ function parsePrFormula(prStr) {
         prDiceMap.set(dice.sides, (prDiceMap.get(dice.sides) || 0) + dice.count);
     }
 
+    assertDicePoolSize(
+        Array.from(prDiceMap.values()).reduce((count, diceCount) => count + diceCount, 0),
+        "PR 傷害公式"
+    );
     return Array.from(prDiceMap.entries())
         .filter(([_, c]) => c > 0)
         .map(([sides, count]) => ({ sides: Math.floor(sides), count: Math.floor(count) }));
@@ -494,6 +535,21 @@ function parseAdvancedDamageString(damageStr) {
         const isPr = singleFormula.toUpperCase().includes("PR");
         const parsedAttack = isPr ? null : parseSingleFormula(singleFormula);
         const prDices = isPr ? parsePrFormula(singleFormula) : [];
+        const damageDiceCount = parsedAttack
+            ? parsedAttack.weaponDice.reduce((count, dice) => count + dice.count, 0)
+                + parsedAttack.negativeDice.reduce((count, dice) => count + dice.count, 0)
+            : prDices.reduce((count, dice) => count + dice.count, 0);
+        assertExpandedCount(
+            repeatCount * (parsedAttack ? 1 : 0),
+            MAX_EXPANDED_ATTACKS,
+            "打擊"
+        );
+        assertExpandedCount(repeatCount, MAX_EXPANDED_ROUNDS, "輪次");
+        assertExpandedCount(
+            damageDiceCount * repeatCount,
+            MAX_DAMAGE_DICE_PER_CALCULATION,
+            "傷害骰數"
+        );
         const roundStructure = {
             attacks: parsedAttack ? [{
                 weaponDice: parsedAttack.weaponDice,
@@ -510,6 +566,8 @@ function parseAdvancedDamageString(damageStr) {
     }
 
     const groupStrings = splitTopLevel(cleanStr, ',', "傷害序列");
+    let expandedAttackCount = 0;
+    let expandedDamageDiceCount = 0;
     for (const groupStr of groupStrings) {
         const groupMatch = groupStr.match(/^(?:(\d+)\s*)?\(([^()]*)\)$/);
         if (!groupMatch) throw new Error(`傷害序列格式無效: ${groupStr}`);
@@ -524,6 +582,7 @@ function parseAdvancedDamageString(damageStr) {
         
         const attacks = [];
         const globalPrMap = new Map();
+        let groupDamageDiceCount = 0;
 
         for (const token of subTokens) {
             if (token.toUpperCase().includes("PR")) {
@@ -547,6 +606,21 @@ function parseAdvancedDamageString(damageStr) {
                         flatMod: parsedAttack.flatMod,
                         prDiceMap: null
                     };
+                    assertExpandedCount(
+                        attacks.length + innerCount,
+                        MAX_EXPANDED_ATTACKS,
+                        "每輪打擊"
+                    );
+                    const attackDiceCount = parsedAttack.weaponDice.reduce(
+                        (count, dice) => count + dice.count,
+                        0
+                    ) + parsedAttack.negativeDice.reduce((count, dice) => count + dice.count, 0);
+                    assertExpandedCount(
+                        groupDamageDiceCount + attackDiceCount * innerCount,
+                        MAX_DAMAGE_DICE_PER_CALCULATION,
+                        "每輪傷害骰數"
+                    );
+                    groupDamageDiceCount += attackDiceCount * innerCount;
                     
                     // 根據內層係數，將同一個打擊公式獨立複製 N 次放入打擊時序中
                     for (let c = 0; c < innerCount; c++) {
@@ -555,6 +629,21 @@ function parseAdvancedDamageString(damageStr) {
                 } else {
                     // 常規單發打擊，同樣執行雙向分流結構化封裝
                     const parsedAttack = parseSingleFormula(token);
+                    assertExpandedCount(
+                        attacks.length + 1,
+                        MAX_EXPANDED_ATTACKS,
+                        "每輪打擊"
+                    );
+                    const attackDiceCount = parsedAttack.weaponDice.reduce(
+                        (count, dice) => count + dice.count,
+                        0
+                    ) + parsedAttack.negativeDice.reduce((count, dice) => count + dice.count, 0);
+                    assertExpandedCount(
+                        groupDamageDiceCount + attackDiceCount,
+                        MAX_DAMAGE_DICE_PER_CALCULATION,
+                        "每輪傷害骰數"
+                    );
+                    groupDamageDiceCount += attackDiceCount;
                     attacks.push({
                         weaponDice: parsedAttack.weaponDice,
                         negativeDice: parsedAttack.negativeDice, // 🚀 注入負向減傷骰
@@ -567,6 +656,30 @@ function parseAdvancedDamageString(damageStr) {
 
         const prDices = Array.from(globalPrMap.entries())
             .map(([sides, count]) => ({ sides, count }));
+        const prDiceCount = prDices.reduce((count, dice) => count + dice.count, 0);
+        assertDicePoolSize(prDiceCount, "每輪 PR 傷害公式");
+        assertExpandedCount(
+            groupDamageDiceCount + prDiceCount,
+            MAX_DAMAGE_DICE_PER_CALCULATION,
+            "每輪傷害骰數"
+        );
+        assertExpandedCount(
+            roundSequencePool.length + repeatCount,
+            MAX_EXPANDED_ROUNDS,
+            "輪次"
+        );
+        assertExpandedCount(
+            expandedAttackCount + attacks.length * repeatCount,
+            MAX_EXPANDED_ATTACKS,
+            "打擊"
+        );
+        assertExpandedCount(
+            expandedDamageDiceCount + (groupDamageDiceCount + prDiceCount) * repeatCount,
+            MAX_DAMAGE_DICE_PER_CALCULATION,
+            "傷害骰數"
+        );
+        expandedAttackCount += attacks.length * repeatCount;
+        expandedDamageDiceCount += (groupDamageDiceCount + prDiceCount) * repeatCount;
 
         const roundStructure = { attacks, prDices };
 
@@ -758,6 +871,9 @@ function createAttackHitDistribution(
 function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr) {
     const critMultiplier = criticalOptions.multiplier !== undefined ? Math.floor(criticalOptions.multiplier) : 2;
     const critThreshold = criticalOptions.threshold !== undefined ? Math.floor(criticalOptions.threshold) : 20;
+    if (!Number.isSafeInteger(critMultiplier) || critMultiplier < 1) {
+        throw new Error("爆擊傷害倍率必須是正整數。");
+    }
 
     // 1. 取得單發打擊的中立三態命中機率
     const { pHit, pCrit, pMiss } = evaluateAttackProbabilities(attackStr, targetAC, critThreshold);
@@ -765,6 +881,24 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
     // 2. 解析出完整的跨輪次序列結構藍圖
     const roundSequencePool = parseAdvancedDamageString(rawDamageStr);
     const finalRoundCombinedPDFs = [];
+    for (const roundData of roundSequencePool) {
+        const prDiceCount = roundData.prDices.reduce((count, dice) => count + dice.count, 0);
+        assertDicePoolSize(prDiceCount, "每輪 PR 傷害公式");
+        assertDicePoolSize(prDiceCount * critMultiplier, "爆擊 PR 傷害公式");
+
+        for (const attack of roundData.attacks) {
+            const normalPoolSize = attack.weaponDice.reduce(
+                (count, dice) => count + dice.count,
+                0
+            ) + attack.negativeDice.reduce((count, dice) => count + dice.count, 0);
+            const criticalPoolSize = attack.weaponDice.reduce(
+                (count, dice) => count + dice.count * critMultiplier,
+                0
+            ) + attack.negativeDice.reduce((count, dice) => count + dice.count, 0);
+            assertDicePoolSize(normalPoolSize, "普通傷害公式");
+            assertDicePoolSize(criticalPoolSize, "爆擊傷害公式");
+        }
+    }
 
     // ================================================================================
     // 【純代數解析法】：精準計算全戰鬥絕對理論傷害上限 (修正負向減傷爆擊不對稱)
@@ -817,6 +951,11 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
         }, 0);
         analyticalMaxTotalDmg += roundWithoutPrMax + bestPrIncrease;
     }
+    assertExpandedCount(
+        analyticalMaxTotalDmg + 1,
+        MAX_PMF_BUCKETS,
+        "傷害 PMF 桶數"
+    );
 
 
     // ================================================================================

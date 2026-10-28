@@ -170,6 +170,80 @@ function testParserStrictValidation() {
     console.log("✅ testParserStrictValidation 通過：正負骰分流及傷害語法嚴格驗證。");
 }
 
+function testDicePoolLimits() {
+    const assert = (condition, message) => {
+        if (!condition) throw new Error(`[失敗] ${message}`);
+    };
+    const assertThrows = (action, message) => {
+        let didThrow = false;
+        try {
+            action();
+        } catch (error) {
+            didThrow = true;
+        }
+        assert(didThrow, message);
+    };
+
+    const maximumPool = convolveMultipleFFT(
+        Array.from(
+            { length: MAX_DICE_POOL },
+            () => ({ dist: PREGENERATED_DICE_NORMAL.D4, isNegative: false })
+        )
+    );
+    assert(
+        maximumPool.dist.length === MAX_DICE_POOL * 3 + 1,
+        "最大 600 骰池必須可完成摺積"
+    );
+    assertThrows(
+        () => convolveMultipleFFT(
+            Array.from(
+                { length: MAX_DICE_POOL + 1 },
+                () => ({ dist: PREGENERATED_DICE_NORMAL.D4, isNegative: false })
+            )
+        ),
+        "超過 600 顆的摺積池必須在計算前拒絕"
+    );
+    assertThrows(
+        () => parseSingleFormula("300D4+301D6"),
+        "多項骰式合計超過骰池上限時必須拒絕"
+    );
+    assertThrows(
+        () => evaluateAttackProbabilities("D20+600D4", 10),
+        "命中公式必須將核心 D20 納入骰池上限"
+    );
+    assertThrows(
+        () => parseAdvancedDamageString("2 (151 1D4)"),
+        "重複打擊及輪次乘積超過傷害骰預算時必須在展開前拒絕"
+    );
+    assertThrows(
+        () => parseAdvancedDamageString("301 1D4"),
+        "超過輪次展開上限時必須拒絕"
+    );
+    assertThrows(
+        () => calculate("critical pool limit", "D20", 10, { multiplier: 601 }, "(1D4)"),
+        "爆擊傷害池超過 600 顆時必須拒絕"
+    );
+    assertThrows(
+        () => calculate("PMF bucket limit", "D20", 10, { multiplier: 2 }, "(1D4+100000)"),
+        "傷害 PMF 桶數超過上限時必須在分佈配置前拒絕"
+    );
+
+    const maximumDamage = calculate(
+        "maximum damage pool",
+        "D20",
+        10,
+        { multiplier: 2 },
+        "(300D4)"
+    );
+    assert(
+        maximumDamage.details.totalMaxPossibleDmg === 2400
+            && maximumDamage.distribution.length === 2401,
+        "300 顆基礎傷害骰及 600 顆爆擊骰必須完成完整計算"
+    );
+
+    console.log("✅ testDicePoolLimits 通過：骰池及計算資源邊界已驗證。");
+}
+
 function testPipelineCasePRStateDP() {
     const assert = (condition, message) => {
         if (!condition) throw new Error(`[失敗] ${message}`);
@@ -780,6 +854,7 @@ function testPipelineCaseSubclassModifiers() {
 
 testParser();
 testParserStrictValidation();
+testDicePoolLimits();
 testPipelineCasePRStateDP();
 testPipelineCaseMaximumDamageCap();
 testMultipleD20Normalization();
