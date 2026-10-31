@@ -4,7 +4,10 @@
 	const form = document.getElementById('dice-form');
 	const attackEditor = document.getElementById('attack-editor');
 	const attackModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('attack-modal'));
+	const roundDamageEditor = document.getElementById('round-damage-editor');
+	const roundDamageModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('round-damage-modal'));
 	const attackList = document.getElementById('attack-list');
+	const roundDamageList = document.getElementById('round-damage-list');
 	const inputError = document.getElementById('input-error');
 	const results = document.getElementById('results');
 	const placeholder = document.getElementById('result-placeholder');
@@ -18,12 +21,35 @@
 	const editorAdvancedFields = document.getElementById('entry-advanced-fields');
 	const editorHitDiceDisplay = document.getElementById('entry-hit-dice-display');
 	const editorDamageDiceDisplay = document.getElementById('entry-damage-dice-display');
+	const editorRoundDamageDiceDisplay = document.getElementById('round-damage-dice-display');
+	const maxRoundDamageEffects = 10;
 	const attackBonusInput = document.getElementById('entry-attack-bonus');
 	const attackBonusTerm = attackBonusInput.closest('.hit-formula-bonus');
 	const damageBonusInput = document.getElementById('entry-damage-bonus');
 	const damageBonusTerm = damageBonusInput.closest('.hit-formula-bonus');
 	const editorHitModifierDice = [];
 	const editorDamageDice = [];
+	const editorRoundDamageDice = [];
+	const roundDamages = [];
+	const attackTagLabels = {
+		attackHit: 'Attack Hit',
+		weaponAttackHit: 'Weapon Attack Hit',
+		weaponHit: 'Weapon Hit',
+		unarmedStrikeHit: 'Unarmed Strike Hit',
+		spellAttackHit: 'Spell Attack Hit'
+	};
+	const attackTagParents = {
+		attackHit: [],
+		weaponAttackHit: ['attackHit'],
+		weaponHit: ['weaponAttackHit'],
+		unarmedStrikeHit: ['weaponAttackHit'],
+		spellAttackHit: ['attackHit']
+	};
+	const attackPropertyLabels = {
+		finesseWeapon: 'Finesse Weapon',
+		strength: 'Strength',
+		dexterity: 'Dexterity'
+	};
 	const attacks = [{
 		id: '1',
 		name: '弓手攻擊',
@@ -36,14 +62,16 @@
 		damageBonus: 3,
 		attacksPerRound: 1,
 		roundNumber: '',
-		prFormula: '',
+		hitTags: ['weaponHit'],
 		advancedAttack: 'D20+5',
 		advancedDamage: '1 (1D8+3)'
 	}];
 	let damageChart = null;
 	let outcomeChart = null;
 	let editingIndex = -1;
+	let editingRoundDamageIndex = -1;
 	let nextAttackId = 2;
+	let nextRoundDamageId = 1;
 	let calculationRunId = 0;
 
 	function logPerformance(stage, runId, durationMs, details = {}) {
@@ -75,6 +103,26 @@
 		}).join('');
 	}
 
+	function damageFormulaWithFlat(dice, flatMod) {
+		const diceFormula = damageDiceFormula(dice);
+		if (!flatMod) return diceFormula || '0';
+		return `${diceFormula}${diceFormula ? '+' : ''}${flatMod}`;
+	}
+
+	function expandAttackHitTags(tags = []) {
+		const expanded = new Set();
+		for (const tag of tags) {
+			const pending = [tag];
+			while (pending.length > 0) {
+				const current = pending.pop();
+				if (expanded.has(current)) continue;
+				expanded.add(current);
+				pending.push(...(attackTagParents[current] || []));
+			}
+		}
+		return Array.from(expanded);
+	}
+
 	function createDieFace(sides, tone, label, modeLabel = '', mode = '') {
 		const face = document.createElement('span');
 		face.className = `die-face die-face-${tone} die-face-d${sides}`;
@@ -104,7 +152,7 @@
 		return face;
 	}
 
-	function getSimpleAttackInput(entry, totalRounds) {
+	function getSimpleAttackInput(entry, totalRounds = 1) {
 		const modeToken = {
 			normal: '',
 			advantage: 'A1',
@@ -118,12 +166,11 @@
 		const attackStr = `D20${modeToken}${signedTerm(entry.attackBonus)}${hitDice}`;
 		const damageDice = damageDiceFormula(entry.damageDice);
 		const damageFormula = `${damageDice || ''}${signedTerm(entry.damageBonus)}`;
-		const roundFormula = `${entry.attacksPerRound} ${damageFormula}${entry.prFormula ? `, ${entry.prFormula}` : ''}`;
 		const scheduledRounds = entry.roundNumber ? 1 : totalRounds;
 
 		return {
 			attackStr,
-			rawDamageStr: `${scheduledRounds} (${roundFormula})`,
+			rawDamageStr: `${scheduledRounds} (${entry.attacksPerRound} ${damageFormula})`,
 			attackCount: entry.attacksPerRound * scheduledRounds
 		};
 	}
@@ -131,6 +178,9 @@
 	function getEntryCalculation(entry, totalRounds) {
 		if (!entry.advancedMode) return getSimpleAttackInput(entry, totalRounds);
 		const rawDamageStr = entry.advancedDamage.trim();
+		if (rawDamageStr.toUpperCase().includes('PR')) {
+			throw new Error(`攻擊「${entry.name}」嘅每輪傷害請喺攻擊清單下方獨立新增。`);
+		}
 		const roundBlueprint = parseAdvancedDamageString(rawDamageStr);
 		if (roundBlueprint.length !== 1) {
 			throw new Error(`攻擊「${entry.name}」嘅進階公式只可輸入單輪傷害；請用「套用輪次」設定輪次。`);
@@ -266,6 +316,37 @@
 		});
 	}
 
+	function renderEditorRoundDamageDice() {
+		editorRoundDamageDiceDisplay.replaceChildren();
+		editorRoundDamageDice.forEach(die => {
+			const modifier = document.createElement('button');
+			modifier.type = 'button';
+			modifier.className = 'die-remove';
+			modifier.appendChild(createDieFace(
+				die.sides,
+				'positive',
+				`${die.count > 1 ? die.count : ''}D${die.sides}`
+			));
+			modifier.setAttribute(
+				'aria-label',
+				`移除一顆傷害骰 D${die.sides}；目前 ${die.count} 顆`
+			);
+			modifier.addEventListener('click', function () {
+				die.count--;
+				if (die.count === 0) {
+					const dieIndex = editorRoundDamageDice.indexOf(die);
+					if (dieIndex >= 0) editorRoundDamageDice.splice(dieIndex, 1);
+				}
+				renderEditorRoundDamageDice();
+			});
+			editorRoundDamageDiceDisplay.appendChild(modifier);
+		});
+		const diceCount = editorRoundDamageDice.reduce((sum, die) => sum + die.count, 0);
+		document.querySelectorAll('.round-damage-die-buttons button').forEach(button => {
+			button.disabled = diceCount >= 600;
+		});
+	}
+
 	function setEditorValue(id, value) {
 		document.getElementById(id).value = value;
 	}
@@ -284,7 +365,6 @@
 		setEditorValue('entry-damage-bonus', entry ? entry.damageBonus : 3);
 		setEditorValue('entry-attacks-per-round', entry ? entry.attacksPerRound : 1);
 		setEditorValue('entry-round-number', entry ? entry.roundNumber : '');
-		setEditorValue('entry-pr-formula', entry ? entry.prFormula : '');
 		editorAdvancedMode.checked = Boolean(entry && entry.advancedMode);
 		document.getElementById('entry-extra-crit-die').checked = Boolean(entry && entry.extraCritDamageDie);
 		setEditorValue('entry-advanced-attack', entry ? entry.advancedAttack : 'D20+5');
@@ -292,10 +372,59 @@
 		if (entry) editorHitModifierDice.push(...entry.hitModifierDice.map(die => ({ ...die })));
 		if (entry) editorDamageDice.push(...entry.damageDice.map(die => ({ ...die })));
 		else editorDamageDice.push({ sides: 8, isNegative: false, count: 1 });
+		document.querySelectorAll('input[name="entry-tags"]').forEach(input => {
+			input.checked = Boolean(entry && (entry.hitTags || []).includes(input.value));
+		});
+		const propertyTags = entry ? entry.propertyTags || [] : [];
+		document.querySelectorAll('input[name="entry-properties"]').forEach(input => {
+			input.checked = propertyTags.includes(input.value);
+		});
+		document.querySelectorAll('input[name="entry-ability"]').forEach(input => {
+			input.checked = propertyTags.includes(input.value);
+		});
 		toggleAdvancedFields();
 		renderEditorHitDice();
 		renderEditorDamageDice();
 		attackModal.show();
+	}
+
+	function renderRoundDamageList() {
+		roundDamageList.replaceChildren();
+		document.getElementById('add-round-damage').disabled =
+			roundDamages.length >= maxRoundDamageEffects;
+		roundDamages.forEach((effect, index) => {
+			const row = document.createElement('button');
+			row.type = 'button';
+			row.className = 'round-damage-item';
+			row.dataset.index = String(index);
+			row.setAttribute('aria-label', `編輯每輪傷害：${effect.name}`);
+			const name = document.createElement('strong');
+			name.textContent = effect.name;
+			const formula = document.createElement('span');
+			formula.className = 'font-monospace';
+			formula.textContent = damageFormulaWithFlat(effect.dice, effect.flatMod);
+			const trigger = document.createElement('span');
+			trigger.className = 'badge bg-light text-secondary border';
+			trigger.textContent = attackTagLabels[effect.triggerTag];
+			row.append(name, formula, trigger);
+			roundDamageList.appendChild(row);
+		});
+	}
+
+	function openRoundDamageEditor(index) {
+		editingRoundDamageIndex = index;
+		roundDamageEditor.reset();
+		editorRoundDamageDice.length = 0;
+		const effect = index < 0 ? null : roundDamages[index];
+		document.getElementById('round-damage-modal-title').textContent =
+			effect ? '編輯每輪傷害' : '新增每輪傷害';
+		document.getElementById('delete-round-damage').hidden = !effect;
+		setEditorValue('round-damage-name', effect ? effect.name : '');
+		setEditorValue('round-damage-trigger-tag', effect ? effect.triggerTag : 'attackHit');
+		setEditorValue('round-damage-flat', effect ? effect.flatMod : 0);
+		if (effect) editorRoundDamageDice.push(...effect.dice.map(die => ({ ...die })));
+		renderEditorRoundDamageDice();
+		roundDamageModal.show();
 	}
 
 	function toggleAdvancedFields() {
@@ -316,14 +445,6 @@
 	function getEntryRemarkTags(entry) {
 		const tags = [];
 		if (entry.roundNumber) tags.push(`第 ${entry.roundNumber} 輪`);
-		let prFormula = '';
-		if (entry.advancedMode) {
-			const prDice = entry.advancedDamage.match(/\d*D\d+PR/gi) || [];
-			prFormula = prDice.map(die => die.replace(/PR$/i, '')).join(' + ');
-		} else {
-			prFormula = entry.prFormula.replace(/PR$/i, '').trim();
-		}
-		if (prFormula) tags.push(`PR: ${prFormula}`);
 		if (entry.extraCritDamageDie) tags.push('+1 C.M.');
 		return tags;
 	}
@@ -353,10 +474,16 @@
 			name.title = entry.name;
 			const parts = [hit, damage, count, name];
 			const tags = getEntryRemarkTags(entry);
-			if (tags.length > 0) {
+			const hitTags = expandAttackHitTags(entry.hitTags || [])
+				.map(tag => attackTagLabels[tag]);
+			const propertyTags = (entry.propertyTags || [])
+				.map(tag => attackPropertyLabels[tag])
+				.filter(Boolean);
+			const allTags = [...tags, ...propertyTags, ...hitTags];
+			if (allTags.length > 0) {
 				const remarks = document.createElement('span');
 				remarks.className = 'attack-remark-tags';
-				tags.forEach(tagText => {
+				allTags.forEach(tagText => {
 					const tag = document.createElement('span');
 					tag.className = 'badge bg-light text-secondary border';
 					tag.textContent = tagText;
@@ -753,11 +880,32 @@
 		}
 		renderEditorDamageDice();
 	});
+	document.querySelector('.round-damage-die-buttons').addEventListener('click', function (event) {
+		const button = event.target.closest('button[data-sides]');
+		if (!button) return;
+		const sides = Number(button.dataset.sides);
+		if (editorRoundDamageDice.reduce((sum, die) => sum + die.count, 0) >= 600) return;
+		const existingDie = editorRoundDamageDice.find(die => die.sides === sides);
+		if (existingDie) {
+			existingDie.count++;
+		} else {
+			editorRoundDamageDice.push({ sides, count: 1 });
+		}
+		renderEditorRoundDamageDice();
+	});
 
 	document.getElementById('add-attack').addEventListener('click', () => openAttackEditor(-1));
+	document.getElementById('add-round-damage').addEventListener(
+		'click',
+		() => openRoundDamageEditor(-1)
+	);
 	attackList.addEventListener('click', function (event) {
 		const row = event.target.closest('button[data-index]');
 		if (row) openAttackEditor(Number(row.dataset.index));
+	});
+	roundDamageList.addEventListener('click', function (event) {
+		const row = event.target.closest('button[data-index]');
+		if (row) openRoundDamageEditor(Number(row.dataset.index));
 	});
 	document.getElementById('delete-attack').addEventListener('click', function () {
 		if (editingIndex < 0) return;
@@ -785,10 +933,17 @@
 			attackMode: fieldValue('entry-attack-mode'),
 			hitModifierDice: editorHitModifierDice.map(die => ({ ...die })),
 			damageDice: editorDamageDice.map(die => ({ ...die })),
+			hitTags: Array.from(document.querySelectorAll('input[name="entry-tags"]:checked'))
+				.map(input => input.value),
+			propertyTags: [
+				...Array.from(document.querySelectorAll('input[name="entry-properties"]:checked'))
+					.map(input => input.value),
+				...Array.from(document.querySelectorAll('input[name="entry-ability"]:checked'))
+					.map(input => input.value)
+			],
 			damageBonus: Number(fieldValue('entry-damage-bonus')),
 			attacksPerRound: Number(fieldValue('entry-attacks-per-round')),
 			roundNumber: fieldValue('entry-round-number'),
-			prFormula: fieldValue('entry-pr-formula').trim(),
 			advancedAttack: fieldValue('entry-advanced-attack').trim(),
 			advancedDamage: fieldValue('entry-advanced-damage').trim()
 		};
@@ -797,6 +952,44 @@
 		renderAttackList();
 		inputError.hidden = true;
 		attackModal.hide();
+	});
+
+	document.getElementById('delete-round-damage').addEventListener('click', function () {
+		if (editingRoundDamageIndex < 0) return;
+		roundDamages.splice(editingRoundDamageIndex, 1);
+		renderRoundDamageList();
+		roundDamageModal.hide();
+	});
+	document.getElementById('round-damage-flat').addEventListener('input', function (event) {
+		event.target.setCustomValidity('');
+	});
+	roundDamageEditor.addEventListener('submit', function (event) {
+		event.preventDefault();
+		const flatMod = Number(fieldValue('round-damage-flat'));
+		const diceCount = editorRoundDamageDice.reduce((sum, die) => sum + die.count, 0);
+		const flatInput = document.getElementById('round-damage-flat');
+		flatInput.setCustomValidity(
+			diceCount > 0 || flatMod > 0
+				? ''
+				: '請加入至少一顆傷害骰或輸入正數固定傷害。'
+		);
+		if (!roundDamageEditor.reportValidity()) return;
+
+		const effect = {
+			id: editingRoundDamageIndex >= 0
+				? roundDamages[editingRoundDamageIndex].id
+				: String(nextRoundDamageId++),
+			name: fieldValue('round-damage-name').trim()
+				|| `每輪傷害 ${roundDamages.length + (editingRoundDamageIndex < 0 ? 1 : 0)}`,
+			triggerTag: fieldValue('round-damage-trigger-tag'),
+			dice: editorRoundDamageDice.map(die => ({ ...die })),
+			flatMod
+		};
+		if (editingRoundDamageIndex >= 0) roundDamages[editingRoundDamageIndex] = effect;
+		else roundDamages.push(effect);
+		renderRoundDamageList();
+		inputError.hidden = true;
+		roundDamageModal.hide();
 	});
 
 	form.addEventListener('submit', function (event) {
@@ -816,6 +1009,8 @@
 				return {
 					name: entry.name,
 					critMultiplierBonus: entry.extraCritDamageDie ? 1 : 0,
+					hitTags: entry.hitTags || [],
+					roundNumber: entry.roundNumber ? Number(entry.roundNumber) : 0,
 					...getEntryCalculation(entry, totalRounds)
 				};
 			});
@@ -826,7 +1021,9 @@
 				{
 					threshold: Number(fieldValue('crit-threshold')),
 					multiplier: Number(fieldValue('crit-multiplier'))
-				}
+				},
+				roundDamages,
+				totalRounds
 			);
 			logPerformance('calculation', runId, performance.now() - calculationStartedAt, {
 				attackEntryCount: entries.length,
@@ -847,5 +1044,6 @@
 	});
 
 	renderAttackList();
+	renderRoundDamageList();
 	renderEditorHitDice();
 })();

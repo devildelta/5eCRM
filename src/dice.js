@@ -8,6 +8,14 @@ const MAX_DAMAGE_DICE_PER_CALCULATION = 300;
 const MAX_EXPANDED_ATTACKS = 300;
 const MAX_EXPANDED_ROUNDS = 300;
 const MAX_PMF_BUCKETS = 100000;
+const MAX_PER_ROUND_DAMAGE_EFFECTS = 10;
+const ATTACK_TAG_PARENTS = Object.freeze({
+    attackHit: [],
+    weaponAttackHit: ["attackHit"],
+    weaponHit: ["weaponAttackHit"],
+    unarmedStrikeHit: ["weaponAttackHit"],
+    spellAttackHit: ["attackHit"]
+});
 const { PREGENERATED_DICE_NORMAL } = (function() {
     const diceSizes = [4,6,8,10,12];
     const normalRegistry = {};
@@ -1381,7 +1389,20 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
     };
 }
 
-function calculateAttackEntries(caseName, entries, targetAC, criticalOptions) {
+function calculateAttackEntries(caseName, entries, targetAC, criticalOptions, perRoundDamages, totalRounds) {
+    if (perRoundDamages !== undefined && !Array.isArray(perRoundDamages)) {
+        throw new TypeError("每輪傷害效果必須是陣列。");
+    }
+    if (Array.isArray(perRoundDamages) && perRoundDamages.length > 0) {
+        return calculateTaggedAttackEntries(
+            caseName,
+            entries,
+            targetAC,
+            criticalOptions,
+            perRoundDamages,
+            totalRounds
+        );
+    }
     if (!Array.isArray(entries) || entries.length === 0) {
         throw new Error("請至少新增一個攻擊項目。");
     }
@@ -1459,6 +1480,364 @@ function calculateAttackEntries(caseName, entries, targetAC, criticalOptions) {
                 0
             ),
             rawDamageStr: entries.map(entry => `${entry.name}: ${entry.rawDamageStr}`).join("；")
+        }
+    };
+}
+
+function expandAttackHitTags(tags) {
+    if (!Array.isArray(tags)) throw new TypeError("攻擊命中標籤必須是陣列。");
+    const expanded = new Set();
+    for (const tag of tags) {
+        if (!Object.prototype.hasOwnProperty.call(ATTACK_TAG_PARENTS, tag)) {
+            throw new Error(`不支援的攻擊命中標籤：${tag}`);
+        }
+        let pending = [tag];
+        while (pending.length > 0) {
+            const current = pending.pop();
+            if (expanded.has(current)) continue;
+            expanded.add(current);
+            pending.push(...ATTACK_TAG_PARENTS[current]);
+        }
+    }
+    return expanded;
+}
+
+function normalizePerRoundDamages(effects, critMultiplier) {
+    if (!Array.isArray(effects)) throw new TypeError("每輪傷害效果必須是陣列。");
+    if (effects.length > MAX_PER_ROUND_DAMAGE_EFFECTS) {
+        throw new Error(`每輪傷害效果最多 ${MAX_PER_ROUND_DAMAGE_EFFECTS} 項。`);
+    }
+    return effects.map((effect, index) => {
+        if (!effect || typeof effect !== "object") {
+            throw new TypeError(`第 ${index + 1} 項每輪傷害效果格式無效。`);
+        }
+        if (!Object.prototype.hasOwnProperty.call(ATTACK_TAG_PARENTS, effect.triggerTag)) {
+            throw new Error(`第 ${index + 1} 項每輪傷害效果的觸發標籤無效。`);
+        }
+        if (!Array.isArray(effect.dice)) throw new TypeError(`第 ${index + 1} 項每輪傷害骰必須是陣列。`);
+        let diceCount = 0;
+        const dice = effect.dice.map(die => {
+            if (!die || !SUPPORTED_DICE_SIDES.has(die.sides)
+                || !Number.isSafeInteger(die.count) || die.count <= 0) {
+                throw new Error(`第 ${index + 1} 項每輪傷害骰公式無效。`);
+            }
+            diceCount += die.count;
+            return { sides: die.sides, count: die.count };
+        });
+        assertDicePoolSize(diceCount, `第 ${index + 1} 項每輪傷害骰`);
+        assertDicePoolSize(diceCount * critMultiplier, `第 ${index + 1} 項爆擊每輪傷害骰`);
+        if (!Number.isSafeInteger(effect.flatMod) || effect.flatMod < 0) {
+            throw new Error(`第 ${index + 1} 項每輪傷害固定值必須是非負整數。`);
+        }
+        if (diceCount === 0 && effect.flatMod === 0) {
+            throw new Error(`第 ${index + 1} 項每輪傷害必須至少包含傷害骰或固定值。`);
+        }
+        return {
+            name: effect.name || `每輪傷害 ${index + 1}`,
+            triggerTag: effect.triggerTag,
+            dice,
+            flatMod: effect.flatMod
+        };
+    });
+}
+
+function createDamageDicePmf(dice, multiplier = 1) {
+    const pool = [];
+    for (const die of dice) {
+        const baseDist = PREGENERATED_DICE_NORMAL[`D${die.sides}`];
+        for (let count = 0; count < die.count * multiplier; count++) {
+            pool.push({ dist: baseDist, isNegative: false });
+        }
+    }
+    if (pool.length === 0) {
+        return {
+            dist: new Float64Array([1]),
+            support: new Uint8Array([1]),
+            offset: 0,
+            discardedMass: 0
+        };
+    }
+    assertDicePoolSize(pool.length, "每輪傷害骰池");
+    return convolveMultipleFFT(pool);
+}
+
+function createTaggedAttackDescriptor(entry, attack, criticalOptions, targetAC) {
+    const critMultiplierBonus = entry.critMultiplierBonus === undefined ? 0 : entry.critMultiplierBonus;
+    if (!Number.isSafeInteger(critMultiplierBonus) || critMultiplierBonus < 0 || critMultiplierBonus > 1) {
+        throw new Error("攻擊項目的額外爆擊倍率只可為 0 或 1。");
+    }
+    const critThreshold = criticalOptions.threshold === undefined ? 20 : criticalOptions.threshold;
+    const probabilities = evaluateAttackProbabilities(entry.attackStr, targetAC, critThreshold);
+    const normalPool = [];
+    const criticalPool = [];
+    for (const die of attack.weaponDice) {
+        const baseDist = PREGENERATED_DICE_NORMAL[`D${die.sides}`];
+        for (let count = 0; count < die.count; count++) {
+            normalPool.push({ dist: baseDist, isNegative: false });
+        }
+        for (let count = 0; count < die.count * (criticalOptions.multiplier + critMultiplierBonus); count++) {
+            criticalPool.push({ dist: baseDist, isNegative: false });
+        }
+    }
+    for (const die of attack.negativeDice || []) {
+        const baseDist = PREGENERATED_DICE_NORMAL[`D${die.sides}`];
+        for (let count = 0; count < die.count; count++) {
+            normalPool.push({ dist: baseDist, isNegative: true });
+            criticalPool.push({ dist: baseDist, isNegative: true });
+        }
+    }
+    assertDicePoolSize(normalPool.length, "普通傷害公式");
+    assertDicePoolSize(criticalPool.length, "爆擊傷害公式");
+    return {
+        ...probabilities,
+        attack,
+        attackStr: entry.attackStr,
+        attackTags: expandAttackHitTags(entry.hitTags || []),
+        critMultiplierBonus,
+        weaponNormalPmf: convolveMultipleFFT(normalPool),
+        weaponCritPmf: convolveMultipleFFT(criticalPool)
+    };
+}
+
+function createTaggedAttackBranch(attack, effects, isCritical, criticalOptions, triggeredEffectIndices) {
+    const effectsToApply = triggeredEffectIndices.map(index => effects[index]);
+    const prDice = [];
+    let prFlatMod = 0;
+    for (const effect of effectsToApply) {
+        prDice.push(...effect.dice);
+        prFlatMod += effect.flatMod;
+    }
+    const prNormalPmf = createDamageDicePmf(prDice);
+    const prCritPmf = createDamageDicePmf(prDice, criticalOptions.multiplier);
+    const hit = createAttackHitDistribution(
+        attack.weaponNormalPmf,
+        attack.weaponNormalPmf.offset,
+        attack.weaponCritPmf,
+        attack.weaponCritPmf.offset,
+        prNormalPmf,
+        prNormalPmf.offset,
+        prCritPmf,
+        prCritPmf.offset,
+        attack.attack.flatMod + prFlatMod,
+        isCritical ? 0 : attack.pHit,
+        isCritical ? attack.pCrit : 0,
+        true
+    );
+    return hit;
+}
+
+function calculateTaggedRound(roundAttacks, effects, criticalOptions) {
+    let states = new Map([
+        [0, createPmf(new Float64Array([1]), new Uint8Array([1]))]
+    ]);
+    const branchCache = new Map();
+    const getBranch = (attackIndex, attack, mask, isCritical) => {
+        const triggeredIndices = [];
+        for (let index = 0; index < effects.length; index++) {
+            if ((mask & (1 << index)) === 0 && attack.attackTags.has(effects[index].triggerTag)) {
+                triggeredIndices.push(index);
+            }
+        }
+        const key = `${attackIndex}:${triggeredIndices.join(",")}:${isCritical ? 1 : 0}`;
+        if (!branchCache.has(key)) {
+            branchCache.set(
+                key,
+                createTaggedAttackBranch(attack, effects, isCritical, criticalOptions, triggeredIndices)
+            );
+        }
+        return {
+            nextMask: triggeredIndices.reduce((next, index) => next | (1 << index), mask),
+            pmf: branchCache.get(key)
+        };
+    };
+
+    for (let attackIndex = 0; attackIndex < roundAttacks.length; attackIndex++) {
+        const attack = roundAttacks[attackIndex];
+        const nextStates = new Map();
+        const addState = (mask, pmf) => {
+            if (pmf.discardedMass === 0 && pmf.dist.every(value => value === 0)) return;
+            const previous = nextStates.get(mask);
+            nextStates.set(mask, previous ? sumDistributions([previous, pmf]) : pmf);
+        };
+        for (const [mask, statePmf] of states) {
+            if (attack.pMiss > 0) addState(mask, scaleDistribution(statePmf, attack.pMiss));
+            for (const isCritical of [false, true]) {
+                const probability = isCritical ? attack.pCrit : attack.pHit;
+                if (probability <= 0) continue;
+                const branch = getBranch(attackIndex, attack, mask, isCritical);
+                addState(
+                    branch.nextMask,
+                    convolveDamageDistributions(statePmf, branch.pmf)
+                );
+            }
+        }
+        states = nextStates;
+    }
+    return sumDistributions(Array.from(states.values()));
+}
+
+function calculateTaggedRoundMaximum(roundAttacks, effects, criticalOptions) {
+    let states = new Map([[0, 0]]);
+    for (const attack of roundAttacks) {
+        const nextStates = new Map();
+        const addMaximum = (mask, damage) => {
+            const previous = nextStates.get(mask);
+            if (previous === undefined || damage > previous) nextStates.set(mask, damage);
+        };
+        for (const [mask, accumulated] of states) {
+            if (attack.pMiss > 0) addMaximum(mask, accumulated);
+            for (const isCritical of [false, true]) {
+                if ((isCritical ? attack.pCrit : attack.pHit) <= 0) continue;
+                let nextMask = mask;
+                let prFlat = 0;
+                let prMax = 0;
+                for (let index = 0; index < effects.length; index++) {
+                    if ((mask & (1 << index)) !== 0 || !attack.attackTags.has(effects[index].triggerTag)) continue;
+                    nextMask |= 1 << index;
+                    prFlat += effects[index].flatMod;
+                    const multiplier = isCritical ? criticalOptions.multiplier : 1;
+                    prMax += effects[index].dice.reduce(
+                        (sum, die) => sum + die.sides * die.count * multiplier,
+                        0
+                    );
+                }
+                const weaponMax = attack.attack.weaponDice.reduce(
+                    (sum, die) => sum + die.sides * die.count
+                        * (isCritical
+                            ? criticalOptions.multiplier + attack.critMultiplierBonus
+                            : 1),
+                    0
+                ) - (attack.attack.negativeDice || []).reduce((sum, die) => sum + die.count, 0);
+                const damage = Math.max(0, weaponMax + attack.attack.flatMod + prMax + prFlat);
+                addMaximum(nextMask, accumulated + damage);
+            }
+        }
+        states = nextStates;
+    }
+    return Math.max(0, ...states.values());
+}
+
+function calculateTaggedAttackEntries(caseName, entries, targetAC, criticalOptions, perRoundDamages, totalRounds) {
+    if (!Array.isArray(entries) || entries.length === 0) {
+        throw new Error("請至少新增一個攻擊項目。");
+    }
+    const critMultiplier = criticalOptions.multiplier === undefined
+        ? 2
+        : Math.floor(criticalOptions.multiplier);
+    if (!Number.isSafeInteger(critMultiplier) || critMultiplier < 1) {
+        throw new Error("爆擊傷害倍率必須是正整數。");
+    }
+    const effects = normalizePerRoundDamages(perRoundDamages, critMultiplier);
+    const expandedEntries = entries.map(entry => {
+        const rounds = parseAdvancedDamageString(entry.rawDamageStr);
+        const roundNumber = entry.roundNumber ? Number(entry.roundNumber) : 0;
+        if (!Number.isSafeInteger(roundNumber) || roundNumber < 0) {
+            throw new Error(`攻擊「${entry.name || caseName}」的套用輪次無效。`);
+        }
+        if (roundNumber > 0 && rounds.length !== 1) {
+            throw new Error(`攻擊「${entry.name || caseName}」指定單一輪次時只能包含一輪傷害公式。`);
+        }
+        if (rounds.some(round => round.prDices.length > 0)) {
+            throw new Error("請將 PR 傷害移至「每輪傷害」區，並設定其觸發標籤。");
+        }
+        const hitTags = expandAttackHitTags(entry.hitTags || []);
+        return { entry, rounds, roundNumber, hitTags };
+    });
+    const resolvedRoundCount = totalRounds === undefined
+        ? Math.max(...expandedEntries.map(item => item.roundNumber || item.rounds.length))
+        : totalRounds;
+    if (!Number.isSafeInteger(resolvedRoundCount) || resolvedRoundCount < 1
+        || resolvedRoundCount > MAX_EXPANDED_ROUNDS) {
+        throw new Error(`分析輪數必須介乎 1 至 ${MAX_EXPANDED_ROUNDS}。`);
+    }
+    const attackCount = expandedEntries.reduce(
+        (sum, item) => sum + item.rounds.reduce(
+            (roundAttackSum, round) => roundAttackSum + round.attacks.length,
+            0
+        ),
+        0
+    );
+    assertExpandedCount(attackCount, MAX_EXPANDED_ATTACKS, "總攻擊次數");
+
+    const roundAttacks = Array.from({ length: resolvedRoundCount }, () => []);
+    const allAttackDescriptors = [];
+    for (const item of expandedEntries) {
+        item.rounds.forEach((round, roundIndex) => {
+            const targetRoundIndex = item.roundNumber > 0 ? item.roundNumber - 1 : roundIndex;
+            if (targetRoundIndex >= resolvedRoundCount) {
+                throw new Error(`攻擊「${item.entry.name || caseName}」指定第 ${targetRoundIndex + 1} 輪，但目前只計算 ${resolvedRoundCount} 輪。`);
+            }
+            for (const attack of round.attacks) {
+                const descriptor = createTaggedAttackDescriptor(
+                    { ...item.entry, hitTags: Array.from(item.hitTags) },
+                    attack,
+                    { ...criticalOptions, multiplier: critMultiplier },
+                    targetAC
+                );
+                roundAttacks[targetRoundIndex].push(descriptor);
+                allAttackDescriptors.push(descriptor);
+            }
+        });
+    }
+
+    const roundPdfs = [];
+    let totalMaxPossibleDmg = 0;
+    for (const attacksInRound of roundAttacks) {
+        const roundPmf = calculateTaggedRound(attacksInRound, effects, { multiplier: critMultiplier });
+        roundPdfs.push({
+            dist: roundPmf.dist,
+            support: roundPmf.support,
+            discardedMass: roundPmf.discardedMass,
+            isNegative: false
+        });
+        totalMaxPossibleDmg += calculateTaggedRoundMaximum(
+            attacksInRound,
+            effects,
+            { multiplier: critMultiplier }
+        );
+    }
+    assertExpandedCount(totalMaxPossibleDmg + 1, MAX_PMF_BUCKETS, "傷害 PMF 桶數");
+    const combined = convolveMultipleFFT(roundPdfs);
+    const distribution = new Float64Array(combined.dist.length + combined.offset);
+    const distributionSupport = new Uint8Array(distribution.length);
+    for (let damage = 0; damage < combined.dist.length; damage++) {
+        distribution[damage + combined.offset] = combined.dist[damage];
+        distributionSupport[damage + combined.offset] = combined.support[damage];
+    }
+
+    let q1 = null;
+    let q2 = null;
+    let q3 = null;
+    let cumulativeProbability = 0;
+    for (let damage = 0; damage < distribution.length; damage++) {
+        cumulativeProbability += distribution[damage];
+        if (q1 === null && cumulativeProbability >= 0.25) q1 = damage;
+        if (q2 === null && cumulativeProbability >= 0.5) q2 = damage;
+        if (q3 === null && cumulativeProbability >= 0.75) {
+            q3 = damage;
+            break;
+        }
+    }
+    const weightedMetric = key => attackCount === 0 ? 0 : allAttackDescriptors.reduce(
+        (sum, attack) => sum + attack[key],
+        0
+    ) / attackCount;
+    return {
+        caseName,
+        q1: q1 === null ? 0 : q1,
+        q2: q2 === null ? 0 : q2,
+        q3: q3 === null ? 0 : q3,
+        distribution,
+        distributionSupport,
+        discardedMass: combined.discardedMass,
+        details: {
+            targetAC,
+            pHit: weightedMetric("pHit"),
+            pCrit: weightedMetric("pCrit"),
+            pMiss: weightedMetric("pMiss"),
+            attackEntryCount: entries.length,
+            totalMaxPossibleDmg,
+            rawDamageStr: entries.map(entry => `${entry.name || caseName}: ${entry.rawDamageStr}`).join("；")
         }
     };
 }

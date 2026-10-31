@@ -287,6 +287,56 @@ body {
 	gap: 0.25rem;
 }
 
+.attack-tag-options {
+	display: grid;
+	gap: 0.25rem 1rem;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+}
+
+.round-damage-list {
+	border-bottom: 1px solid #e2e7ee;
+}
+
+.round-damage-item {
+	align-items: center;
+	background: #fff;
+	border: 0;
+	border-bottom: 1px solid #e2e7ee;
+	color: #202633;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem 0.65rem;
+	line-height: 1.5;
+	padding: 0.55rem 0.35rem;
+	text-align: left;
+	width: 100%;
+}
+
+.round-damage-item:last-child {
+	border-bottom: 0;
+}
+
+.round-damage-item:hover {
+	background: #f8f9fb;
+}
+
+.round-damage-item:focus-visible {
+	box-shadow: inset 0 0 0 2px #86b7fe;
+	outline: 0;
+	position: relative;
+	z-index: 1;
+}
+
+.round-damage-item strong {
+	flex: 1 1 8rem;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.round-damage-item .badge {
+	white-space: normal;
+}
+
 .average-damage-row {
 	align-items: baseline;
 	border-bottom: 1px solid #e2e7ee;
@@ -398,6 +448,70 @@ body {
 }
 
 @media (max-width: 400px) {
+	.attack-tag-options {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.round-damage-item {
+		gap: 0.25rem 0.45rem;
+	}
+
+	.round-damage-item strong {
+		flex-basis: 100%;
+	}
+
+	.hit-dice-section {
+		padding: 0.75rem;
+	}
+
+	.hit-dice-display {
+		gap: 0.3rem;
+		min-height: 2.75rem;
+	}
+
+	.die-face {
+		height: 2.75rem;
+		width: 2.75rem;
+	}
+
+	.die-label {
+		font-size: 0.58rem;
+	}
+
+	.hit-formula-bonus {
+		min-height: 1.9rem;
+		padding-left: 0.2rem;
+		padding-right: 0.2rem;
+	}
+
+	.hit-formula-bonus::before {
+		font-size: 1rem;
+		left: 0.3rem;
+	}
+
+	.attack-bonus-input {
+		font-size: 1rem;
+		min-height: 1.7rem;
+		width: 4.5ch;
+	}
+
+	.hit-formula-bonus[data-sign="−"] .attack-bonus-input {
+		width: 4ch;
+	}
+
+	.hit-die-buttons {
+		gap: 0.25rem;
+	}
+
+	.hit-die-buttons .btn {
+		font-size: 0.75rem;
+		line-height: 1.2;
+		min-width: 0;
+		padding-left: 0;
+		padding-right: 0;
+		white-space: nowrap;
+	}
+
 	.chart-quartile-value {
 		align-items: center;
 		padding-left: 0.15rem;
