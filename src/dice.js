@@ -1150,9 +1150,18 @@ function createAttackHitDistribution(
 
 function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr) {
     const critMultiplier = criticalOptions.multiplier !== undefined ? Math.floor(criticalOptions.multiplier) : 2;
+    const attackTypeCritBonus = criticalOptions.attackTypeCritBonus !== undefined
+        ? criticalOptions.attackTypeCritBonus
+        : 0;
+    const weaponCritMultiplier = critMultiplier + attackTypeCritBonus;
     const critThreshold = criticalOptions.threshold !== undefined ? Math.floor(criticalOptions.threshold) : 20;
     if (!Number.isSafeInteger(critMultiplier) || critMultiplier < 1) {
         throw new Error("爆擊傷害倍率必須是正整數。");
+    }
+    if (!Number.isSafeInteger(attackTypeCritBonus) || attackTypeCritBonus < 0
+        || attackTypeCritBonus > 1
+        || !Number.isSafeInteger(weaponCritMultiplier)) {
+        throw new Error("單項攻擊的額外爆擊倍率只可為 0 或 1。");
     }
 
     // 1. 取得單發打擊的中立三態命中機率
@@ -1172,7 +1181,7 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
                 0
             ) + attack.negativeDice.reduce((count, dice) => count + dice.count, 0);
             const criticalPoolSize = attack.weaponDice.reduce(
-                (count, dice) => count + dice.count * critMultiplier,
+                (count, dice) => count + dice.count * weaponCritMultiplier,
                 0
             ) + attack.negativeDice.reduce((count, dice) => count + dice.count, 0);
             assertDicePoolSize(normalPoolSize, "普通傷害公式");
@@ -1192,7 +1201,7 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
             let weaponMaxCrit = 0;
             for (const dice of attack.weaponDice) {
                 weaponMaxNormal += dice.sides * dice.count;
-                weaponMaxCrit += dice.sides * dice.count * critMultiplier;
+                weaponMaxCrit += dice.sides * dice.count * weaponCritMultiplier;
             }
 
             let reductionMinContribution = 0;
@@ -1271,7 +1280,7 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
             for (const dice of attack.weaponDice) {
                 const baseDist = PREGENERATED_DICE_NORMAL[`D${dice.sides}`];
                 for (let i = 0; i < dice.count; i++) weaponNormalPool.push({ dist: baseDist, isNegative: false });
-                for (let i = 0; i < dice.count * critMultiplier; i++) weaponCritPool.push({ dist: baseDist, isNegative: false });
+                for (let i = 0; i < dice.count * weaponCritMultiplier; i++) weaponCritPool.push({ dist: baseDist, isNegative: false });
             }
 
             // 2. 【核心修正】：注入負向減傷骰 ── 爆擊時維持 1 倍數量，絕不翻倍！
@@ -1366,8 +1375,90 @@ function calculate(caseName, attackStr, targetAC, criticalOptions, rawDamageStr)
         distributionSupport: absoluteDomainSupport,
         discardedMass: finalTotal.discardedMass,
         details: { 
-            attackStr, targetAC, critThreshold, critMultiplier, rawDamageStr, pHit, pCrit, pMiss,
+            attackStr, targetAC, critThreshold, critMultiplier, weaponCritMultiplier, rawDamageStr, pHit, pCrit, pMiss,
             totalMaxPossibleDmg: analyticalMaxTotalDmg 
         } 
+    };
+}
+
+function calculateAttackEntries(caseName, entries, targetAC, criticalOptions) {
+    if (!Array.isArray(entries) || entries.length === 0) {
+        throw new Error("請至少新增一個攻擊項目。");
+    }
+
+    const attackCount = entries.reduce((sum, entry) => sum + entry.attackCount, 0);
+    assertExpandedCount(attackCount, MAX_EXPANDED_ATTACKS, "總攻擊次數");
+    const summaries = entries.map(entry => {
+        const critMultiplierBonus = entry.critMultiplierBonus === undefined
+            ? 0
+            : entry.critMultiplierBonus;
+        if (!Number.isSafeInteger(critMultiplierBonus) || critMultiplierBonus < 0
+            || critMultiplierBonus > 1) {
+            throw new Error("攻擊項目的額外爆擊倍率只可為 0 或 1。");
+        }
+        const effectiveCriticalOptions = {
+            ...criticalOptions,
+            attackTypeCritBonus: critMultiplierBonus
+        };
+        return calculate(
+            entry.name || caseName,
+            entry.attackStr,
+            targetAC,
+            effectiveCriticalOptions,
+            entry.rawDamageStr
+        );
+    });
+
+    const combined = convolveMultipleFFT(summaries.map(summary => ({
+        dist: summary.distribution,
+        support: summary.distributionSupport,
+        discardedMass: summary.discardedMass,
+        isNegative: false
+    })));
+    const distribution = new Float64Array(combined.dist.length + combined.offset);
+    const distributionSupport = new Uint8Array(distribution.length);
+    for (let damage = 0; damage < combined.dist.length; damage++) {
+        distribution[damage + combined.offset] = combined.dist[damage];
+        distributionSupport[damage + combined.offset] = combined.support[damage];
+    }
+
+    let q1 = null;
+    let q2 = null;
+    let q3 = null;
+    let cumulativeProbability = 0;
+    for (let damage = 0; damage < distribution.length; damage++) {
+        cumulativeProbability += distribution[damage];
+        if (q1 === null && cumulativeProbability >= 0.25) q1 = damage;
+        if (q2 === null && cumulativeProbability >= 0.5) q2 = damage;
+        if (q3 === null && cumulativeProbability >= 0.75) {
+            q3 = damage;
+            break;
+        }
+    }
+    const weightedMetric = key => summaries.reduce(
+        (sum, summary, index) => sum + summary.details[key] * entries[index].attackCount,
+        0
+    ) / attackCount;
+
+    return {
+        caseName,
+        q1: q1 === null ? 0 : q1,
+        q2: q2 === null ? 0 : q2,
+        q3: q3 === null ? 0 : q3,
+        distribution,
+        distributionSupport,
+        discardedMass: combined.discardedMass,
+        details: {
+            targetAC,
+            pHit: weightedMetric("pHit"),
+            pCrit: weightedMetric("pCrit"),
+            pMiss: weightedMetric("pMiss"),
+            attackEntryCount: entries.length,
+            totalMaxPossibleDmg: summaries.reduce(
+                (sum, summary) => sum + summary.details.totalMaxPossibleDmg,
+                0
+            ),
+            rawDamageStr: entries.map(entry => `${entry.name}: ${entry.rawDamageStr}`).join("；")
+        }
     };
 }

@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="zh-HK">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="description" content="分析 D&D 5e 攻擊命中率及傷害分佈。">
+	<title>骰子分析 - 5eCRM</title>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link href="src/dice-page.css" rel="stylesheet">
+</head>
+<body>
+	<svg class="die-template-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+		<symbol id="die-shape-d4" viewBox="0 0 64 64">
+			<path class="die-outline" fill="var(--die-fill)" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" d="M32 5 59 55H5Z"/>
+			<path class="die-facet" fill="none" stroke="currentColor" stroke-opacity=".4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="m32 5 0 50M32 5 18 42m14-37 14 37M5 55l27-13 27 13"/>
+		</symbol>
+		<symbol id="die-shape-d6" viewBox="0 0 64 64">
+			<path class="die-outline" fill="var(--die-fill)" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" d="m32 4 25 14v28L32 60 7 46V18Z"/>
+			<path class="die-facet" fill="none" stroke="currentColor" stroke-opacity=".4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="m7 18 25 14 25-14M32 32v28M32 32 7 46m25-14 25 14"/>
+		</symbol>
+		<symbol id="die-shape-d8" viewBox="0 0 64 64">
+			<path class="die-outline" fill="var(--die-fill)" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" d="m32 4 27 28-27 28L5 32Z"/>
+			<path class="die-facet" fill="none" stroke="currentColor" stroke-opacity=".4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="m32 4-9 28 9 28 9-28ZM5 32h54M32 4l18 13-9 15 9 15-18 13M32 4 14 17l9 15-9 15 18 13"/>
+		</symbol>
+		<symbol id="die-shape-d10" viewBox="0 0 64 64">
+			<path class="die-outline" fill="var(--die-fill)" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" d="M32 3 53 18 60 32 53 46 32 61 11 46 4 32 11 18Z"/>
+			<path class="die-facet" fill="none" stroke="currentColor" stroke-opacity=".4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M32 3 18 25 4 32 18 32 32 36 46 32 60 32 46 25 32 3M4 32 18 39 32 36 46 39 60 32M32 61 18 39M32 61 32 36M32 61 46 39M18 25 18 32 18 39M46 25 46 32 46 39"/>
+		</symbol>
+		<symbol id="die-shape-d12" viewBox="0 0 64 64">
+			<path class="die-outline" fill="var(--die-fill)" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" d="m32 4 24 17-9 29-30 0-9-29Z"/>
+			<path class="die-facet" fill="none" stroke="currentColor" stroke-opacity=".4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="m32 4-7 23 7 23 7-23ZM8 21l17 6m31-6-17 6m-22 23 15-5m30 5-15-5M8 21l17 6 7 23M56 21l-17 6-7 23M18 50l7-23m21 23-7-23"/>
+		</symbol>
+		<symbol id="die-shape-d20" viewBox="0 0 64 64">
+			<path class="die-outline" fill="var(--die-fill)" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" d="M32 3 58 19 58 45 32 61 6 45 6 19Z"/>
+			<path class="die-facet" fill="none" stroke="currentColor" stroke-opacity=".42" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M32 3 20 22 6 19M32 3 44 22 58 19M6 19 20 22 6 45M58 19 44 22 58 45M20 22H44M20 22 32 47 44 22M6 45 32 47 58 45M32 47V61"/>
+		</symbol>
+	</svg>
+
+	<main class="container-fluid py-4 px-3 px-xl-4">
+		<header class="page-heading mb-4">
+			<h1 class="h2 fw-bold mb-1">骰子分析</h1>
+			<p class="text-secondary mb-0">輸入攻擊情境，查看命中率及傷害分佈。</p>
+		</header>
+
+		<div class="row g-4 align-items-start">
+			<section class="col-12" aria-labelledby="input-heading">
+				<div class="card shadow-sm">
+					<div class="card-body p-4">
+						<h2 id="input-heading" class="h4 mb-4">攻擊設定</h2>
+
+						<form id="dice-form">
+							<div class="row g-3 mb-4">
+								<div class="col-12 col-sm-4">
+									<label class="form-label" for="target-ac">目標 AC</label>
+									<input class="form-control" id="target-ac" type="number" min="0" max="1000" step="1" value="13" required>
+								</div>
+								<div class="col-12 col-sm-4">
+									<label class="form-label" for="crit-threshold">爆擊門檻</label>
+									<select class="form-select" id="crit-threshold">
+										<option value="20" selected>20+</option>
+										<option value="19">19+</option>
+										<option value="18">18+</option>
+									</select>
+								</div>
+								<div class="col-12 col-sm-4">
+									<label class="form-label" for="crit-multiplier">爆擊倍率</label>
+									<input class="form-control" id="crit-multiplier" type="number" min="1" max="8" step="1" value="2" required>
+								</div>
+							</div>
+							<div class="mb-4">
+								<label class="form-label" for="analysis-round-count">DPR 計算輪數</label>
+								<select class="form-select" id="analysis-round-count">
+									<option value="1" selected>1DPR</option>
+									<option value="2">2DPR</option>
+									<option value="3">3DPR</option>
+								</select>
+							</div>
+							<div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+								<h3 class="h6 fw-bold mb-0" title="點擊項目列即可編輯；每列代表一種攻擊設定，所有項目會一併計算；目標 AC 及爆擊設定套用於全部項目。">攻擊項目</h3>
+								<button id="add-attack" class="btn btn-outline-primary btn-sm" type="button">新增攻擊</button>
+							</div>
+							<div id="attack-list" class="attack-list mb-3" aria-label="攻擊項目"></div>
+
+							<div id="input-error" class="alert alert-danger mt-4 mb-0" role="alert" hidden></div>
+							<button class="btn btn-primary btn-lg w-100 mt-4" type="submit">計算傷害</button>
+						</form>
+					</div>
+				</div>
+			</section>
+
+			<section class="col-12" aria-labelledby="result-heading">
+				<div id="result-placeholder" class="result-placeholder rounded-3 p-4 p-lg-5 text-center">
+					<div class="display-5 mb-3" aria-hidden="true">🎯</div>
+					<h2 class="h4">準備好分析攻擊</h2>
+					<p class="text-secondary mb-0">調整左邊設定，再按「計算傷害」查看命中率及傷害分佈。</p>
+				</div>
+
+				<div id="results" hidden aria-live="polite">
+					<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+						<div>
+							<p class="text-uppercase text-primary fw-semibold small mb-1">計算結果</p>
+							<h2 id="result-heading" class="h3 mb-0">攻擊分析</h2>
+						</div>
+						<p id="result-summary" class="text-secondary small mb-1"></p>
+					</div>
+
+					<div class="card shadow-sm mb-4">
+						<div class="card-body p-4">
+							<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+								<div>
+									<h3 class="h5 mb-1" title="顯示指定輪數內，每個整數傷害值出現嘅機率。">總傷害分佈</h3>
+								</div>
+							</div>
+							<div class="chart-container">
+								<canvas id="damage-chart" role="img" aria-label="指定輪數內嘅總傷害機率分佈圖"></canvas>
+							</div>
+							<div class="outcome-chart-container">
+								<canvas id="outcome-chart" role="img" aria-label="普通命中、爆擊及失手機率水平堆疊圖"></canvas>
+							</div>
+							<p id="outcome-chart-error" class="alert alert-warning mt-3 mb-0" role="status" hidden></p>
+							<div class="average-damage-row">
+								<span>平均傷害</span>
+								<strong id="mean-damage">—</strong>
+							</div>
+							<div class="row row-cols-4 g-1 mt-3 chart-quartile-summary">
+								<div class="col"><div class="chart-quartile-value chart-quartile-q1"><span aria-hidden="true">Q1</span><strong id="q1">—</strong></div></div>
+								<div class="col"><div class="chart-quartile-value chart-quartile-q2"><span aria-hidden="true">Q2</span><strong id="q2">—</strong></div></div>
+								<div class="col"><div class="chart-quartile-value chart-quartile-q3"><span aria-hidden="true">Q3</span><strong id="q3">—</strong></div></div>
+								<div class="col"><div class="chart-quartile-value chart-quartile-q4"><span aria-hidden="true">Q4</span><strong id="max-damage">—</strong></div></div>
+							</div>
+							<p id="chart-error" class="alert alert-warning mt-3 mb-0" role="status" hidden></p>
+							<div id="discarded-warning" class="alert alert-warning mt-3 mb-0" role="status" hidden></div>
+							<p class="form-text mt-3 mb-0">理論最高傷害係極端可能上限，唔代表預期表現。每列攻擊嘅 PR 池會喺該項目每輪內共享，並由首個命中消耗。</p>
+						</div>
+					</div>
+
+				</div>
+			</section>
+		</div>
+	</main>
+
+	<div class="modal fade" id="attack-modal" tabindex="-1" aria-labelledby="attack-modal-title" aria-hidden="true">
+		<div class="modal-dialog modal-lg modal-dialog-scrollable">
+			<div class="modal-content">
+				<form id="attack-editor">
+					<div class="modal-header">
+						<h2 id="attack-modal-title" class="modal-title fs-5">新增攻擊</h2>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+					</div>
+					<div class="modal-body">
+						<div class="mb-3">
+							<label class="form-label" for="entry-name">名稱</label>
+							<input class="form-control" id="entry-name" type="text" maxlength="80" value="攻擊" required>
+						</div>
+						<fieldset id="entry-basic-fields">
+							<div class="hit-dice-section mb-3">
+								<h3 class="h6 fw-bold mb-2">命中骰&修正</h3>
+								<input id="entry-attack-mode" type="hidden" value="normal">
+								<div id="entry-hit-dice-display" class="hit-dice-display mb-2" role="group" aria-label="命中骰公式">
+									<span class="hit-formula-bonus">
+										<input class="attack-bonus-input" id="entry-attack-bonus" type="number" min="-1000" max="1000" step="1" value="5" aria-label="攻擊加值" required>
+									</span>
+								</div>
+								<div class="hit-die-buttons" role="group" aria-label="加入命中骰修正">
+									<button class="btn btn-sm btn-outline-success" type="button" data-sign="positive" data-sides="4" aria-label="加入正向命中骰 D4">D4</button>
+									<button class="btn btn-sm btn-outline-success" type="button" data-sign="positive" data-sides="6" aria-label="加入正向命中骰 D6">D6</button>
+									<button class="btn btn-sm btn-outline-success" type="button" data-sign="positive" data-sides="8" aria-label="加入正向命中骰 D8">D8</button>
+									<button class="btn btn-sm btn-outline-success" type="button" data-sign="positive" data-sides="10" aria-label="加入正向命中骰 D10">D10</button>
+									<button class="btn btn-sm btn-outline-success" type="button" data-sign="positive" data-sides="12" aria-label="加入正向命中骰 D12">D12</button>
+									<button class="btn btn-sm btn-outline-danger" type="button" data-sign="negative" data-sides="4" aria-label="加入負向命中骰 D4">D4</button>
+									<button class="btn btn-sm btn-outline-danger" type="button" data-sign="negative" data-sides="6" aria-label="加入負向命中骰 D6">D6</button>
+									<button class="btn btn-sm btn-outline-danger" type="button" data-sign="negative" data-sides="8" aria-label="加入負向命中骰 D8">D8</button>
+									<button class="btn btn-sm btn-outline-danger" type="button" data-sign="negative" data-sides="10" aria-label="加入負向命中骰 D10">D10</button>
+									<button class="btn btn-sm btn-outline-danger" type="button" data-sign="negative" data-sides="12" aria-label="加入負向命中骰 D12">D12</button>
+								</div>
+							</div>
+							<h3 class="h6 fw-bold">每擊傷害</h3>
+							<div class="hit-dice-section mb-3">
+								<div id="entry-damage-dice-display" class="hit-dice-display mb-2" role="group" aria-label="傷害骰公式">
+									<span class="hit-formula-bonus">
+										<input class="attack-bonus-input" id="entry-damage-bonus" type="number" min="-1000" max="1000" step="1" value="3" aria-label="傷害固定加值" required>
+									</span>
+								</div>
+								<div class="hit-die-buttons damage-die-buttons" role="group" aria-label="加入傷害骰">
+									<button class="btn btn-sm btn-outline-success" type="button" data-sign="positive" data-sides="4" aria-label="加入正向傷害骰 D4">D4</button>
+									<button class="btn btn-sm btn-outline-success" type="button" data-sign="positive" data-sides="6" aria-label="加入正向傷害骰 D6">D6</button>
+									<button class="btn btn-sm btn-outline-success" type="button" data-sign="positive" data-sides="8" aria-label="加入正向傷害骰 D8">D8</button>
+									<button class="btn btn-sm btn-outline-success" type="button" data-sign="positive" data-sides="10" aria-label="加入正向傷害骰 D10">D10</button>
+									<button class="btn btn-sm btn-outline-success" type="button" data-sign="positive" data-sides="12" aria-label="加入正向傷害骰 D12">D12</button>
+									<button class="btn btn-sm btn-outline-danger" type="button" data-sign="negative" data-sides="4" aria-label="加入負向傷害骰 D4">D4</button>
+									<button class="btn btn-sm btn-outline-danger" type="button" data-sign="negative" data-sides="6" aria-label="加入負向傷害骰 D6">D6</button>
+									<button class="btn btn-sm btn-outline-danger" type="button" data-sign="negative" data-sides="8" aria-label="加入負向傷害骰 D8">D8</button>
+									<button class="btn btn-sm btn-outline-danger" type="button" data-sign="negative" data-sides="10" aria-label="加入負向傷害骰 D10">D10</button>
+									<button class="btn btn-sm btn-outline-danger" type="button" data-sign="negative" data-sides="12" aria-label="加入負向傷害骰 D12">D12</button>
+								</div>
+							</div>
+							<div class="row g-3">
+								<div class="col-12"><label class="form-label" for="entry-attacks-per-round">每輪攻擊次數</label><input class="form-control" id="entry-attacks-per-round" type="number" min="1" max="300" step="1" value="1" required></div>
+								<div class="col-12"><label class="form-label" for="entry-pr-formula">每輪額外傷害骰（可留空）</label><input class="form-control" id="entry-pr-formula" type="text" placeholder="例如：1D6PR" autocomplete="off"><div class="form-text">PR 池會喺此攻擊項目指定嘅每輪內，喺攻擊之間共享。</div></div>
+							</div>
+						</fieldset>
+						<div class="form-check form-switch mt-3">
+							<input class="form-check-input" id="entry-advanced-mode" type="checkbox">
+							<label class="form-check-label fw-semibold" for="entry-advanced-mode">使用進階公式輸入</label>
+						</div>
+						<div class="row g-3 mt-1">
+							<div class="col-12 col-md-6">
+								<label class="form-label" for="entry-round-number">套用輪次</label>
+								<select class="form-select" id="entry-round-number">
+									<option value="" selected>每輪</option>
+									<option value="1">第 1 輪</option>
+									<option value="2">第 2 輪</option>
+									<option value="3">第 3 輪</option>
+								</select>
+								<div class="form-text">留空代表每輪套用；進階傷害公式亦按此設定輪次。</div>
+							</div>
+						</div>
+						<div class="form-check mt-3">
+							<input class="form-check-input" id="entry-extra-crit-die" type="checkbox">
+							<label class="form-check-label" for="entry-extra-crit-die" title="只為此攻擊的每擊傷害骰額外增加 1 倍；每輪額外傷害骰維持共用爆擊倍率。">爆擊時額外傷害骰（此項目 +1x）</label>
+						</div>
+						<div id="entry-advanced-fields" class="mt-3" hidden>
+							<div class="mb-3"><label class="form-label" for="entry-advanced-attack">命中公式</label><input class="form-control font-monospace" id="entry-advanced-attack" type="text" value="D20+5" spellcheck="false" autocomplete="off"><div class="form-text">例如：D20+5、D20A1+5+1D4。A1 代表優勢，D1 代表劣勢，A2 代表精靈準確。</div></div>
+							<div><label class="form-label" for="entry-advanced-damage">單輪傷害公式</label><textarea class="form-control font-monospace" id="entry-advanced-damage" rows="3" spellcheck="false">1 (1D8+3)</textarea><div class="form-text">只輸入一輪嘅傷害；套用輪次由上方設定。每輪多次相同攻擊可用括號內數量表示，例如：1 (2 1D8+5)。</div></div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button id="delete-attack" class="btn btn-outline-danger me-auto" type="button" hidden>刪除此項目</button>
+						<button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">取消</button>
+						<button class="btn btn-primary" type="submit">儲存項目</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
+	<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+	<script src="src/dice.js"></script>
+	<script src="src/dice-page.js"></script>
+</body>
+</html>
