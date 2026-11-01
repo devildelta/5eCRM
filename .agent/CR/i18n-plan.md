@@ -22,5 +22,6 @@ Keep existing UI wording for the remaining interface text, except for the user-p
 - Use `{class}` for recurring D&D class references, with its noun localized once per locale and substituted by the same token resolver.
 - Keep punctuation inside its sentence template unless it has an independent formatting role. `classSummarySeparator` remains locale-controlled because it joins a variable-length list; the former standalone sentence-ending key was removed.
 - Keep resource/category/cooldown identifiers stable for saved data; only their displayed labels use locale keys.
+- Labels on narrow, equal-width action buttons (such as the three mobile rest buttons at 320px) should remain concise in each locale. Use responsive font sizing and `white-space: nowrap` for the current controls; when adding or revising translations, verify their longest label at the 320px viewport rather than assuming desktop fit.
 - No package manifest or existing unit-test files were found; use available repository checks and focused browser/runtime checks as applicable.
 - Preserve existing class/resource identifiers and persisted records; localization affects presentation only.
