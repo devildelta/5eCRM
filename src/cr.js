@@ -994,9 +994,7 @@
 
   function createGroupedResourceCard(label, items, groupType) {
     const column = document.createElement('div');
-    column.className = groupType.indexOf('class-resources:') === 0
-      ? 'col-12 col-md-6 col-xl-6'
-      : 'col-12 col-md-6 col-xl-4';
+    column.className = 'resource-card-column';
     column.dataset.resourceGroup = groupType;
     const card = document.createElement('article');
     card.className = 'card h-100';
@@ -1029,8 +1027,10 @@
       else if (isDicePoolGroup) {
         const labelLength = Array.from(label).length;
         body.classList.add(labelLength <= 18 ? 'dice-pool-grid-short' : 'dice-pool-grid-long');
-      } else if (isClassResourceGroup) body.classList.add('class-resource-grid');
-      else if (isPactGroup) body.classList.add('pact-magic-grid');
+      } else if (isClassResourceGroup) {
+        body.classList.add('class-resource-grid');
+        if (items.length > 3) body.classList.add('class-resource-grid-horizontal');
+      } else if (isPactGroup) body.classList.add('pact-magic-grid');
     }
     items.forEach(function (item) {
       const row = isSpellSlotGroup
@@ -1057,7 +1057,7 @@
 
   function createWarlockResourceCard(group) {
     const column = document.createElement('div');
-    column.className = 'col-12 col-md-6 col-xl-6';
+    column.className = 'resource-card-column';
     column.dataset.resourceGroup = group.type;
     const card = document.createElement('article');
     card.className = 'card h-100';
@@ -1101,6 +1101,7 @@
       clusterTitle.textContent = t('classResourceGroupLabel');
       const grid = document.createElement('div');
       grid.className = 'resource-compact-grid class-resource-grid';
+      if (group.classItems.length > 3) grid.classList.add('class-resource-grid-horizontal');
       if (group.classItems.length === 1) grid.classList.add('single-compact-resource');
       group.classItems.forEach(function (item) {
         grid.appendChild(createClassResourceControl(item.resource, item.index));
@@ -1118,7 +1119,7 @@
 
   function createResourceCard(resource, index) {
     const column = document.createElement('div');
-    column.className = 'col-12 col-md-6 col-xl-4';
+    column.className = 'resource-card-column';
     column.dataset.resourceIndex = String(index);
     column.dataset.resourceGroup = resourceGroupType(resource);
     const card = document.createElement('article');
