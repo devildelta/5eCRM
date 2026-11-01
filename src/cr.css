@@ -181,7 +181,8 @@ header {
   background: rgba(255, 255, 255, 0.02);
 }
 
-.resource-rest-badge {
+.resource-rest-badge,
+.resource-details-trigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -315,8 +316,7 @@ header {
   text-align: left;
 }
 
-.pact-magic-flat-control > .resource-rest-badge,
-.pact-magic-flat-control > .resource-compact-details {
+.pact-magic-flat-control > .resource-rest-meta {
   grid-column: 1 / -1;
   justify-self: end;
 }
@@ -367,10 +367,6 @@ header {
   white-space: normal;
   overflow-wrap: anywhere;
   text-align: left;
-}
-
-.class-resource-grid-horizontal .class-resource-control > .resource-compact-details {
-  grid-column: 1 / -1;
 }
 
 .class-resource-grid-horizontal .class-resource-info .resource-rest-badge {
@@ -470,22 +466,30 @@ header {
   max-width: 2.75rem;
 }
 
-.resource-compact-details {
-  width: 100%;
-  color: #c8d0d9;
-  font-size: 0.7rem;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
+.resource-rest-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 0;
 }
 
-.resource-compact-details summary {
-  text-align: center;
+.resource-details-trigger {
   cursor: pointer;
 }
 
-.resource-compact-details span {
-  display: block;
-  margin-top: 0.25rem;
+.resource-details-trigger:hover {
+  color: #fff;
+}
+
+.resource-details-trigger:focus-visible {
+  outline: 2px solid rgba(127, 181, 255, 0.9);
+  outline-offset: 2px;
+}
+
+.resource-details-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 36em) {
@@ -524,7 +528,7 @@ header {
 
   .single-compact-resource .resource-compact-label,
   .single-compact-resource .resource-rest-badge,
-  .single-compact-resource .resource-compact-details {
+  .single-compact-resource .resource-rest-meta {
     grid-column: 1 / -1;
   }
 
@@ -725,6 +729,10 @@ input {
 
 .cr-modal .modal-dialog {
   max-width: min(1100px, 92vw);
+}
+
+.resource-details-modal-dialog {
+  max-width: min(32rem, 92vw);
 }
 
 .cr-modal .modal-body {
@@ -1083,10 +1091,6 @@ input {
     white-space: normal;
     overflow-wrap: anywhere;
     text-align: left;
-  }
-
-  .class-resource-control > .resource-compact-details {
-    grid-column: 1 / -1;
   }
 
   .class-resource-info .resource-rest-badge {

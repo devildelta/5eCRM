@@ -144,11 +144,11 @@
     wizard: { unlockLevel: 2, options: [['abjuration', 'Abjuration', 'PHB'], ['conjuration', 'Conjuration', 'PHB'], ['divination', 'Divination', 'PHB'], ['enchantment', 'Enchantment', 'PHB'], ['evocation', 'Evocation', 'PHB'], ['illusion', 'Illusion', 'PHB'], ['necromancy', 'Necromancy', 'PHB'], ['transmutation', 'Transmutation', 'PHB'], ['war-magic', 'War Magic', 'XGE'], ['bladesinging', 'Bladesinging', 'TCE'], ['order-of-scribes', 'Order of Scribes', 'TCE']] }
   };
   const tceFeatureData = [
-    { key: 'cleric-harness-divine-power', classKey: 'cleric', label: 'tceHarnessDivinePowerCleric', unlockLevel: 2, costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] },
-    { key: 'druid-wild-companion', classKey: 'druid', label: 'tceWildCompanion', unlockLevel: 2, costs: [{ poolKey: 'class:druid:wild-shape', alternative: true }, { type: 'spell-slot', alternative: true }] },
+    { key: 'cleric-harness-divine-power', classKey: 'cleric', label: 'tceHarnessDivinePowerCleric', unlockLevel: 2, description: 'tceHarnessDivinePowerClericDescription', costs: [{ poolKey: 'class:cleric:channel-divinity', amount: 1 }] },
+    { key: 'druid-wild-companion', classKey: 'druid', label: 'tceWildCompanion', unlockLevel: 2, description: 'tceWildCompanionDescription', costs: [{ poolKey: 'class:druid:wild-shape', amount: 1, alternative: true }, { type: 'spell-slot', alternative: true }] },
     { key: 'monk-quickened-healing', classKey: 'monk', label: 'tceQuickenedHealing', unlockLevel: 2, costs: [{ poolKey: 'class:monk:ki', amount: 2 }] },
     { key: 'monk-focused-aim', classKey: 'monk', label: 'tceFocusedAim', unlockLevel: 2, costs: [{ poolKey: 'class:monk:ki', amount: '1-3' }] },
-    { key: 'paladin-harness-divine-power', classKey: 'paladin', label: 'tceHarnessDivinePowerPaladin', unlockLevel: 3, costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }] },
+    { key: 'paladin-harness-divine-power', classKey: 'paladin', label: 'tceHarnessDivinePowerPaladin', unlockLevel: 3, description: 'tceHarnessDivinePowerPaladinDescription', costs: [{ poolKey: 'class:paladin:channel-divinity', amount: 1 }] },
     { key: 'ranger-favored-foe', classKey: 'ranger', label: 'tceFavoredFoe', unlockLevel: 1 },
     { key: 'ranger-primal-awareness', classKey: 'ranger', label: 'tcePrimalAwareness', unlockLevel: 3, costs: [{ type: 'spell-slot', additionalUse: true }] },
     { key: 'ranger-natures-veil', classKey: 'ranger', label: 'tceNaturesVeil', unlockLevel: 10 },
@@ -302,10 +302,10 @@
   const classResourceData = [
     { classKey: 'artificer', key: 'flash-of-genius', label: 'Flash of Genius', level: 7, maximum: { type: 'ability', ability: 'int', minimum: 1 }, cooldown: '長休', source: 'TCE' },
     { classKey: 'artificer', key: 'spell-storing-item', label: 'Spell-Storing Item', level: 11, maximum: { type: 'ability-times', factor: 2, ability: 'int', minimum: 2 }, cooldown: '長休', source: 'TCE' },
-    { classKey: 'artificer', subclassKey: 'alchemist', key: 'experimental-elixir', label: 'Experimental Elixir (free creation)', level: 3, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', costs: [{ type: 'spell-slot', additionalUse: true }] },
+    { classKey: 'artificer', subclassKey: 'alchemist', key: 'experimental-elixir', label: 'Experimental Elixir', level: 3, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', notes: ['classExperimentalElixirFreeCreation'], costs: [{ type: 'spell-slot', additionalUse: true }] },
     { classKey: 'artificer', subclassKey: 'alchemist', key: 'restorative-reagents', label: 'Restorative Reagents', level: 9, maximum: { type: 'ability', ability: 'int', minimum: 1 }, cooldown: '長休', source: 'TCE' },
     { classKey: 'artificer', subclassKey: 'armorer', key: 'defensive-field', label: 'Defensive Field', level: 3, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE' },
-    { classKey: 'artificer', subclassKey: 'artillerist', key: 'eldritch-cannon', label: 'Eldritch Cannon (free creation)', level: 3, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', concurrentLimitByLevel: [[3, 1], [15, 2]], costs: [{ type: 'spell-slot', additionalUse: true }], source: 'TCE' },
+    { classKey: 'artificer', subclassKey: 'artillerist', key: 'eldritch-cannon', label: 'Eldritch Cannon', level: 3, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', concurrentLimitByLevel: [[3, 1], [15, 2]], notes: ['classEldritchCannonFreeCreation'], costs: [{ type: 'spell-slot', additionalUse: true }], source: 'TCE' },
     { classKey: 'artificer', subclassKey: 'battle-smith', key: 'arcane-jolt', label: 'Arcane Jolt', level: 9, maximum: { type: 'ability', ability: 'int', minimum: 1 }, cooldown: '長休', source: 'TCE', usageGate: 'once-per-turn' },
     { classKey: 'barbarian', key: 'rage', label: 'Rage', level: 1, maximum: { type: 'barbarian-rage' }, cooldown: '長休', source: 'PHB', shared: true, consumers: sharedPoolConsumers.rage },
     { classKey: 'barbarian', subclassKey: 'ancestral-guardian', key: 'consult-the-spirits', label: 'Consult the Spirits', level: 10, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'XGE' },
@@ -337,7 +337,7 @@
     { classKey: 'druid', subclassKey: 'dreams', key: 'balm-of-the-summer-court', label: 'Balm of the Summer Court', level: 2, maximum: { type: 'class-level', die: 'd6' }, cooldown: '長休', source: 'XGE', poolMode: 'dice' },
     { classKey: 'druid', subclassKey: 'dreams', key: 'hidden-paths', label: 'Hidden Paths', level: 10, maximum: { type: 'ability', ability: 'wis', minimum: 1 }, cooldown: '長休', source: 'XGE' },
     { classKey: 'druid', subclassKey: 'shepherd', key: 'spirit-totem', label: 'Spirit Totem', level: 2, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'XGE' },
-    { classKey: 'druid', subclassKey: 'stars', key: 'star-map-guiding-bolt', label: 'Star Map (Guiding Bolt free cast)', level: 2, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE', poolMode: 'free-cast' },
+    { classKey: 'druid', subclassKey: 'stars', key: 'star-map-guiding-bolt', label: 'Star Map', level: 2, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE', poolMode: 'free-cast', notes: ['classStarMapGuidingBoltNote'] },
     { classKey: 'druid', subclassKey: 'stars', key: 'cosmic-omen', label: 'Cosmic Omen', level: 6, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE' },
     { classKey: 'druid', subclassKey: 'wildfire', key: 'cauterizing-flames', label: 'Cauterizing Flames', level: 10, maximum: { type: 'ability', ability: 'wis', minimum: 1 }, cooldown: '長休', source: 'TCE', relatedFeatureCosts: [{ featureKey: 'wildfire-spirit', name: 'Wildfire Spirit', costs: [{ poolKey: 'class:druid:wild-shape', label: 'classWildShapeUseCost', amount: 1, alternative: true }, { type: 'spell-slot', alternative: true }] }] },
     { classKey: 'fighter', key: 'second-wind', label: 'Second Wind', level: 1, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'PHB' },
@@ -367,7 +367,7 @@
     { classKey: 'ranger', subclassKey: 'horizon-walker', key: 'detect-portal', label: 'Detect Portal', level: 3, maximum: { type: 'ability', ability: 'wis', minimum: 1 }, cooldown: '長休', source: 'XGE' },
     { classKey: 'ranger', subclassKey: 'horizon-walker', key: 'ethereal-step', label: 'Ethereal Step', level: 7, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'XGE' },
     { classKey: 'ranger', subclassKey: 'monster-slayer', key: 'magic-users-nemesis', label: "Magic-User's Nemesis", level: 11, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'XGE' },
-    { classKey: 'ranger', subclassKey: 'fey-wanderer', key: 'fey-reinforcements', label: 'Fey Reinforcements (free casting)', level: 11, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', costs: [{ type: 'spell-slot', additionalUse: true }] },
+    { classKey: 'ranger', subclassKey: 'fey-wanderer', key: 'fey-reinforcements', label: 'Fey Reinforcements', level: 11, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', notes: ['classFeyReinforcementsFreeCasting'], costs: [{ type: 'spell-slot', additionalUse: true }] },
     { classKey: 'ranger', subclassKey: 'fey-wanderer', key: 'misty-wanderer', label: 'Misty Wanderer', level: 15, maximum: { type: 'ability', ability: 'wis', minimum: 1 }, cooldown: '長休', source: 'TCE' },
     { classKey: 'ranger', subclassKey: 'swarmkeeper', key: 'writhing-tide', label: 'Writhing Tide', level: 7, maximum: { type: 'pb' }, cooldown: '長休', source: 'TCE' },
     { classKey: 'ranger', subclassKey: 'drakewarden', key: 'drake-companion', label: 'Drake Companion', level: 3, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'FToD', costs: [{ type: 'spell-slot', additionalUse: true }] },
@@ -442,6 +442,7 @@
     pendingAction: null,
     modal: null,
     roleModal: null,
+    resourceDetailsModal: null,
     toast: null,
     classRowId: 0,
     classFeatureSettings: storedClassFeatureSettings,
@@ -452,8 +453,13 @@
   const app = document.getElementById('crApp');
   const modalElement = document.getElementById('managementModal');
   const roleModalElement = document.getElementById('roleCreateModal');
+  const resourceDetailsModalElement = document.getElementById('resourceDetailsModal');
   state.modal = bootstrap.Modal.getOrCreateInstance(modalElement);
   state.roleModal = bootstrap.Modal.getOrCreateInstance(roleModalElement);
+  state.resourceDetailsModal = bootstrap.Modal.getOrCreateInstance(resourceDetailsModalElement);
+  resourceDetailsModalElement.querySelector('.modal-dialog').addEventListener('click', function () {
+    state.resourceDetailsModal.hide();
+  });
   state.toast = bootstrap.Toast.getOrCreateInstance(document.getElementById('crToast'));
 
   function notify(message) {
@@ -568,6 +574,31 @@
     const metadata = resource && resource.generatedClass;
     if (!metadata || metadata.kind !== 'class-resource') return '';
     const details = [];
+    const isSorceryPoints = metadata.resourceKey === 'class:sorcerer:sorcery-points';
+    if (metadata.sourceVersion === 'TCE') details.push(t('classResourceSourceTce'));
+    if (isSorceryPoints) {
+      details.push(t('sorceryFlexibleCastingHeading'));
+      details.push(t('sorceryCreateSlotLabel'));
+      [2, 3, 5, 6, 7].forEach(function (cost, index) {
+        details.push(t('sorceryCreateSlotCostTemplate', { level: index + 1, cost: cost }));
+      });
+      details.push(t('sorceryMetamagicHeading'));
+      [
+        ['Careful Spell', '1 SP'],
+        ['Distant Spell', '1 SP'],
+        ['Empowered Spell', '1 SP'],
+        ['Extended Spell', '1 SP'],
+        ['Heightened Spell', '3 SP'],
+        ['Quickened Spell', '2 SP'],
+        ['Subtle Spell', '1 SP'],
+        ['Twinned Spell', t('sorceryTwinnedSpellCost')],
+        ['Seeking Spell', '2 SP', true],
+        ['Transmuted Spell', '1 SP', true]
+      ].forEach(function (option) {
+        const source = option[2] ? ' ' + t('sorceryTceSourceLabel') : '';
+        details.push(t('sorceryMetamagicOptionTemplate', { option: option[0] + source, cost: option[1] }));
+      });
+    }
     const gateLabels = {
       'once-per-turn': 'classUsageGateTurn',
       'once-on-your-turn': 'classUsageGateYourTurn',
@@ -575,12 +606,20 @@
     };
     if (metadata.usageGate && gateLabels[metadata.usageGate]) details.push(t(gateLabels[metadata.usageGate]));
     if (metadata.effectGate === 'favored-foe-damage-on-your-turn') details.push(t('classEffectGateFavoredFoeDamage'));
-    function costText(cost) {
+    function costText(cost, compactCurrentPool, costOption) {
       let costName = cost.type === 'spell-slot'
         ? Number.isInteger(cost.minimumLevel) ? t('classSpellSlotMinimumLevelCostTemplate', { level: cost.minimumLevel }) : t('classSpellSlotCost')
         : cost.type === 'pact-slot' ? t('classPactSlotCost')
           : cost.type === 'damage' ? t('classDamageCost') : '';
       if (cost.poolKey) {
+        if (compactCurrentPool && cost.poolKey === metadata.resourceKey) {
+          const unit = metadata.poolMode === 'points' ? '點'
+            : metadata.poolMode === 'dice' ? '顆'
+              : metadata.poolMode === 'hit-points' ? '生命點'
+                : metadata.poolMode === 'accumulative' ? '個' : '次';
+          if (costOption) return (cost.amount === undefined ? '' : String(cost.amount) + ' ') + unit;
+          return t('classResourceCurrentPoolCostTemplate', { amount: cost.amount === undefined ? '' : String(cost.amount), unit: unit });
+        }
         const pool = currentResources().find(function (candidate) {
           return candidate.generatedClass && candidate.generatedClass.resourceKey === cost.poolKey;
         });
@@ -588,38 +627,80 @@
       }
       if (!costName) return '';
       const amount = cost.amount === undefined ? '' : String(cost.amount);
+      if (costOption) return amount ? amount + ' ' + costName : costName;
+      if (!amount && cost.alternative) return t('classResourceAlternativeCostNoAmountTemplate', { resource: costName });
       return cost.alternative
         ? t('classResourceAlternativeCostTemplate', { amount: amount, resource: costName })
         : cost.additionalUse
           ? t('classResourceAdditionalCostTemplate', { amount: amount, resource: costName })
           : t('classResourceCostTemplate', { amount: amount, resource: costName });
     }
+    const relatedTceFeatures = tceFeatureData.filter(function (feature) {
+      const featureClass = (metadata.classConfigs || []).find(function (config) {
+        return config.classKey === feature.classKey;
+      });
+      if (!featureClass || featureClass.level < feature.unlockLevel) return false;
+      return (feature.costs || []).some(function (cost) { return cost.poolKey === metadata.resourceKey; })
+        || Boolean(feature.recovery && feature.recovery.poolKey === metadata.resourceKey);
+    });
+    const relatedTceFeatureKeys = new Set(relatedTceFeatures.map(function (feature) { return feature.key; }));
     (metadata.costs || []).forEach(function (cost) {
       const text = costText(cost);
       if (text) details.push(text);
     });
     const consumers = Array.isArray(metadata.consumers) ? metadata.consumers : [];
     const listedConsumerKeys = new Set(consumers.map(function (consumer) { return consumer.featureKey; }).filter(Boolean));
-    if (consumers.length) {
-      details.push(t('classResourceConsumersTemplate', {
-        features: consumers.map(function (consumer) {
-          const name = consumer.label ? t(consumer.label) : consumer.name;
-          const costs = (consumer.costs || []).map(costText).filter(Boolean);
-          return costs.length ? t('classResourceConsumerCostTemplate', { feature: name, costs: costs.join('／') }) : name;
-        }).join('、')
-      }));
-    }
+    consumers.forEach(function (consumer) {
+      if (isSorceryPoints && (consumer.featureKey === 'flexible-casting' || consumer.featureKey === 'metamagic')) return;
+      if (relatedTceFeatureKeys.has(consumer.featureKey)) return;
+      const name = consumer.label ? t(consumer.label) : consumer.name;
+      const costs = (consumer.costs || []).map(function (cost) { return costText(cost, true); }).filter(Boolean);
+      details.push(costs.length ? t('classResourceConsumerCostTemplate', { feature: name, costs: costs.join('／') }) : name);
+    });
+    relatedTceFeatures.forEach(function (feature) {
+      const featureCosts = feature.costs || [];
+      const alternativeCosts = featureCosts.length > 1 && featureCosts.every(function (cost) { return cost.alternative; });
+      const costs = featureCosts.map(function (cost) { return costText(cost, true, alternativeCosts); }).filter(Boolean);
+      const classLabel = t(classPresets[feature.classKey].label) + '：';
+      const localizedFeatureLabel = t(feature.label);
+      const featureName = (localizedFeatureLabel.indexOf(classLabel) === 0
+        ? localizedFeatureLabel.slice(classLabel.length)
+        : localizedFeatureLabel) + ' ' + t('sorceryTceSourceLabel');
+      if (feature.description) {
+        details.push(t('classResourceTceDescriptionTemplate', {
+          feature: featureName,
+          description: t(feature.description)
+        }));
+      } else if (costs.length) {
+        details.push(t('classResourceConsumerCostTemplate', {
+          feature: featureName,
+          costs: alternativeCosts
+            ? t('classResourceAlternativeOptionsTemplate', { costs: costs.join('／') })
+            : costs.join('／')
+        }));
+      }
+      if (feature.recovery) {
+        details.push(t('classResourceTceRestRecoveryTemplate', {
+          feature: t(feature.label),
+          rest: t('cooldownShortRest'),
+          amount: feature.recovery.shortRestRecovery
+        }));
+      }
+    });
     (metadata.relatedFeatureCosts || []).forEach(function (feature) {
-      const costs = (feature.costs || []).map(costText).filter(Boolean);
+      const costs = (feature.costs || []).map(function (cost) { return costText(cost, true); }).filter(Boolean);
       if (costs.length) details.push(t('classResourceConsumerCostTemplate', { feature: feature.name, costs: costs.join('／') }));
     });
     (Array.isArray(metadata.activeTceFeatures) ? metadata.activeTceFeatures : []).forEach(function (feature) {
       const definition = tceFeatureData.find(function (option) { return option.key === feature.key; });
-      if (!definition || listedConsumerKeys.has(feature.key) || !Array.isArray(feature.costs) || !feature.costs.some(function (cost) { return cost.poolKey === metadata.resourceKey; })) return;
-      const costs = feature.costs.map(costText).filter(Boolean);
-      if (costs.length) details.push(t('classResourceConsumerCostTemplate', { feature: t(definition.label), costs: costs.join('／') }));
+      if (!definition || listedConsumerKeys.has(feature.key) || relatedTceFeatureKeys.has(feature.key) || !Array.isArray(feature.costs) || !feature.costs.some(function (cost) { return cost.poolKey === metadata.resourceKey; })) return;
+      const costs = feature.costs.map(function (cost) { return costText(cost, true); }).filter(Boolean);
+      if (costs.length) details.push(t('classResourceConsumerCostTemplate', { feature: t(definition.label) + ' ' + t('sorceryTceSourceLabel'), costs: costs.join('／') }));
     });
-    if (metadata.shortRestRecovery > 0) details.push(t('classResourceRestRecoveryTemplate', { rest: t('cooldownShortRest'), amount: metadata.shortRestRecovery }));
+    const hasTceShortRestRecovery = relatedTceFeatures.some(function (feature) {
+      return feature.recovery && feature.recovery.shortRestRecovery > 0;
+    });
+    if (metadata.shortRestRecovery > 0 && !hasTceShortRestRecovery) details.push(t('classResourceRestRecoveryTemplate', { rest: t('cooldownShortRest'), amount: metadata.shortRestRecovery }));
     if (metadata.longRestRecovery > 0) {
       const recoveryKey = metadata.longRestRecoveryWhenEmpty
         ? 'classResourceRestRecoveryWhenEmptyTemplate'
@@ -656,7 +737,38 @@
       });
       details.push(t('classResourceRestoresPoolTemplate', { pool: target ? displayResourceName(target) : metadata.recoveryTarget }));
     }
-    return details.join('；');
+    return details.join('\n');
+  }
+
+  function createResourceDetailsButton(resource, index) {
+    if (!classResourceDetails(resource)) return null;
+    const button = document.createElement('button');
+    button.className = 'resource-rest-badge resource-details-trigger';
+    button.type = 'button';
+    button.dataset.action = 'show-resource-details';
+    button.dataset.index = String(index);
+    button.textContent = t('resourceDetailsLabel');
+    button.setAttribute('aria-label', t('resourceDetailsAriaTemplate', { name: displayResourceName(resource) }));
+    return button;
+  }
+
+  function createResourceRestMeta(resource, index, badge) {
+    const meta = document.createElement('div');
+    meta.className = 'resource-rest-meta';
+    meta.appendChild(badge || createResourceRestBadge(resource));
+    const detailsButton = createResourceDetailsButton(resource, index);
+    if (detailsButton) meta.appendChild(detailsButton);
+    return meta;
+  }
+
+  function showResourceDetails(index) {
+    const resource = currentResources()[index];
+    if (!resource) throw new Error('Unable to find resource for description.');
+    const description = classResourceDetails(resource);
+    if (!description) throw new Error('Resource description is unavailable.');
+    setText(document.getElementById('resourceDetailsTitle'), displayResourceName(resource));
+    setText(document.getElementById('resourceDetailsContent'), description);
+    state.resourceDetailsModal.show();
   }
 
   function formatDieLabel(value) {
@@ -804,13 +916,9 @@
     meta.className = 'small text-secondary text-end resource-count';
     meta.textContent = resourceCountText(resource);
     summary.append(name, meta);
-    const cooldown = createResourceRestBadge(resource);
-    const details = document.createElement('div');
-    details.className = 'small text-secondary resource-rules';
-    details.textContent = classResourceDetails(resource);
-    details.classList.toggle('d-none', !details.textContent);
+    const resourceMeta = createResourceRestMeta(resource, index);
     const actions = createResourceActions(resource, index, true);
-    row.append(summary, cooldown, details, actions);
+    row.append(summary, resourceMeta, actions);
     applyResourceStatus(row, resource);
     return row;
   }
@@ -872,7 +980,7 @@
     useButton.appendChild(createCompactResourceIcon('M2 8a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 8'));
 
     control.append(label, resetButton, count, useButton);
-    control.appendChild(createResourceRestBadge(resource));
+    control.appendChild(createResourceRestMeta(resource, index));
     applyResourceStatus(control, resource);
     return control;
   }
@@ -937,17 +1045,6 @@
       t('dicePoolUseAriaTemplate', { name: name, die: die }),
       t('dicePoolRemainingAriaTemplate', { name: name, die: die, current: resource.current, max: resource.max })
     );
-    const detailsText = classResourceDetails(resource);
-    if (detailsText) {
-      const details = document.createElement('details');
-      details.className = 'resource-compact-details';
-      const summary = document.createElement('summary');
-      summary.textContent = t('dicePoolDetailsLabel');
-      const content = document.createElement('span');
-      content.textContent = detailsText;
-      details.append(summary, content);
-      control.appendChild(details);
-    }
     return control;
   }
 
@@ -973,22 +1070,8 @@
     );
     const info = document.createElement('div');
     info.className = 'class-resource-info';
-    info.append(
-      control.querySelector('.resource-compact-label'),
-      control.querySelector('.resource-rest-badge')
-    );
+    info.append(control.querySelector('.resource-compact-label'), control.querySelector('.resource-rest-meta'));
     control.insertBefore(info, control.firstChild);
-    const detailsText = classResourceDetails(resource);
-    if (detailsText) {
-      const details = document.createElement('details');
-      details.className = 'resource-compact-details';
-      const summary = document.createElement('summary');
-      summary.textContent = t('dicePoolDetailsLabel');
-      const content = document.createElement('span');
-      content.textContent = detailsText;
-      details.append(summary, content);
-      control.appendChild(details);
-    }
     return control;
   }
 
@@ -1144,15 +1227,11 @@
     const count = document.createElement('p');
     count.className = 'resource-count';
     count.textContent = resourceCountText(resource);
-    const details = document.createElement('p');
-    details.className = 'small text-secondary resource-rules mb-3';
-    details.textContent = classResourceDetails(resource);
-    details.classList.toggle('d-none', !details.textContent);
     const actions = createResourceActions(resource, index, false);
-    body.append(count, details, actions);
+    body.append(count, actions);
     const footer = document.createElement('footer');
     footer.className = 'card-footer d-flex justify-content-end';
-    footer.appendChild(createResourceRestBadge(resource));
+    footer.appendChild(createResourceRestMeta(resource, index));
     card.append(header, body);
     card.appendChild(footer);
     applyResourceStatus(card, resource);
@@ -2714,6 +2793,7 @@
     const selectedResource = selected === null ? null : currentResources()[selected];
 
     if (action === 'open-management') openManagement();
+    else if (action === 'show-resource-details') showResourceDetails(index);
     else if (action === 'accumulate-hit-die') accumulateHitDie(actionElement.dataset.die);
     else if (action === 'commit-hit-dice') commitHitDiceAccumulator();
     else if (action === 'clear-hit-dice') clearHitDiceAccumulator();
