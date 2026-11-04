@@ -3,7 +3,10 @@
   --resource-card-base-width: 20rem;
   --resource-card-min-width: calc(var(--resource-card-base-width) - 3rem);
   --resource-card-gap: 1rem;
+  --class-resource-control-min-width: 4.5rem;
   --class-resource-control-max-width: 7rem;
+  --class-resource-horizontal-min-width: 8rem;
+  --class-resource-horizontal-max-width: 10em;
 }
 
 html {
@@ -264,6 +267,16 @@ header {
   grid-template-columns: repeat(4, minmax(0, 3.75rem));
 }
 
+.hit-dice-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 3.125rem), 1fr));
+  gap: 0.25rem;
+}
+
+.hit-dice-grid .hit-die-control {
+  max-width: 3.75rem;
+  justify-self: center;
+}
+
 .pact-magic-grid {
   grid-template-columns: repeat(auto-fit, minmax(2.75rem, 3.75rem));
   justify-content: start;
@@ -332,24 +345,40 @@ header {
 
 .class-resource-grid {
   grid-template-columns: repeat(
-    auto-fit,
-    minmax(min(100%, var(--class-resource-control-max-width)), var(--class-resource-control-max-width))
+    var(--class-resource-columns, 1),
+    minmax(var(--class-resource-control-min-width), var(--class-resource-control-max-width))
   );
+  justify-content: space-between;
+}
+
+.single-compact-resource.class-resource-grid:not(.class-resource-grid-horizontal) {
+  grid-template-columns: minmax(var(--class-resource-control-min-width), var(--class-resource-control-max-width));
   justify-content: start;
 }
 
 .class-resource-grid-horizontal {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .class-resource-grid-horizontal .class-resource-control {
+  flex: 1 1 var(--class-resource-horizontal-min-width);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) repeat(3, var(--resource-button-size));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: center;
+  justify-items: center;
   gap: 0.25rem;
   padding: 0.3rem;
-  max-width: none;
+  min-width: min(100%, var(--class-resource-horizontal-min-width));
+  max-width: var(--class-resource-horizontal-max-width);
+  justify-self: center;
+}
+
+.class-resource-grid-horizontal .class-resource-info {
+  grid-column: 1 / -1;
   justify-self: stretch;
 }
 
@@ -378,6 +407,7 @@ header {
   width: var(--resource-button-size);
   min-width: var(--resource-button-size);
   max-width: var(--resource-button-size);
+  justify-self: center;
 }
 
 @media (max-width: 22.5em) {
@@ -505,12 +535,17 @@ header {
     gap: 0.35rem;
   }
 
-  .single-compact-resource .class-resource-control {
+  .single-compact-resource:not(.class-resource-grid-horizontal) .class-resource-control {
     grid-template-columns: minmax(0, 1fr) repeat(3, var(--resource-button-size));
     justify-content: stretch;
   }
 
-  .single-compact-resource .class-resource-info {
+  .single-compact-resource.class-resource-grid:not(.class-resource-grid-horizontal) .class-resource-control {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .single-compact-resource:not(.class-resource-grid-horizontal) .class-resource-info {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -518,7 +553,12 @@ header {
     gap: 0.15rem;
   }
 
-  .single-compact-resource .class-resource-info .resource-compact-label {
+  .single-compact-resource.class-resource-grid:not(.class-resource-grid-horizontal) .class-resource-info {
+    align-items: center;
+    width: 100%;
+  }
+
+  .single-compact-resource:not(.class-resource-grid-horizontal) .class-resource-info .resource-compact-label {
     justify-content: flex-start;
     min-height: 0;
     white-space: normal;
@@ -539,6 +579,7 @@ header {
 
 #skillList .resource-compact-control .resource-compact-action {
   display: grid;
+  box-sizing: border-box;
   width: var(--resource-button-size);
   min-width: var(--resource-button-size);
   max-width: var(--resource-button-size);
@@ -548,6 +589,7 @@ header {
   aspect-ratio: 1;
   place-items: center;
   padding: 0;
+  border: 1px solid transparent;
   border-radius: 0.6rem;
 }
 
@@ -567,6 +609,7 @@ header {
 
 .resource-compact-count {
   display: flex;
+  box-sizing: border-box;
   width: 100%;
   aspect-ratio: 1;
   align-items: center;
@@ -635,6 +678,11 @@ header {
 
 #skillList > .resource-card-column > .card {
   width: 100%;
+}
+
+#skillList > .resource-card-column[data-resource-group="hit-dice"] > .card {
+  container-name: resource-card;
+  container-type: inline-size;
 }
 
 #skillList .card,
@@ -763,6 +811,30 @@ input {
   gap: 0.5rem;
   max-height: min(42vh, 420px);
   overflow: auto;
+}
+
+.resource-management-actions {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.resource-management-add-actions,
+.resource-management-edit-actions {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.resource-management-add-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.resource-management-edit-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.resource-management-actions .btn {
+  min-width: 0;
+  white-space: normal;
 }
 
 .class-field-display {
@@ -1036,18 +1108,30 @@ input {
   }
 
   .resource-management-actions {
-    display: grid !important;
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .resource-management-add-actions,
+  .resource-management-edit-actions {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .resource-management-add-actions {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.5rem !important;
+  }
+
+  .resource-management-edit-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .resource-management-actions .btn {
     width: 100%;
     min-width: 0;
     min-height: 3rem;
-    padding-left: 0.3rem;
-    padding-right: 0.3rem;
-    white-space: nowrap;
+    padding: 0.35rem 0.25rem;
+    white-space: normal;
   }
 
   #classAbilityScores.row {
@@ -1062,14 +1146,9 @@ input {
 }
 
 @media (max-width: 22.5em) {
-  .class-resource-grid {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.25rem;
-  }
-
   .class-resource-control {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) repeat(3, var(--resource-button-size));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: center;
     gap: 0.25rem;
     padding: 0.3rem;
@@ -1077,31 +1156,39 @@ input {
     justify-self: stretch;
   }
 
-  .class-resource-info {
+  .class-resource-grid:not(.class-resource-grid-horizontal) .class-resource-control {
+    display: flex;
+  }
+
+  .class-resource-grid-horizontal .class-resource-info {
+    grid-column: 1 / -1;
+  }
+
+  .class-resource-grid-horizontal .class-resource-control .resource-compact-action,
+  .class-resource-grid-horizontal .class-resource-control .resource-compact-count {
+    width: var(--resource-button-size);
+    min-width: var(--resource-button-size);
+    max-width: var(--resource-button-size);
+  }
+
+  .class-resource-grid:not(.class-resource-grid-horizontal) .class-resource-info {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     min-width: 0;
     gap: 0.15rem;
   }
 
-  .class-resource-info .resource-compact-label {
-    justify-content: flex-start;
+  .class-resource-grid:not(.class-resource-grid-horizontal) .class-resource-info .resource-compact-label {
+    justify-content: center;
     min-height: 0;
     white-space: normal;
     overflow-wrap: anywhere;
-    text-align: left;
+    text-align: center;
   }
 
-  .class-resource-info .resource-rest-badge {
-    align-self: flex-start;
-  }
-
-  #skillList .class-resource-control .resource-compact-action,
-  #skillList .class-resource-control .resource-compact-count {
-    width: var(--resource-button-size);
-    min-width: var(--resource-button-size);
-    max-width: var(--resource-button-size);
+  .class-resource-grid:not(.class-resource-grid-horizontal) .class-resource-info .resource-rest-badge {
+    align-self: center;
   }
 
   .single-compact-resource .hit-die-control {
@@ -1114,5 +1201,53 @@ input {
 
   .warlock-pact-rotor-grid .resource-compact-label .resource-warning {
     font-size: 0.75rem;
+  }
+}
+
+@container resource-card (min-width: 23.75rem) {
+  .hit-dice-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.9375rem), 1fr));
+  }
+
+  .hit-dice-grid .hit-die-control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) repeat(3, var(--resource-button-size));
+    grid-template-rows: auto auto;
+    align-items: center;
+    justify-items: center;
+    gap: 0.1rem 0.1rem;
+    max-width: none;
+    justify-self: stretch;
+  }
+
+  .hit-dice-grid .hit-die-control > .resource-compact-label {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+    min-height: 0;
+    white-space: normal;
+    text-align: left;
+  }
+
+  .hit-dice-grid .hit-die-control > [data-action="reset-resource"] {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+
+  .hit-dice-grid .hit-die-control > .resource-compact-count {
+    grid-column: 3;
+    grid-row: 1 / 3;
+  }
+
+  .hit-dice-grid .hit-die-control > [data-action="use-resource"] {
+    grid-column: 4;
+    grid-row: 1 / 3;
+  }
+
+  .hit-dice-grid .hit-die-control > .resource-rest-meta {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+    justify-content: flex-start;
   }
 }

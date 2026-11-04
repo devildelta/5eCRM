@@ -71,9 +71,11 @@
     '長休': { label: 'cooldownLongRest', availabilityPeriod: 'availabilityPeriodLongRest' },
     '日出': { label: 'cooldownSunrise', availabilityPeriod: 'availabilityPeriodSunrise' },
     '每24小時': { label: 'cooldown24Hours', availabilityPeriod: 'cooldown24Hours' },
-    '手動': { label: 'cooldownManual', availabilityPeriod: 'availabilityPeriodManual' }
+    '手動': { label: 'cooldownManual', availabilityPeriod: 'availabilityPeriodManual' },
+    '特別': { label: 'cooldownSpecial', availabilityPeriod: 'cooldownSpecial' }
   };
   const legacyShortOrLongRest = '短休或長休';
+  const legacyDivineInterventionCooldown = '成功使用後 7 日';
   function normalizeLegacyRestTerminology(database) {
     if (!database || typeof database !== 'object' || Array.isArray(database)) return false;
     let changed = false;
@@ -86,9 +88,21 @@
           changed = true;
         }
         const metadata = resource.generatedClass;
-        if (metadata && typeof metadata === 'object' && !Array.isArray(metadata) && metadata.recovery === legacyShortOrLongRest) {
-          metadata.recovery = '短休';
-          changed = true;
+        if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
+          if (metadata.recovery === legacyShortOrLongRest) {
+            metadata.recovery = '短休';
+            changed = true;
+          }
+          if (metadata.kind === 'class-resource' && metadata.featureKey === 'divine-intervention') {
+            if (resource.cooldown === legacyDivineInterventionCooldown) {
+              resource.cooldown = '特別';
+              changed = true;
+            }
+            if (metadata.recovery === legacyDivineInterventionCooldown) {
+              metadata.recovery = '特別';
+              changed = true;
+            }
+          }
         }
       });
     });
@@ -321,7 +335,7 @@
     { classKey: 'bard', subclassKey: 'creation', key: 'animating-performance', label: 'Animating Performance', level: 6, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE', costs: [{ type: 'spell-slot', minimumLevel: 3, additionalUse: true }] },
     { classKey: 'bard', subclassKey: 'eloquence', key: 'universal-speech', label: 'Universal Speech', level: 6, maximum: { type: 'fixed', value: 1 }, cooldown: '長休', source: 'TCE' },
     { classKey: 'bard', subclassKey: 'eloquence', key: 'infectious-inspiration', label: 'Infectious Inspiration', level: 14, maximum: { type: 'ability', ability: 'cha', minimum: 1 }, cooldown: '長休', source: 'TCE' },
-    { classKey: 'cleric', key: 'divine-intervention', label: 'Divine Intervention', level: 10, maximum: { type: 'fixed', value: 1 }, cooldown: '成功使用後 7 日', recoveryTrigger: 'divine-intervention-success', source: 'PHB' },
+    { classKey: 'cleric', key: 'divine-intervention', label: 'Divine Intervention', level: 10, maximum: { type: 'fixed', value: 1 }, cooldown: '特別', recoveryTrigger: 'divine-intervention-success', source: 'PHB' },
     { classKey: 'cleric', key: 'channel-divinity', label: 'Channel Divinity', level: 2, maximum: { type: 'cleric-channel-divinity' }, cooldown: '短休', source: 'PHB', shared: true, consumers: sharedPoolConsumers.clericChannelDivinity },
     { classKey: 'cleric', subclassKey: 'knowledge', key: 'visions-of-the-past', label: 'Visions of the Past', level: 17, maximum: { type: 'fixed', value: 1 }, cooldown: '短休', source: 'PHB' },
     { classKey: 'cleric', subclassKey: 'light', key: 'warding-flare', label: 'Warding Flare', level: 1, maximum: { type: 'ability', ability: 'wis', minimum: 1 }, cooldown: '長休', source: 'PHB' },
@@ -717,7 +731,9 @@
     }
     if (metadata.consumesItem) details.push(t('classResourceConsumesItemTemplate', { item: metadata.consumesItem }));
     if (metadata.initiativeRecovery > 0) details.push(t('classInitiativeRecoveryTemplate', { amount: metadata.initiativeRecovery }));
-    if (metadata.recoveryTrigger) {
+    if (metadata.recoveryTrigger === 'divine-intervention-success') {
+      details.push(t('classTriggerDivineInterventionSuccess'));
+    } else if (metadata.recoveryTrigger) {
       const triggerKeys = {
         'wild-magic-surge': 'classTriggerWildMagicSurge',
         'conjuration-spell-slot': 'classTriggerConjurationSpellSlot'
@@ -1106,13 +1122,15 @@
       body.classList.add('resource-compact-grid');
       if (items.length === 1) body.classList.add('single-compact-resource');
       if (groupType === 'spell-1-5') body.classList.add('spell-slot-grid-low');
-      else if (groupType === 'spell-6-9' || isHitDiceGroup) body.classList.add('four-resource-grid');
+      else if (groupType === 'spell-6-9' || isHitDiceGroup) {
+        body.classList.add('four-resource-grid');
+        if (isHitDiceGroup) body.classList.add('hit-dice-grid');
+      }
       else if (isDicePoolGroup) {
         const labelLength = Array.from(label).length;
         body.classList.add(labelLength <= 18 ? 'dice-pool-grid-short' : 'dice-pool-grid-long');
-      } else if (isClassResourceGroup) {
-        body.classList.add('class-resource-grid');
-        if (items.length > 3) body.classList.add('class-resource-grid-horizontal');
+      }       else if (isClassResourceGroup) {
+        body.classList.add('class-resource-grid', 'class-resource-grid-horizontal');
       } else if (isPactGroup) body.classList.add('pact-magic-grid');
     }
     items.forEach(function (item) {
@@ -1183,8 +1201,7 @@
       clusterTitle.className = 'warlock-resource-cluster-title';
       clusterTitle.textContent = t('classResourceGroupLabel');
       const grid = document.createElement('div');
-      grid.className = 'resource-compact-grid class-resource-grid';
-      if (group.classItems.length > 3) grid.classList.add('class-resource-grid-horizontal');
+      grid.className = 'resource-compact-grid class-resource-grid class-resource-grid-horizontal';
       if (group.classItems.length === 1) grid.classList.add('single-compact-resource');
       group.classItems.forEach(function (item) {
         grid.appendChild(createClassResourceControl(item.resource, item.index));
@@ -1526,14 +1543,11 @@
     title.textContent = displayResourceName(resource);
     const detail = document.createElement('span');
     detail.className = 'd-block small text-secondary';
-    const source = sourceInfo[resource.source] || sourceInfo['其他'];
     detail.textContent = t('resourceDetailTemplate', {
       current: resource.current,
       max: resource.max,
       cooldown: cooldownLabel(resource.cooldown),
-      source: sourceLabel(resource.source),
-      english: t(source.english),
-      description: t(source.description)
+      source: sourceLabel(resource.source)
     });
     description.append(title, detail);
     label.append(radio, description);
@@ -1654,7 +1668,7 @@
     return t(titleParts.titleKey, values);
   }
 
-  function openEditor(mode, index, resource) {
+  function openEditor(mode, index, resource, source) {
     state.editorMode = mode;
     state.editorIndex = index;
     state.editorSourceName = resource ? resource.name : '';
@@ -1662,7 +1676,7 @@
     document.getElementById('resourceName').value = resource ? resource.name : '';
     document.getElementById('resourceMax').value = resource ? resource.max : 1;
     document.getElementById('resourceCooldown').value = resource ? resource.cooldown : '每回合';
-    document.getElementById('resourceSource').value = resource ? resource.source : '其他';
+    document.getElementById('resourceSource').value = resource ? resource.source : source || '其他';
     updateSourceHelp();
     setManagementView('editor');
     document.getElementById('resourceName').focus();
@@ -2809,7 +2823,7 @@
     else if (action === 'reset-cooldown') resetCooldown(actionElement.dataset.level);
     else if (action === 'new-resource') {
       if (!state.character) return;
-      openEditor('create', null, null);
+      openEditor('create', null, null, actionElement.dataset.source);
     } else if (action === 'copy-resource' && selectedResource) {
       openEditor('copy', selected, Object.assign({}, selectedResource));
     } else if (action === 'edit-resource' && selectedResource) {
