@@ -838,6 +838,19 @@
     return /^d\d+$/.test(die) ? die : '';
   }
 
+  function dicePoolDieLabel(resource) {
+    const metadata = resource && resource.generatedClass;
+    const dice = [dicePoolDieOf(resource)];
+    if (metadata && Array.isArray(metadata.supplementalDice)) {
+      metadata.supplementalDice.forEach(function (entry) {
+        if (!entry || typeof entry.die !== 'string' || !/^d\d+$/i.test(entry.die)) return;
+        const count = Number.isInteger(entry.count) && entry.count > 0 ? entry.count : 1;
+        for (let index = 0; index < count; index += 1) dice.push(entry.die.toLowerCase());
+      });
+    }
+    return dice.filter(Boolean).map(formatDieLabel).join(' + ');
+  }
+
   function dicePoolFaceValue(resource) {
     const match = dicePoolDieOf(resource).match(/^d(\d+)$/i);
     return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
@@ -1076,7 +1089,7 @@
 
   function createDicePoolControl(resource, index) {
     const name = displayResourceName(resource);
-    const die = formatDieLabel(dicePoolDieOf(resource));
+    const die = dicePoolDieLabel(resource);
     const control = createCompactResourceControl(
       resource,
       index,
@@ -1402,7 +1415,6 @@
     document.querySelectorAll('[data-i18n-aria-label]').forEach(function (element) {
       element.setAttribute('aria-label', t(element.dataset.i18nAriaLabel));
     });
-    setText(document.getElementById('classBuilderHelp'), t('classBuilderHelpTemplate', { artificer: t('classArtificer') }));
     document.getElementById('localeSelect').value = locale;
   }
 
@@ -1522,7 +1534,7 @@
         } else if (row.classList.contains('dice-pool-control')) {
           templateKey = 'dicePoolRemainingAriaTemplate';
           values.name = displayResourceName(resource);
-          values.die = formatDieLabel(dicePoolDieOf(resource));
+          values.die = dicePoolDieLabel(resource);
         } else if (row.classList.contains('class-resource-control')) {
           templateKey = 'classResourceControlRemainingTemplate';
           values.name = classResourceCompactName(resource);
@@ -1840,7 +1852,15 @@
       const manualResources = resources.filter(function (resource) { return !isManagedClassResource(resource); });
       action.resources.forEach(function (resource) {
         const previous = previousPools.get(classResourceKey(resource));
-        if (previous && Number.isInteger(previous.current) && previous.current >= 0) resource.current = previous.current;
+        if (previous && Number.isInteger(previous.current) && previous.current >= 0) {
+          const previousSupplementalDice = previous.generatedClass && Array.isArray(previous.generatedClass.supplementalDice)
+            ? previous.generatedClass.supplementalDice.reduce(function (total, entry) { return total + (Number(entry.count) || 0); }, 0)
+            : 0;
+          const nextSupplementalDice = resource.generatedClass && Array.isArray(resource.generatedClass.supplementalDice)
+            ? resource.generatedClass.supplementalDice.reduce(function (total, entry) { return total + (Number(entry.count) || 0); }, 0)
+            : 0;
+          resource.current = previous.current + Math.max(0, nextSupplementalDice - previousSupplementalDice);
+        }
       });
       state.db[state.character] = manualResources.concat(action.resources);
       const classMetadata = classBuilderMetadataFromResources(action.resources);
@@ -1978,6 +1998,7 @@
     preset.value = presetKey;
     presetWrap.append(presetLabel, preset);
     const nameWrap = createElement('div', 'col-12 col-md-3');
+    nameWrap.dataset.classNameWrap = 'true';
     const nameLabel = createElement('label', 'form-label small', t('classNameLabel'));
     const name = createElement('input', 'form-control form-control-sm');
     name.id = row.dataset.classId + '-name'; nameLabel.htmlFor = name.id;
@@ -2021,6 +2042,17 @@
     subclassHelp.dataset.classSubclassHelp = 'true';
     subclassWrap.appendChild(subclassHelp);
     row.appendChild(subclassWrap);
+    const superiorTechniqueWrap = createElement('div', 'form-check mt-2 d-none');
+    superiorTechniqueWrap.dataset.superiorTechniqueOption = 'true';
+    const superiorTechnique = createElement('input', 'form-check-input');
+    superiorTechnique.type = 'checkbox';
+    superiorTechnique.id = row.dataset.classId + '-superior-technique';
+    superiorTechnique.checked = Boolean(config && config.superiorTechnique);
+    superiorTechnique.dataset.superiorTechnique = 'true';
+    const superiorTechniqueLabel = createElement('label', 'form-check-label', t('classSuperiorTechniqueOption'));
+    superiorTechniqueLabel.htmlFor = superiorTechnique.id;
+    superiorTechniqueWrap.append(superiorTechnique, superiorTechniqueLabel);
+    row.appendChild(superiorTechniqueWrap);
     const presetData = classPresets[presetKey];
     const initialProgression = config && progressions.includes(config.progression)
       ? config.progression
@@ -2054,7 +2086,7 @@
         select.appendChild(option);
       });
     }
-    select.value = selectedValue || '';
+    select.value = isStandardClass && level >= catalog.unlockLevel ? selectedValue || '' : '';
     select.disabled = !isStandardClass || level < catalog.unlockLevel;
     select.required = isStandardClass && level >= catalog.unlockLevel;
     if (row.dataset.classKey === 'fighter' || row.dataset.classKey === 'rogue') {
@@ -2115,6 +2147,7 @@
       return;
     }
     row.dataset.classKey = presetKey;
+    if (presetKey !== 'fighter') row.querySelector('[data-superior-technique]').checked = false;
     row.querySelector('[data-class-name]').value = presetData.name;
     row.querySelector('[data-class-die]').value = presetData.die;
     row.querySelector('[data-class-subclass]').value = '';
@@ -2141,6 +2174,7 @@
 
   function unlockCustomClass(row) {
     row.dataset.classKey = 'custom';
+    row.querySelector('[data-superior-technique]').checked = false;
     const progression = row.querySelector('[data-class-progression]').value;
     renderProgressionOptions(row, progression);
     renderSubclassOptions(row, '');
@@ -2150,6 +2184,7 @@
 
   function updateClassRowFields(row) {
     const custom = rowIsCustom(row);
+    row.querySelector('[data-class-name-wrap]').classList.toggle('d-none', !custom);
     ['name', 'die', 'progression'].forEach(function (field) {
       const input = row.querySelector('[data-class-' + field + ']');
       const display = row.querySelector('[data-class-' + field + '-display]');
@@ -2162,6 +2197,9 @@
         display.textContent = value;
       }
     });
+    const superiorTechniqueOption = row.querySelector('[data-superior-technique-option]');
+    const superiorTechniqueLevel = Number(row.querySelector('[data-class-level]').value);
+    superiorTechniqueOption.classList.toggle('d-none', row.dataset.classKey !== 'fighter' || superiorTechniqueLevel < 1);
     renderSubclassOptions(row, row.querySelector('[data-class-subclass]').value);
   }
 
@@ -2209,7 +2247,19 @@
       }
       const subclassData = classSubclassData[row.dataset.classKey];
       if (subclassData && level >= subclassData.unlockLevel && !subclass) errors.push(t('classSubclassRequiredError', { row: index + 1, level: subclassData.unlockLevel }));
-      return { classId: row.dataset.classId, classKey: row.dataset.classKey, name: name, level: level, hitDie: die, progression: progression, preset: row.dataset.classKey, subclass: subclass, subclassSource: selectedSubclass ? selectedSubclass[2] : null, manualSlots: manualSlots };
+      return {
+        classId: row.dataset.classId,
+        classKey: row.dataset.classKey,
+        name: name,
+        level: level,
+        hitDie: die,
+        progression: progression,
+        preset: row.dataset.classKey,
+        subclass: subclass,
+        subclassSource: selectedSubclass ? selectedSubclass[2] : null,
+        manualSlots: manualSlots,
+        superiorTechnique: row.dataset.classKey === 'fighter' && level >= 1 && row.querySelector('[data-superior-technique]').checked
+      };
     });
     const classKeys = configs.map(function (config) { return config.classKey === 'custom' ? config.name.trim().toLocaleLowerCase() : config.classKey; });
     if (new Set(classKeys).size !== classKeys.length) errors.push(t('classDuplicateError'));
@@ -2344,6 +2394,7 @@
         hitDie: row.querySelector('[data-class-die]').value,
         progression: row.querySelector('[data-class-progression]').value,
         subclass: row.querySelector('[data-class-subclass]').value,
+        superiorTechnique: row.dataset.classKey === 'fighter' && row.querySelector('[data-superior-technique]').checked,
         manualSlots: Array.from(row.querySelectorAll('[data-manual-slot]')).map(function (input) { return input.value; })
       };
     });
@@ -2447,8 +2498,12 @@
         if (definition.subclassKey && config.subclass !== definition.subclassKey) return;
         if (definition.tceFeatureKey && !selections[definition.tceFeatureKey]) return;
         if (definition.recoveryOnly) return;
-        const maximum = calculateResourceMaximum(definition.maximum, config, proficiencyBonus, abilityValues, errors, errorKeys, definition.label);
-        if (maximum === null || maximum < 1) return;
+        const includesSuperiorTechniqueDie = config.classKey === 'fighter' && config.superiorTechnique &&
+          config.subclass === 'battle-master' && definition.key === 'superiority-dice';
+        let maximum = calculateResourceMaximum(definition.maximum, config, proficiencyBonus, abilityValues, errors, errorKeys, definition.label);
+        if (maximum === null) return;
+        if (includesSuperiorTechniqueDie) maximum += 1;
+        if (maximum < 1) return;
         const poolKey = (definition.subclassKey ? 'subclass:' + config.classKey + ':' + definition.subclassKey : 'class:' + config.classKey) + ':' + definition.key;
         let cooldown = definition.cooldown;
         (definition.recoveryFromLevel || []).forEach(function (recovery) {
@@ -2494,6 +2549,7 @@
           effectDuration: effectDuration,
           initialValue: definition.initialValue === undefined ? null : definition.initialValue,
           resourceDie: resourceDie,
+          supplementalDice: includesSuperiorTechniqueDie ? [{ die: 'd6', count: 1 }] : [],
           dicePoolGroup: definition.dicePoolGroup || null,
           dicePoolLabel: definition.dicePoolLabel || null,
           recovery: cooldown,
@@ -2521,7 +2577,7 @@
           }),
           relatedFeatureCosts: definition.relatedFeatureCosts || [],
           recoveryEvents: definition.recoveryEvents || [],
-          notes: definition.notes || [],
+          notes: (definition.notes || []).concat(includesSuperiorTechniqueDie ? ['classSuperiorTechniquePoolNote'] : []),
           recoveryTarget: definition.recoveryTarget || null,
           concurrentLimitByLevel: definition.concurrentLimitByLevel || null
         });
@@ -2535,6 +2591,33 @@
           generatedClass: metadata
         });
       });
+
+      if (config.classKey === 'fighter' && config.superiorTechnique && config.subclass !== 'battle-master') {
+        generated.push({
+          name: t('classFighter') + ' - ' + t('classSuperiorTechniqueDiceName'),
+          current: 1,
+          max: 1,
+          cooldown: '短休',
+          source: '角色職業',
+          generatedClass: Object.assign({}, sharedMetadata, {
+            kind: 'class-resource',
+            resourceKey: 'class:fighter:superior-technique:superiority-dice',
+            featureKey: 'superior-technique-superiority-die',
+            ownerClass: 'fighter',
+            subclass: null,
+            sourceVersion: 'TCE',
+            maximumFormula: { type: 'fixed', value: 1 },
+            resourceDie: 'd6',
+            dicePoolGroup: 'superiority-dice',
+            dicePoolLabel: 'Superiority Dice',
+            recovery: '短休',
+            poolMode: 'dice',
+            shared: true,
+            costs: [],
+            notes: ['classSuperiorTechniquePoolNote']
+          })
+        });
+      }
 
       if (config.classKey === 'ranger' && config.level >= 3 && selections['ranger-primal-awareness']) {
         [3, 5, 9, 13, 17].forEach(function (level, index) {
