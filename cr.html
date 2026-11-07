@@ -5,7 +5,7 @@
   <title data-i18n="pageTitle"></title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link href="src/cr.css?v=20261104-10" rel="stylesheet" />
+  <link href="src/cr.css?v=20261107-2" rel="stylesheet" />
 </head>
 <body>
   <main class="container py-4" id="crApp">
@@ -142,9 +142,14 @@
               <form id="resourceForm">
                 <div class="mb-3"><label for="resourceName" class="form-label" data-i18n="resourceNameLabel"></label><input id="resourceName" class="form-control" required maxlength="120"></div>
                 <div class="row g-3">
-                  <div class="col-sm-6"><label for="resourceMax" class="form-label" data-i18n="resourceMaxLabel"></label><input id="resourceMax" type="number" class="form-control" min="1" required></div>
-                  <div class="col-sm-6"><label for="resourceCooldown" class="form-label" data-i18n="resourceCooldownLabel"></label><select id="resourceCooldown" class="form-select"><option value="每回合" data-i18n="cooldownEveryTurn"></option><option value="短休" data-i18n="cooldownShortRest"></option><option value="長休" data-i18n="cooldownLongRest"></option><option value="日出" data-i18n="cooldownSunrise"></option><option value="每24小時" data-i18n="cooldown24Hours"></option><option value="手動" data-i18n="cooldownManual"></option><option value="特別" data-i18n="cooldownSpecial"></option></select></div>
+                  <div class="col-6"><label for="resourceMax" class="form-label" data-i18n="resourceMaxLabel"></label><input id="resourceMax" type="number" class="form-control" min="1" required></div>
+                  <div class="col-6"><label for="resourceCooldown" class="form-label" data-i18n="resourceCooldownLabel"></label><select id="resourceCooldown" class="form-select"><option value="每回合" data-i18n="cooldownEveryTurn"></option><option value="短休" data-i18n="cooldownShortRest"></option><option value="長休" data-i18n="cooldownLongRest"></option><option value="日出" data-i18n="cooldownSunrise"></option><option value="每24小時" data-i18n="cooldown24Hours"></option><option value="手動" data-i18n="cooldownManual"></option><option value="特別" data-i18n="cooldownSpecial"></option><option value="NO" data-i18n="cooldownNo"></option></select></div>
                   <div class="col-sm-6"><label for="resourceSource" class="form-label" data-i18n="sourceLabel"></label><select id="resourceSource" class="form-select" aria-describedby="resourceSourceHelp"><option value="角色職業" data-i18n="sourceClassLabel"></option><option value="角色特徵" data-i18n="sourceFeatureLabel"></option><option value="魔法物品" data-i18n="sourceMagicItemLabel"></option><option value="其他" data-i18n="sourceOtherLabel"></option></select><div id="resourceSourceHelp" class="form-text"></div></div>
+                </div>
+                <div class="mb-3">
+                  <label for="resourceDetails" class="form-label" data-i18n="resourceSpecialDetailLabel"></label>
+                  <textarea id="resourceDetails" class="form-control" rows="3" aria-describedby="resourceDetailsHelp"></textarea>
+                  <div id="resourceDetailsHelp" class="form-text" data-i18n="resourceSpecialDetailHelp"></div>
                 </div>
                 <div class="d-flex gap-2 mt-4">
                   <button class="btn btn-primary" type="submit" data-i18n="resourceSubmit"></button>
@@ -210,6 +215,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="src/cr.js?v=20261104-10"></script>
+  <script src="src/cr.js?v=20261107-1"></script>
 </body>
 </html>

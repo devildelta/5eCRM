@@ -72,7 +72,8 @@
     '日出': { label: 'cooldownSunrise', availabilityPeriod: 'availabilityPeriodSunrise' },
     '每24小時': { label: 'cooldown24Hours', availabilityPeriod: 'cooldown24Hours' },
     '手動': { label: 'cooldownManual', availabilityPeriod: 'availabilityPeriodManual' },
-    '特別': { label: 'cooldownSpecial', availabilityPeriod: 'cooldownSpecial' }
+    '特別': { label: 'cooldownSpecial', availabilityPeriod: 'cooldownSpecial' },
+    'NO': { label: 'cooldownNo', availabilityPeriod: 'cooldownNo' }
   };
   const legacyShortOrLongRest = '短休或長休';
   const legacyDivineInterventionCooldown = '成功使用後 7 日';
@@ -510,6 +511,10 @@
     return Boolean(metadata && metadata.accumulative === true);
   }
 
+  function isDisplayOnlyResource(resource) {
+    return Boolean(resource && resource.cooldown === 'NO');
+  }
+
   function resourceCountText(resource) {
     const values = { current: resource.current, max: resource.max };
     return isAccumulativeResource(resource)
@@ -535,6 +540,10 @@
 
   function createResourceActions(resource, index, small) {
     const actions = document.createElement('div');
+    if (isDisplayOnlyResource(resource)) {
+      actions.className = 'd-none';
+      return actions;
+    }
     if (isAccumulativeResource(resource)) {
       actions.className = 'accumulative-controls';
       [
@@ -586,8 +595,11 @@
 
   function classResourceDetails(resource) {
     const metadata = resource && resource.generatedClass;
-    if (!metadata || metadata.kind !== 'class-resource') return '';
     const details = [];
+    if (resource && typeof resource.details === 'string' && resource.details.trim()) {
+      details.push(resource.details.trim());
+    }
+    if (!metadata || metadata.kind !== 'class-resource') return details.join('\n');
     const isSorceryPoints = metadata.resourceKey === 'class:sorcerer:sorcery-points';
     if (metadata.sourceVersion === 'TCE') details.push(t('classResourceSourceTce'));
     if (isSorceryPoints) {
@@ -880,6 +892,11 @@
   }
 
   function resourceSummaryText(resource) {
+    if (isDisplayOnlyResource(resource)) {
+      return t('resourceDisplayOnlySummaryTemplate', {
+        source: sourceLabel(resource && resource.source ? resource.source : '其他')
+      });
+    }
     return t('resourceSummaryTemplate', {
       source: sourceLabel(resource && resource.source ? resource.source : '其他'),
       cooldown: cooldownLabel(resource && resource.cooldown ? resource.cooldown : '手動'),
@@ -928,13 +945,15 @@
     const name = document.createElement('div');
     name.className = 'fw-semibold';
     name.textContent = displayResourceName(resource);
-    const meta = document.createElement('div');
-    meta.className = 'small text-secondary text-end resource-count';
-    meta.textContent = resourceCountText(resource);
-    summary.append(name, meta);
-    const resourceMeta = createResourceRestMeta(resource, index);
-    const actions = createResourceActions(resource, index, true);
-    row.append(summary, resourceMeta, actions);
+    summary.appendChild(name);
+    if (!isDisplayOnlyResource(resource)) {
+      const meta = document.createElement('div');
+      meta.className = 'small text-secondary text-end resource-count';
+      meta.textContent = resourceCountText(resource);
+      summary.appendChild(meta);
+    }
+    row.append(summary, createResourceRestMeta(resource, index));
+    if (!isDisplayOnlyResource(resource)) row.appendChild(createResourceActions(resource, index, true));
     applyResourceStatus(row, resource);
     return row;
   }
@@ -966,6 +985,12 @@
     warning.setAttribute('role', 'img');
     warning.setAttribute('aria-label', '');
     label.append(resourceLabel, warning);
+
+    if (isDisplayOnlyResource(resource)) {
+      control.append(label, createResourceRestMeta(resource, index));
+      applyResourceStatus(control, resource);
+      return control;
+    }
 
     const resetButton = document.createElement('button');
     resetButton.className = 'btn btn-warning resource-compact-action';
@@ -1068,13 +1093,13 @@
     return displayResourceName(resource).replace(/^[^-]+ - /, '');
   }
 
-  function createClassResourceControl(resource, index) {
+  function createClassResourceControl(resource, index, compactNameOverride) {
     if (isAccumulativeResource(resource)) {
       const row = createResourceRow(resource, index);
       row.style.gridColumn = '1 / -1';
       return row;
     }
-    const name = classResourceCompactName(resource);
+    const name = compactNameOverride == null ? classResourceCompactName(resource) : compactNameOverride;
     const control = createCompactResourceControl(
       resource,
       index,
@@ -1091,6 +1116,10 @@
     return control;
   }
 
+  function createMagicItemResourceControl(resource, index) {
+    return createClassResourceControl(resource, index, displayResourceName(resource));
+  }
+
   function createGroupedResourceCard(label, items, groupType) {
     const column = document.createElement('div');
     column.className = 'resource-card-column';
@@ -1103,11 +1132,12 @@
     name.textContent = label;
     const source = document.createElement('span');
     source.className = 'tag-source';
-    const dicePoolSources = Array.from(new Set(items.map(function (item) { return item.resource.source; }).filter(Boolean)));
+    const resourceSources = Array.from(new Set(items.map(function (item) { return item.resource.source; }).filter(Boolean)));
     const isDicePoolGroup = groupType.indexOf('dice-pool:') === 0;
     const isClassResourceGroup = groupType.indexOf('class-resources:') === 0;
-    source.textContent = (isDicePoolGroup || isClassResourceGroup) && dicePoolSources.length
-      ? dicePoolSources.map(function (value) { return sourceLabel(value); }).join(' / ')
+    const isMagicItemGroup = groupType === 'magic-items';
+    source.textContent = (isDicePoolGroup || isClassResourceGroup || isMagicItemGroup) && resourceSources.length
+      ? resourceSources.map(function (value) { return sourceLabel(value); }).join(' / ')
       : sourceLabel('角色職業');
     const title = document.createElement('div');
     title.appendChild(name);
@@ -1117,7 +1147,7 @@
     const isSpellSlotGroup = groupType === 'spell-1-5' || groupType === 'spell-6-9';
     const isHitDiceGroup = groupType === 'hit-dice';
     const isPactGroup = groupType === 'pact';
-    const isCompactGroup = isSpellSlotGroup || isHitDiceGroup || isDicePoolGroup || isClassResourceGroup || isPactGroup;
+    const isCompactGroup = isSpellSlotGroup || isHitDiceGroup || isDicePoolGroup || isClassResourceGroup || isMagicItemGroup || isPactGroup;
     if (isCompactGroup) {
       body.classList.add('resource-compact-grid');
       if (items.length === 1) body.classList.add('single-compact-resource');
@@ -1129,7 +1159,7 @@
       else if (isDicePoolGroup) {
         const labelLength = Array.from(label).length;
         body.classList.add(labelLength <= 18 ? 'dice-pool-grid-short' : 'dice-pool-grid-long');
-      }       else if (isClassResourceGroup) {
+      }             else if (isClassResourceGroup || isMagicItemGroup) {
         body.classList.add('class-resource-grid', 'class-resource-grid-horizontal');
       } else if (isPactGroup) body.classList.add('pact-magic-grid');
     }
@@ -1140,8 +1170,10 @@
           ? createHitDieControl(item.resource, item.index)
           : isDicePoolGroup
             ? createDicePoolControl(item.resource, item.index)
+            : isMagicItemGroup
+              ? createMagicItemResourceControl(item.resource, item.index)
             : isClassResourceGroup
-              ? createClassResourceControl(item.resource, item.index)
+                ? createClassResourceControl(item.resource, item.index)
             : isPactGroup
             ? createPactMagicControl(item.resource, item.index)
             : createResourceRow(item.resource, item.index);
@@ -1241,15 +1273,18 @@
 
     const body = document.createElement('div');
     body.className = 'card-body';
-    const count = document.createElement('p');
-    count.className = 'resource-count';
-    count.textContent = resourceCountText(resource);
-    const actions = createResourceActions(resource, index, false);
-    body.append(count, actions);
+    if (!isDisplayOnlyResource(resource)) {
+      const count = document.createElement('p');
+      count.className = 'resource-count';
+      count.textContent = resourceCountText(resource);
+      const actions = createResourceActions(resource, index, false);
+      body.append(count, actions);
+    }
     const footer = document.createElement('footer');
     footer.className = 'card-footer d-flex justify-content-end';
     footer.appendChild(createResourceRestMeta(resource, index));
-    card.append(header, body);
+    card.appendChild(header);
+    if (!isDisplayOnlyResource(resource)) card.appendChild(body);
     card.appendChild(footer);
     applyResourceStatus(card, resource);
     column.appendChild(card);
@@ -1262,7 +1297,8 @@
       { label: t('groupSpellSlotsLow'), type: 'spell-1-5', items: [] },
       { label: t('groupSpellSlotsHigh'), type: 'spell-6-9', items: [] },
       { label: t('groupPactMagic'), type: 'pact', items: [] },
-      { label: t('groupOther'), type: 'other', items: [] }
+      { label: t('groupOther'), type: 'other', items: [] },
+      { label: t('groupMagicItems'), type: 'magic-items', items: [] }
     ];
     const dicePoolGroups = new Map();
     const classResourceGroups = new Map();
@@ -1291,6 +1327,8 @@
           const target = slotLevel <= 5 ? groups[1] : groups[2];
           target.items.push({ resource: resource, index: entry.index });
         }
+      } else if (resource && resource.source === '魔法物品') {
+        groups[5].items.push({ resource: resource, index: entry.index });
       } else {
         /* TODO: future subclass/archetype resources may need a finer aggregate key than plain source=角色職業; keep this bucket intentionally broad for forward compatibility. */
         groups[4].items.push({ resource: resource, index: entry.index });
@@ -1315,6 +1353,7 @@
       groups.slice(1, 3),
       warlockGroup ? [warlockGroup] : [],
       otherClassGroups,
+      [groups[5]],
       [groups[4]]
     ).filter(function (group) { return group.items.length > 0; });
   }
@@ -1338,12 +1377,13 @@
     if (isSpellSlotResource(resource)) {
       return resourceSlotLevel(resource) <= 5 ? 'spell-1-5' : 'spell-6-9';
     }
+    if (resource && resource.source === '魔法物品') return 'magic-items';
     return 'other';
   }
 
   function createResourceGroupElement(group) {
     if (group.type === 'warlock') return createWarlockResourceCard(group);
-    if (group.items.length === 1 && group.type !== 'spell-1-5' && group.type !== 'spell-6-9' && group.type !== 'hit-dice' && group.type.indexOf('dice-pool:') !== 0 && group.type.indexOf('class-resources:') !== 0 && group.type !== 'pact') {
+    if (group.items.length === 1 && group.type !== 'spell-1-5' && group.type !== 'spell-6-9' && group.type !== 'hit-dice' && group.type.indexOf('dice-pool:') !== 0 && group.type.indexOf('class-resources:') !== 0 && group.type !== 'magic-items' && group.type !== 'pact') {
       const item = group.items[0];
       return createResourceCard(item.resource, item.index);
     }
@@ -1677,6 +1717,7 @@
     document.getElementById('resourceMax').value = resource ? resource.max : 1;
     document.getElementById('resourceCooldown').value = resource ? resource.cooldown : '每回合';
     document.getElementById('resourceSource').value = resource ? resource.source : source || '其他';
+    document.getElementById('resourceDetails').value = resource && typeof resource.details === 'string' ? resource.details : '';
     updateSourceHelp();
     setManagementView('editor');
     document.getElementById('resourceName').focus();
@@ -1696,7 +1737,8 @@
       current: current,
       max: max,
       cooldown: document.getElementById('resourceCooldown').value,
-      source: document.getElementById('resourceSource').value
+      source: document.getElementById('resourceSource').value,
+      details: document.getElementById('resourceDetails').value.trim()
     };
   }
 
@@ -2642,6 +2684,7 @@
   }
 
   function availabilityText(resource) {
+    if (isDisplayOnlyResource(resource)) return t('resourceDisplayOnlyAvailability');
     const cooldown = cooldownInfo[resource.cooldown];
     const period = cooldown
       ? t(cooldown.availabilityPeriod)
@@ -2651,7 +2694,7 @@
 
   function useResource(index) {
     const resource = currentResources()[index];
-    if (!resource || isAccumulativeResource(resource) || Number(resource.current) <= 0) return;
+    if (!resource || isDisplayOnlyResource(resource) || isAccumulativeResource(resource) || Number(resource.current) <= 0) return;
     resource.current = Number(resource.current) - 1;
     save();
     refreshResourceAt(index);
@@ -2659,7 +2702,7 @@
 
   function resetResource(index) {
     const resource = currentResources()[index];
-    if (!resource || isAccumulativeResource(resource)) return;
+    if (!resource || isDisplayOnlyResource(resource) || isAccumulativeResource(resource)) return;
     resource.current = resource.max;
     save();
     refreshResourceAt(index);
@@ -2667,7 +2710,7 @@
 
   function adjustAccumulativeResource(index, direction, amountValue) {
     const resource = currentResources()[index];
-    if (!resource || !isAccumulativeResource(resource)) return;
+    if (!resource || isDisplayOnlyResource(resource) || !isAccumulativeResource(resource)) return;
     if (direction !== 'gain' && direction !== 'spend') throw new Error('Unsupported accumulative resource adjustment.');
     const amount = Number(amountValue);
     const current = Number(resource.current);
@@ -2684,6 +2727,7 @@
     const tier = tiers[level];
     const changedIndexes = [];
     currentResources().forEach(function (resource, index) {
+      if (isDisplayOnlyResource(resource)) return;
       const recovery = resource.generatedClass || {};
       const partialRecovery = level === '短休' && recovery.shortRestRecovery > 0 ||
         level === '長休' && recovery.longRestRecovery > 0;
@@ -2747,7 +2791,8 @@
           Number.isInteger(resource.current) && resource.current >= 0 &&
           Number.isInteger(resource.max) && resource.max >= 1 &&
           typeof resource.cooldown === 'string' &&
-          typeof resource.source === 'string');
+          typeof resource.source === 'string' &&
+          (resource.details === undefined || typeof resource.details === 'string'));
       });
     });
   }
