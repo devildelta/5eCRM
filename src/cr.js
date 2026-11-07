@@ -2599,6 +2599,11 @@
 
   function calculateClassResources(configs, abilityValues, selections) {
     const activeConfigs = configs.filter(function (config) { return config.level > 0; });
+    const spellcastingConfigs = activeConfigs.filter(function (config) {
+      return config.progression === 'full' || config.progression === 'half-up' ||
+        (config.progression === 'half-down' && config.level >= 2) ||
+        (config.progression === 'third' && config.level >= 3);
+    });
     const configSnapshot = JSON.parse(JSON.stringify(activeConfigs));
     const normalizedSelections = normalizedClassFeatureSelections(selections);
     const tceFeatures = selectedTceFeatureRules(activeConfigs, normalizedSelections);
@@ -2617,7 +2622,12 @@
       const common = metadataBase;
       hitDieCounts[config.hitDie] += config.level;
       if (config.progression === 'full') casterLevel += config.level;
-      else if (config.progression === 'half-down') casterLevel += Math.floor(config.level / 2);
+      else if (config.progression === 'half-down') {
+        const isSingleHalfCaster = spellcastingConfigs.length === 1 &&
+          (config.classKey === 'paladin' || config.classKey === 'ranger');
+        if (isSingleHalfCaster) casterLevel += config.level >= 2 ? Math.ceil(config.level / 2) : 0;
+        else casterLevel += Math.floor(config.level / 2);
+      }
       else if (config.progression === 'half-up') casterLevel += Math.ceil(config.level / 2);
       else if (config.progression === 'third') casterLevel += Math.floor(config.level / 3);
       else if (config.progression === 'manual') config.manualSlots.forEach(function (count, slotIndex) { regularCounts[slotIndex] += count; });
@@ -2643,8 +2653,8 @@
     const cappedCasterLevel = Math.min(20, casterLevel);
     const table = regularSlots[cappedCasterLevel] || [];
     table.forEach(function (count, index) { regularCounts[index] += count; });
-    if (activeConfigs.length === 1) {
-      const config = activeConfigs[0];
+    if (spellcastingConfigs.length === 1) {
+      const config = spellcastingConfigs[0];
       const hasFourthLevelSlot = config.progression === 'third' && config.level >= 19 &&
         ((config.classKey === 'fighter' && config.subclass === 'eldritch-knight') ||
           (config.classKey === 'rogue' && config.subclass === 'arcane-trickster'));
