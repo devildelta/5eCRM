@@ -278,6 +278,7 @@
   "availabilityTemplate": "{period}可以用 {max} 次",
   "availabilityPeriodCustom": "{cooldown}",
   "classHitDiceName": "生命骰（{die}）",
+  "classSuperiorityDiceName": "優越骰",
   "classPactSlotName": "契約魔法（{level} 環）",
   "classArcanumName": "神秘奧秘（{level} 環）"
 }

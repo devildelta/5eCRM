@@ -277,6 +277,16 @@ header {
   justify-self: center;
 }
 
+.superiority-dice-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 6rem), 1fr));
+  gap: 0.25rem;
+}
+
+.superiority-dice-grid .dice-pool-control {
+  max-width: 6rem;
+  justify-self: center;
+}
+
 .pact-magic-grid {
   grid-template-columns: repeat(auto-fit, minmax(2.75rem, 3.75rem));
   justify-content: start;
@@ -535,6 +545,22 @@ header {
     gap: 0.35rem;
   }
 
+  .single-compact-resource .hit-die-control {
+    grid-template-columns: repeat(3, var(--resource-button-size));
+    justify-content: center;
+    gap: 0.25rem;
+    max-width: 11rem;
+    justify-self: center;
+  }
+
+  .single-compact-resource.superiority-dice-grid .dice-pool-control {
+    grid-template-columns: repeat(3, var(--resource-button-size));
+    justify-content: center;
+    gap: 0.25rem;
+    max-width: 11rem;
+    justify-self: center;
+  }
+
   .single-compact-resource:not(.class-resource-grid-horizontal) .class-resource-control {
     grid-template-columns: minmax(0, 1fr) repeat(3, var(--resource-button-size));
     justify-content: stretch;
@@ -682,7 +708,8 @@ header {
   width: 100%;
 }
 
-#skillList > .resource-card-column[data-resource-group="hit-dice"] > .card {
+#skillList > .resource-card-column[data-resource-group="hit-dice"] > .card,
+#skillList > .resource-card-column[data-resource-group="dice-pool:shared:superiority-dice"] > .card {
   container-name: resource-card;
   container-type: inline-size;
 }
@@ -1236,25 +1263,19 @@ input {
     align-self: center;
   }
 
-  .single-compact-resource .hit-die-control {
-    grid-template-columns: repeat(3, var(--resource-button-size));
-    justify-content: center;
-    gap: 0.25rem;
-    max-width: 11rem;
-    justify-self: center;
-  }
-
   .warlock-pact-rotor-grid .resource-compact-label .resource-warning {
     font-size: 0.75rem;
   }
 }
 
 @container resource-card (min-width: 23.75rem) {
-  .hit-dice-grid {
+  .hit-dice-grid,
+  .superiority-dice-grid {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.9375rem), 1fr));
   }
 
-  .hit-dice-grid .hit-die-control {
+  .hit-dice-grid .hit-die-control,
+  .superiority-dice-grid .dice-pool-control {
     display: grid;
     grid-template-columns: minmax(0, 1fr) repeat(3, var(--resource-button-size));
     grid-template-rows: auto auto;
@@ -1265,34 +1286,45 @@ input {
     justify-self: stretch;
   }
 
-  .hit-dice-grid .hit-die-control > .resource-compact-label {
+  .hit-dice-grid .hit-die-control > .resource-compact-label,
+  .superiority-dice-grid .dice-pool-control > .resource-compact-label {
     grid-column: 1;
     grid-row: 1;
     justify-self: start;
     min-height: 0;
+    padding-left: 0.5rem;
     white-space: normal;
     text-align: left;
   }
 
-  .hit-dice-grid .hit-die-control > [data-action="reset-resource"] {
+  .hit-dice-grid .hit-die-control > [data-action="reset-resource"],
+  .superiority-dice-grid .dice-pool-control > [data-action="reset-resource"] {
     grid-column: 2;
     grid-row: 1 / 3;
   }
 
-  .hit-dice-grid .hit-die-control > .resource-compact-count {
+  .hit-dice-grid .hit-die-control > .resource-compact-count,
+  .superiority-dice-grid .dice-pool-control > .resource-compact-count {
     grid-column: 3;
     grid-row: 1 / 3;
   }
 
-  .hit-dice-grid .hit-die-control > [data-action="use-resource"] {
+  .hit-dice-grid .hit-die-control > [data-action="use-resource"],
+  .superiority-dice-grid .dice-pool-control > [data-action="use-resource"] {
     grid-column: 4;
     grid-row: 1 / 3;
   }
 
-  .hit-dice-grid .hit-die-control > .resource-rest-meta {
+  .hit-dice-grid .hit-die-control > .resource-rest-meta,
+  .superiority-dice-grid .dice-pool-control > .resource-rest-meta {
     grid-column: 1;
     grid-row: 2;
     justify-self: start;
     justify-content: flex-start;
+  }
+
+  .superiority-dice-grid .dice-pool-control > .resource-rest-meta {
+    grid-column: 1 / -1;
+    width: 100%;
   }
 }

@@ -877,6 +877,7 @@
 
   function dicePoolGroupLabel(resource) {
     const metadata = resource && resource.generatedClass;
+    if (metadata && metadata.dicePoolGroup === 'superiority-dice') return displayResourceName(resource);
     if (metadata && typeof metadata.dicePoolLabel === 'string' && metadata.dicePoolLabel) return metadata.dicePoolLabel;
     const label = displayResourceName(resource);
     return metadata && metadata.dicePoolGroup ? label.replace(/^.+? - /, '') : label;
@@ -921,6 +922,7 @@
     const name = String(resource && typeof resource === 'object' ? resource.name : resource);
     const generated = resource && typeof resource === 'object' ? resource.generatedClass : null;
     const kind = generated && generated.kind;
+    if (generated && generated.dicePoolGroup === 'superiority-dice') return t('classSuperiorityDiceName');
     const hitDie = hitDieOf(resource);
     if ((kind === 'hit-dice' || (!generated && isHitDieResource(resource))) && hitDie) {
       return t('classHitDiceName', { die: formatDieLabel(hitDie) });
@@ -1170,9 +1172,12 @@
         if (isHitDiceGroup) body.classList.add('hit-dice-grid');
       }
       else if (isDicePoolGroup) {
-        const labelLength = Array.from(label).length;
-        body.classList.add(labelLength <= 18 ? 'dice-pool-grid-short' : 'dice-pool-grid-long');
-      }             else if (isClassResourceGroup || isMagicItemGroup) {
+        if (groupType === 'dice-pool:shared:superiority-dice') body.classList.add('superiority-dice-grid');
+        else {
+          const labelLength = Array.from(label).length;
+          body.classList.add(labelLength <= 18 ? 'dice-pool-grid-short' : 'dice-pool-grid-long');
+        }
+      } else if (isClassResourceGroup || isMagicItemGroup) {
         body.classList.add('class-resource-grid', 'class-resource-grid-horizontal');
       } else if (isPactGroup) body.classList.add('pact-magic-grid');
     }
