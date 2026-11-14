@@ -8,15 +8,15 @@ Keep existing UI wording for the remaining interface text, except for the user-p
 
 ## Todos
 
-1. Inventory user-facing strings in `cr.html` and `src/cr.js`, identifying display copy separately from user data and persisted values.
+1. Inventory user-facing strings in `cr.html` and the page controller, identifying display copy separately from user data and persisted values.
 2. Add shared and zh-HK/zh-TW resource files with current UI strings and the main-script locale selection/loading and markup localization path.
-3. Replace UI literals in `cr.html` and `src/cr.js` with resource keys, including dynamic messages and built-in choice labels while retaining their current data values.
+3. Replace UI literals in `cr.html` and the page controller with resource keys, including dynamic messages and built-in choice labels while retaining their current data values.
 4. Validate syntax and manually exercise both locales, default selection, resource CRUD/display, and compatibility of source/cooldown values.
 
 ## Notes
 
-- Keep locale files as external resources loaded by `src/cr.js`; do not add a language picker in this pass.
-- Put invariant labels in `src/locales/common.json`; locale-specific labels and availability period phrases stay in their locale resources.
+- Keep locale files as external resources loaded by `src/cr/page-controller.js`; do not add a language picker in this pass.
+- Put invariant labels in `src/cr/locales/common.json`; locale-specific labels and availability period phrases stay in `src/cr/locales/`.
 - Order reusable action terms before phrase templates, and use locale-owned placeholders when composing titles. This allows locale-specific word order without assuming every future language can combine words with the same grammar; retain a complete phrase where composition would sound unnatural.
 - Use the `{character}` and `{resource}` tokens for recurring nouns (except the page title and app heading), and reuse localized action tokens such as `{copy}` and `{delete}` so the same verb has one translation source.
 - Use `{class}` for recurring D&D class references, with its noun localized once per locale and substituted by the same token resolver.

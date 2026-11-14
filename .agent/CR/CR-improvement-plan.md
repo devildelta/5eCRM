@@ -83,7 +83,7 @@
   - HTTP 瀏覽器驗證通過：Bootstrap modal bundle 載入；無效資源資料被拒絕且原 DB 不變；重名取消/確認、新增角色、`generatedClass`/附加欄位保留、`current > max` 匯入均符合預期；頁面無 JavaScript errors，測試 localStorage 已還原。
 - [x] **代理可執行**：移除 `cr.html` 及動態資源卡片中的 inline `onclick`。
 - [x] **代理可執行**：在 CR 頁面容器註冊事件委派，使用 `data-action` 與資源識別值分派操作，不再依賴全域 onclick 函式。
-- [x] **代理可執行**：遵守 `.github/copilot-instruction.md`，以 classic script + IIFE 封裝 CR 程式，按責任整理資料存取、DOM 呈現與操作處理函式；不使用 ES modules，不新增全域函式。因 IIFE 不適合無共享介面的多檔切分，本次預設保留單一 `src/cr.js`，只有出現明確需求且不違反專案守則時才另議拆檔。
+- [x] **代理可執行**：遵守 `.github/copilot-instruction.md`，以 classic script + IIFE 封裝 CR 程式，按責任整理資料存取、DOM 呈現與操作處理函式；不使用 ES modules，不新增全域函式。原先預設保留單一 `src/cr.js`；2026-11-14 使用者明確要求分離頁面控制與資源池管理後，該決定由 `src/cr/` 的 IIFE 模組拆分取代。
 - [x] **代理可執行**：評估以穩定資源 ID 取代陣列 index 作為事件識別；Pass 1 確認目前不需要 schema 變更，階段 4 需持續維護並驗證 index 對照。
 - [x] **代理可執行**：匯入資料先做必要結構檢查，錯誤資料不可部分覆蓋現存資料；保留現有 localStorage key 與欄位。
 - [x] **代理可執行**：不引入框架、bundler、`package.json` 或整站 SPA。
@@ -231,6 +231,8 @@
 ## 相關檔案
 
 - [cr.html](../../cr.html)：CR 頁面、管理介面及 classic script 入口。
-- [src/cr.js](../../src/cr.js)：由 IIFE 封裝的互動、資料操作與初始化入口。
+- [src/cr/page-controller.js](../../src/cr/page-controller.js)：由 IIFE 封裝的頁面控制與初始化入口。
+- [src/cr/resource-pools.js](../../src/cr/resource-pools.js)：資源池計數、恢復與轉換管理。
+- [src/cr/flexible-casting.js](../../src/cr/flexible-casting.js)：Flexible Casting 規則。
 - [src/cr.css](../../src/cr.css)：CR 版面、操作樣式與響應式規則。
 - `.agent/CR/CR-improvement-plan.md`：需求、規則假設與驗收狀態。

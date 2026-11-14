@@ -1,10 +1,11 @@
 # CR Stage 5 Playwright 測試材料
 
 - 審核日期：2026-10-05
-- 對照版本：目前工作區的 `cr.html`、`src/cr.js`、`src/cr.css`
+- 對照版本：目前工作區的 `cr.html`、`src/cr/page-controller.js`、`src/cr/resource-pools.js`、`src/cr/flexible-casting.js`、`src/cr.css`
 - 目的：整理本工作階段已執行的 Playwright 瀏覽器案例，判斷它們是否仍符合目前 UI，並提供階段 5 可重跑的驗收步驟。
 - 限制：工作區沒有 Playwright 測試 runner / `package.json`；以下是已手動執行過的瀏覽器案例與重跑規格，不是可直接執行的自動化測試檔。歷史結果不代表每項都已在目前版重跑。
-- 測試範圍：`src/dice.test.js` 測試 `src/dice.js` 的攻擊標籤及每回合傷害計算，不屬於 CR 測試範圍。它的通過結果不得當作 `cr.html`、`src/cr.js` 或 `src/cr.css` 的驗證；CR 變更應使用本文件列出的 Playwright 案例或針對 CR 行為的檢查。
+- 測試範圍：`src/dice.test.js` 測試 `src/dice.js` 的攻擊標籤及每回合傷害計算，不屬於 CR 測試範圍。它的通過結果不得當作 `cr.html`、`src/cr/page-controller.js`、`src/cr/resource-pools.js` 或 `src/cr.css` 的驗證；CR 變更應使用本文件列出的 Playwright 案例或針對 CR 行為的檢查。
+- CR 邏輯測試：使用 `node --test src\\cr\\cr.test.js`；CR 驗證不執行 Dice 測試。
 
 ## 狀態定義
 
@@ -72,7 +73,7 @@
 
 ### CR-01：載入與空狀態
 
-1. 開啟 `cr.html`，確認標題為「D&D 5E 角色資源管理」、`src/cr.js` 載入、`bootstrap.Modal` 可用。
+1. 開啟 `cr.html`，確認標題為「D&D 5E 角色資源管理」、CR scripts 載入、`bootstrap.Modal` 可用。
 2. 沒有選取角色時，確認提示要求選擇或建立角色；休息按鈕 disabled，資源區沒有卡片。
 3. 不再檢查 `window.use` 等舊全域函式；目前互動由 IIFE 和 `data-action` 事件委派處理。
 

@@ -26,11 +26,11 @@
 
 ## 現況與實作位置
 
-- 職業輸入器及資源計算位於 `src/cr.js`，職業列動態插入 `cr.html` 的 `#classRows`。
+- 職業輸入器及資源計算位於 `src/cr/page-controller.js`，職業列動態插入 `cr.html` 的 `#classRows`。
 - 標準職業預設及法術位進程已存在；自訂職業使用手動法術位進程。
 - `readClassRows()` 會把職業設定存入產生資源的 metadata；套用確認流程會重建計算器產生的資源並保留手動資源。
 - 一般非生命骰／法術位資源目前會廣泛分組顯示；新增職業資源時須在每個 inner pool 保留獨立識別及規則。
-- 職業輸入介面的本地化檔案為 `src/locales/zh-HK.json` 及 `src/locales/zh-TW.json`。
+- 職業輸入介面的本地化檔案為 `src/cr/locales/zh-HK.json` 及 `src/cr/locales/zh-TW.json`。
 - 專案沒有 `package.json` 或現成自動化測試 runner；瀏覽器驗收參考見 `.agent/CR/CR-stage5-playwright-tests.md`。
 - 資源規則基線見 `.agent/CR/class-resource-recovery-reference.md`。
 

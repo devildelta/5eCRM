@@ -470,6 +470,8 @@
   const app = document.getElementById('crApp');
   const flexibleCastingRules = app.flexibleCastingRules;
   if (!flexibleCastingRules) throw new Error('Flexible Casting rules are unavailable.');
+  const resourcePools = app.resourcePools;
+  if (!resourcePools) throw new Error('Resource pools are unavailable.');
   const modalElement = document.getElementById('managementModal');
   const roleModalElement = document.getElementById('roleCreateModal');
   const resourceCountModalElement = document.getElementById('resourceCountModal');
@@ -512,18 +514,9 @@
     return badge;
   }
 
-  function isAccumulativeResource(resource) {
-    const metadata = resource && resource.generatedClass;
-    return Boolean(metadata && metadata.accumulative === true);
-  }
-
-  function isDisplayOnlyResource(resource) {
-    return Boolean(resource && resource.cooldown === 'NO');
-  }
-
   function resourceCountText(resource) {
     const values = { current: resource.current, max: resource.max };
-    return isAccumulativeResource(resource)
+    return resourcePools.isAccumulativeResource(resource)
       ? t('accumulativeResourceCountTemplate', values)
       : t('common.resourceCountTemplate', Object.assign({ prefix: t('resourceCountPrefix') }, values));
   }
@@ -547,7 +540,7 @@
   }
 
   function syncAccumulativeControls(container, resource) {
-    if (!container || !isAccumulativeResource(resource)) return;
+    if (!container || !resourcePools.isAccumulativeResource(resource)) return;
     const current = Number(resource.current);
     const maximum = Number(resource.max);
     container.querySelectorAll('.accumulative-control').forEach(function (control) {
@@ -564,11 +557,11 @@
 
   function createResourceActions(resource, index, small) {
     const actions = document.createElement('div');
-    if (isDisplayOnlyResource(resource)) {
+    if (resourcePools.isDisplayOnlyResource(resource)) {
       actions.className = 'd-none';
       return actions;
     }
-    if (isAccumulativeResource(resource)) {
+    if (resourcePools.isAccumulativeResource(resource)) {
       actions.className = 'accumulative-controls';
       [
         { direction: 'gain', buttonLabel: 'accumulativeResourceGain', inputLabel: 'accumulativeResourceGainAmount' },
@@ -940,7 +933,7 @@
   }
 
   function resourceSummaryText(resource) {
-    if (isDisplayOnlyResource(resource)) {
+    if (resourcePools.isDisplayOnlyResource(resource)) {
       return t('resourceDisplayOnlySummaryTemplate', {
         source: sourceLabel(resource && resource.source ? resource.source : '其他')
       });
@@ -995,18 +988,18 @@
     name.className = 'fw-semibold';
     name.textContent = displayResourceName(resource);
     summary.appendChild(name);
-    if (!isDisplayOnlyResource(resource)) {
-      const meta = isAccumulativeResource(resource)
+    if (!resourcePools.isDisplayOnlyResource(resource)) {
+      const meta = resourcePools.isAccumulativeResource(resource)
         ? document.createElement('div')
         : createResourceCountButton(resource, index, 'small text-secondary text-end resource-count');
-      if (isAccumulativeResource(resource)) {
+      if (resourcePools.isAccumulativeResource(resource)) {
         meta.className = 'small text-secondary text-end resource-count';
         meta.textContent = resourceCountText(resource);
       }
       summary.appendChild(meta);
     }
     row.append(summary, createResourceRestMeta(resource, index));
-    if (!isDisplayOnlyResource(resource)) row.appendChild(createResourceActions(resource, index, true));
+    if (!resourcePools.isDisplayOnlyResource(resource)) row.appendChild(createResourceActions(resource, index, true));
     applyResourceStatus(row, resource);
     return row;
   }
@@ -1039,7 +1032,7 @@
     warning.setAttribute('aria-label', '');
     label.append(resourceLabel, warning);
 
-    if (isDisplayOnlyResource(resource)) {
+    if (resourcePools.isDisplayOnlyResource(resource)) {
       control.append(label, createResourceRestMeta(resource, index));
       applyResourceStatus(control, resource);
       return control;
@@ -1160,7 +1153,7 @@
   }
 
   function createClassResourceControl(resource, index, compactNameOverride) {
-    if (isAccumulativeResource(resource)) {
+    if (resourcePools.isAccumulativeResource(resource)) {
       const row = createResourceRow(resource, index);
       row.style.gridColumn = '1 / -1';
       return row;
@@ -1436,7 +1429,7 @@
 
     const body = document.createElement('div');
     body.className = 'card-body';
-    if (!isDisplayOnlyResource(resource)) {
+    if (!resourcePools.isDisplayOnlyResource(resource)) {
       const count = createResourceCountButton(resource, index, 'resource-count');
       const actions = createResourceActions(resource, index, false);
       body.append(count, actions);
@@ -1445,7 +1438,7 @@
     footer.className = 'card-footer d-flex justify-content-end';
     footer.appendChild(createResourceRestMeta(resource, index));
     card.appendChild(header);
-    if (!isDisplayOnlyResource(resource)) card.appendChild(body);
+    if (!resourcePools.isDisplayOnlyResource(resource)) card.appendChild(body);
     card.appendChild(footer);
     applyResourceStatus(card, resource);
     column.appendChild(card);
@@ -2949,7 +2942,7 @@
   }
 
   function availabilityText(resource) {
-    if (isDisplayOnlyResource(resource)) return t('resourceDisplayOnlyAvailability');
+    if (resourcePools.isDisplayOnlyResource(resource)) return t('resourceDisplayOnlyAvailability');
     const cooldown = cooldownInfo[resource.cooldown];
     const period = cooldown
       ? t(cooldown.availabilityPeriod)
@@ -2958,42 +2951,27 @@
   }
 
   function useResource(index) {
-    const resource = currentResources()[index];
-    if (!resource || isDisplayOnlyResource(resource) || isAccumulativeResource(resource) || Number(resource.current) <= 0) return;
-    resource.current = Number(resource.current) - 1;
+    if (!resourcePools.use(currentResources(), index)) return;
     save();
     refreshResourceAt(index);
   }
 
   function convertFlexibleCasting(direction, sorceryPointsIndexValue, spellSlotIndex, level) {
-    const resources = currentResources();
-    const sorceryPoints = resources[sorceryPointsIndexValue];
-    const spellSlot = resources[spellSlotIndex];
-    let converted;
-    if (direction === 'points-to-slot') {
-      converted = flexibleCastingRules.convertPointsToSlot(sorceryPoints, spellSlot, level);
-    } else if (direction === 'slot-to-points') {
-      converted = flexibleCastingRules.convertSlotToPoints(sorceryPoints, spellSlot, level);
-    } else {
-      throw new Error('Unsupported Flexible Casting conversion.');
-    }
-    if (!converted) return;
+    if (!resourcePools.convertFlexibleCasting(currentResources(), direction, sorceryPointsIndexValue, spellSlotIndex, level)) return;
 
     save();
     refreshResourceGroups(['class-resources:sorcerer', 'spell-1-5']);
   }
 
   function setResourceCount(index, current) {
-    const resource = currentResources()[index];
-    if (!resource || isDisplayOnlyResource(resource) || isAccumulativeResource(resource)) return;
-    resource.current = current;
+    if (!resourcePools.setCount(currentResources(), index, current)) return;
     save();
     refreshResourceAt(index);
   }
 
   function openResourceCountModal(index) {
     const resource = currentResources()[index];
-    if (!resource || isDisplayOnlyResource(resource) || isAccumulativeResource(resource)) return;
+    if (!resource || resourcePools.isDisplayOnlyResource(resource) || resourcePools.isAccumulativeResource(resource)) return;
     state.editingResourceIndex = index;
     document.getElementById('resourceCountTitle').textContent = t('resourceCountModalTitleTemplate', {
       name: displayResourceName(resource)
@@ -3004,56 +2982,19 @@
   }
 
   function resetResource(index) {
-    const resource = currentResources()[index];
-    if (!resource || isDisplayOnlyResource(resource) || isAccumulativeResource(resource)) return;
-    resource.current = resource.max;
+    if (!resourcePools.reset(currentResources(), index)) return;
     save();
     refreshResourceAt(index);
   }
 
   function adjustAccumulativeResource(index, direction, amountValue) {
-    const resource = currentResources()[index];
-    if (!resource || isDisplayOnlyResource(resource) || !isAccumulativeResource(resource)) return;
-    if (direction !== 'gain' && direction !== 'spend') throw new Error('Unsupported accumulative resource adjustment.');
-    const amount = Number(amountValue);
-    const current = Number(resource.current);
-    const maximum = Number(resource.max);
-    const available = direction === 'gain' ? Math.max(0, maximum - current) : Math.max(0, current);
-    if (!Number.isSafeInteger(amount) || amount < 1 || amount > available) return;
-    resource.current = direction === 'gain' ? current + amount : current - amount;
+    if (!resourcePools.adjustAccumulative(currentResources(), index, direction, amountValue)) return;
     save();
     refreshResourceAt(index);
   }
 
   function resetCooldown(level) {
-    const tiers = { '每回合': 0, '短休': 1, '長休': 2 };
-    const tier = tiers[level];
-    const changedIndexes = [];
-    currentResources().forEach(function (resource, index) {
-      if (isDisplayOnlyResource(resource)) return;
-      const recovery = resource.generatedClass || {};
-      const partialRecovery = level === '短休' && recovery.shortRestRecovery > 0 ||
-        level === '長休' && recovery.longRestRecovery > 0;
-      if (partialRecovery || tiers[resource.cooldown] !== undefined && tiers[resource.cooldown] <= tier) {
-        const previous = Number(resource.current);
-        if (level === '短休' && recovery.shortRestRecovery > 0) {
-          resource.current = Math.max(previous, Math.min(Number(resource.max), previous + recovery.shortRestRecovery));
-        } else if (level === '長休' && Number.isInteger(recovery.longRestResetTo)) {
-          resource.current = Math.min(Number(resource.max), recovery.longRestResetTo);
-        } else if (level === '長休' && recovery.longRestRecovery > 0) {
-          if (!recovery.longRestRecoveryWhenEmpty || previous === 0) {
-            resource.current = Math.max(previous, Math.min(Number(resource.max), previous + recovery.longRestRecovery));
-          }
-        } else if (isHitDieResource(resource) && level === '長休') {
-          const diceRecovery = Math.max(1, Math.floor(Number(resource.max) / 2));
-          const restored = Math.min(Number(resource.max), Number(resource.current) + diceRecovery);
-          resource.current = restored;
-        } else {
-          resource.current = resource.max;
-        }
-        if (Number(resource.current) !== previous) changedIndexes.push(index);
-      }
-    });
+    const changedIndexes = resourcePools.resetCooldown(currentResources(), level, isHitDieResource);
     if (changedIndexes.length) {
       save();
       changedIndexes.forEach(refreshResourceAt);
