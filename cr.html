@@ -5,7 +5,7 @@
   <title data-i18n="pageTitle"></title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link href="src/cr.css?v=20261110-1" rel="stylesheet" />
+  <link href="src/cr.css?v=20261114-16" rel="stylesheet" />
 </head>
 <body>
   <main class="container py-4" id="crApp">
@@ -207,6 +207,27 @@
     </div>
   </div>
 
+  <div class="modal fade" id="resourceCountModal" tabindex="-1" aria-labelledby="resourceCountTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content cr-modal">
+        <div class="modal-header">
+          <h2 class="modal-title fs-5" id="resourceCountTitle" data-i18n="resourceCountModalTitle"></h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-i18n-aria-label="close"></button>
+        </div>
+        <form id="resourceCountForm">
+          <div class="modal-body">
+            <label for="resourceCountInput" class="form-label" data-i18n="resourceCountModalLabel"></label>
+            <input id="resourceCountInput" class="form-control" type="number" min="0" max="999" step="1" required>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-primary" type="submit" data-i18n="save"></button>
+            <button class="btn btn-outline-light" type="button" data-bs-dismiss="modal" data-i18n="cancel"></button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <div class="toast-container position-fixed bottom-0 end-0 p-3">
     <div id="crToast" class="toast text-bg-dark" role="status" aria-live="polite" aria-atomic="true">
       <div class="d-flex"><div id="crToastMessage" class="toast-body"></div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" data-i18n-aria-label="close"></button></div>
@@ -214,6 +235,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="src/cr.js?v=20261107-7"></script>
+  <script src="src/cr.js?v=20261114-1"></script>
 </body>
 </html>

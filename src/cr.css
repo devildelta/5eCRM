@@ -3,6 +3,7 @@
   --resource-card-base-width: 20rem;
   --resource-card-min-width: calc(var(--resource-card-base-width) - 3rem);
   --resource-card-gap: 1rem;
+  --compact-resource-expanded-max-width: 18rem;
   --class-resource-control-min-width: 4.5rem;
   --class-resource-control-max-width: 7rem;
   --class-resource-horizontal-min-width: 8rem;
@@ -344,6 +345,35 @@ header {
   justify-self: end;
 }
 
+.single-compact-resource .pact-slot-control,
+.single-compact-resource .mystic-arcanum-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  width: 100%;
+  max-width: 6rem;
+  justify-self: center;
+}
+
+.single-compact-resource .pact-slot-control > .resource-compact-label,
+.single-compact-resource .mystic-arcanum-control > .resource-compact-label {
+  justify-content: center;
+  text-align: center;
+}
+
+.single-compact-resource .pact-slot-control > .resource-rest-meta,
+.single-compact-resource .mystic-arcanum-control > .resource-rest-meta {
+  grid-column: auto;
+  justify-self: auto;
+}
+
+.pact-magic-grid.single-compact-resource,
+.warlock-pact-flat-grid.single-compact-resource {
+  container-name: pact-grid;
+  container-type: inline-size;
+}
+
 .dice-pool-grid-short {
   grid-template-columns: repeat(5, minmax(0, 3.75rem));
   gap: 0.25rem;
@@ -561,6 +591,69 @@ header {
     justify-self: center;
   }
 
+  .single-compact-resource.pact-magic-grid .pact-slot-control,
+  .single-compact-resource.pact-magic-grid .mystic-arcanum-control,
+  .single-compact-resource.warlock-pact-flat-grid .pact-slot-control,
+  .single-compact-resource.warlock-pact-flat-grid .mystic-arcanum-control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) repeat(3, var(--resource-button-size));
+    grid-template-rows: auto auto;
+    gap: 0.25rem;
+    max-width: 11rem;
+    justify-self: center;
+  }
+
+  .single-compact-resource.pact-magic-grid .pact-slot-control > .resource-compact-label,
+  .single-compact-resource.pact-magic-grid .mystic-arcanum-control > .resource-compact-label,
+  .single-compact-resource.warlock-pact-flat-grid .pact-slot-control > .resource-compact-label,
+  .single-compact-resource.warlock-pact-flat-grid .mystic-arcanum-control > .resource-compact-label {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: stretch;
+    width: 100%;
+    min-height: 0;
+    padding-left: 0.5rem;
+    white-space: normal;
+    text-align: left;
+  }
+
+  .single-compact-resource.pact-magic-grid .pact-slot-control > [data-action="reset-resource"],
+  .single-compact-resource.pact-magic-grid .mystic-arcanum-control > [data-action="reset-resource"],
+  .single-compact-resource.warlock-pact-flat-grid .pact-slot-control > [data-action="reset-resource"],
+  .single-compact-resource.warlock-pact-flat-grid .mystic-arcanum-control > [data-action="reset-resource"] {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+
+  .single-compact-resource.pact-magic-grid .pact-slot-control > .resource-compact-count,
+  .single-compact-resource.pact-magic-grid .mystic-arcanum-control > .resource-compact-count,
+  .single-compact-resource.warlock-pact-flat-grid .pact-slot-control > .resource-compact-count,
+  .single-compact-resource.warlock-pact-flat-grid .mystic-arcanum-control > .resource-compact-count {
+    grid-column: 3;
+    grid-row: 1 / 3;
+  }
+
+  .single-compact-resource.pact-magic-grid .pact-slot-control > [data-action="use-resource"],
+  .single-compact-resource.pact-magic-grid .mystic-arcanum-control > [data-action="use-resource"],
+  .single-compact-resource.warlock-pact-flat-grid .pact-slot-control > [data-action="use-resource"],
+  .single-compact-resource.warlock-pact-flat-grid .mystic-arcanum-control > [data-action="use-resource"] {
+    grid-column: 4;
+    grid-row: 1 / 3;
+  }
+
+  .single-compact-resource.pact-magic-grid .pact-slot-control > .resource-rest-meta,
+  .single-compact-resource.pact-magic-grid .mystic-arcanum-control > .resource-rest-meta,
+  .single-compact-resource.warlock-pact-flat-grid .pact-slot-control > .resource-rest-meta,
+  .single-compact-resource.warlock-pact-flat-grid .mystic-arcanum-control > .resource-rest-meta {
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-self: stretch;
+    justify-content: flex-start;
+  }
+
   .single-compact-resource:not(.class-resource-grid-horizontal) .class-resource-control {
     grid-template-columns: minmax(0, 1fr) repeat(3, var(--resource-button-size));
     justify-content: stretch;
@@ -650,6 +743,12 @@ header {
   line-height: 1;
 }
 
+.resource-compact-count.btn {
+  padding: 0;
+  cursor: pointer;
+  font-size: 1.35rem;
+}
+
 .accumulative-controls {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -683,6 +782,14 @@ header {
   text-align: right;
 }
 
+.resource-count-edit.btn {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: inherit;
+}
+
 #skillList {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--resource-card-min-width)), 1fr));
@@ -709,7 +816,9 @@ header {
 }
 
 #skillList > .resource-card-column[data-resource-group="hit-dice"] > .card,
-#skillList > .resource-card-column[data-resource-group="dice-pool:shared:superiority-dice"] > .card {
+#skillList > .resource-card-column[data-resource-group="dice-pool:shared:superiority-dice"] > .card,
+#skillList > .resource-card-column[data-resource-group="pact"] > .card,
+#skillList > .resource-card-column[data-resource-group="warlock"] > .card {
   container-name: resource-card;
   container-type: inline-size;
 }
@@ -1268,7 +1377,7 @@ input {
   }
 }
 
-@container resource-card (min-width: 23.75rem) {
+@container resource-card (min-width: 23rem) {
   .hit-dice-grid,
   .superiority-dice-grid {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.9375rem), 1fr));
@@ -1281,16 +1390,18 @@ input {
     grid-template-rows: auto auto;
     align-items: center;
     justify-items: center;
-    gap: 0.1rem 0.1rem;
-    max-width: none;
-    justify-self: stretch;
+    gap: 0.1rem;
+    width: 100%;
+    max-width: var(--compact-resource-expanded-max-width);
+    justify-self: center;
   }
 
   .hit-dice-grid .hit-die-control > .resource-compact-label,
   .superiority-dice-grid .dice-pool-control > .resource-compact-label {
     grid-column: 1;
     grid-row: 1;
-    justify-self: start;
+    justify-self: stretch;
+    width: 100%;
     min-height: 0;
     padding-left: 0.5rem;
     white-space: normal;
@@ -1319,12 +1430,152 @@ input {
   .superiority-dice-grid .dice-pool-control > .resource-rest-meta {
     grid-column: 1;
     grid-row: 2;
-    justify-self: start;
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-self: stretch;
     justify-content: flex-start;
   }
+}
 
-  .superiority-dice-grid .dice-pool-control > .resource-rest-meta {
-    grid-column: 1 / -1;
+@media (max-width: 24.9375em) {
+  .single-compact-resource.hit-dice-grid .hit-die-control,
+  .single-compact-resource.superiority-dice-grid .dice-pool-control {
+    --resource-button-size: clamp(1.5rem, 9vw, 2rem);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) repeat(3, var(--resource-button-size));
+    grid-template-rows: auto auto;
+    max-width: 14rem;
+    justify-self: center;
+  }
+
+  .single-compact-resource.pact-magic-grid .pact-slot-control,
+  .single-compact-resource.pact-magic-grid .mystic-arcanum-control,
+  .single-compact-resource.warlock-pact-flat-grid .pact-slot-control,
+  .single-compact-resource.warlock-pact-flat-grid .mystic-arcanum-control {
+    --resource-button-size: clamp(1.5rem, 9vw, 2rem);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) repeat(3, var(--resource-button-size));
+    grid-template-rows: auto auto;
+    gap: 0.25rem;
+    max-width: 14rem;
+    justify-self: center;
+  }
+
+  .single-compact-resource.hit-dice-grid .hit-die-control > .resource-compact-label,
+  .single-compact-resource.superiority-dice-grid .dice-pool-control > .resource-compact-label,
+  .single-compact-resource.pact-magic-grid .pact-slot-control > .resource-compact-label,
+  .single-compact-resource.pact-magic-grid .mystic-arcanum-control > .resource-compact-label,
+  .single-compact-resource.warlock-pact-flat-grid .pact-slot-control > .resource-compact-label,
+  .single-compact-resource.warlock-pact-flat-grid .mystic-arcanum-control > .resource-compact-label {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: stretch;
     width: 100%;
+    min-height: 0;
+    padding-left: 0.5rem;
+    white-space: normal;
+    text-align: left;
+  }
+
+  .single-compact-resource.hit-dice-grid .hit-die-control > [data-action="reset-resource"],
+  .single-compact-resource.superiority-dice-grid .dice-pool-control > [data-action="reset-resource"],
+  .single-compact-resource.pact-magic-grid .pact-slot-control > [data-action="reset-resource"],
+  .single-compact-resource.pact-magic-grid .mystic-arcanum-control > [data-action="reset-resource"],
+  .single-compact-resource.warlock-pact-flat-grid .pact-slot-control > [data-action="reset-resource"],
+  .single-compact-resource.warlock-pact-flat-grid .mystic-arcanum-control > [data-action="reset-resource"] {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+
+  .single-compact-resource.hit-dice-grid .hit-die-control > .resource-compact-count,
+  .single-compact-resource.superiority-dice-grid .dice-pool-control > .resource-compact-count,
+  .single-compact-resource.pact-magic-grid .pact-slot-control > .resource-compact-count,
+  .single-compact-resource.pact-magic-grid .mystic-arcanum-control > .resource-compact-count,
+  .single-compact-resource.warlock-pact-flat-grid .pact-slot-control > .resource-compact-count,
+  .single-compact-resource.warlock-pact-flat-grid .mystic-arcanum-control > .resource-compact-count {
+    grid-column: 3;
+    grid-row: 1 / 3;
+  }
+
+  .single-compact-resource.hit-dice-grid .hit-die-control > [data-action="use-resource"],
+  .single-compact-resource.superiority-dice-grid .dice-pool-control > [data-action="use-resource"],
+  .single-compact-resource.pact-magic-grid .pact-slot-control > [data-action="use-resource"],
+  .single-compact-resource.pact-magic-grid .mystic-arcanum-control > [data-action="use-resource"],
+  .single-compact-resource.warlock-pact-flat-grid .pact-slot-control > [data-action="use-resource"],
+  .single-compact-resource.warlock-pact-flat-grid .mystic-arcanum-control > [data-action="use-resource"] {
+    grid-column: 4;
+    grid-row: 1 / 3;
+  }
+
+  .single-compact-resource.hit-dice-grid .hit-die-control > .resource-rest-meta,
+  .single-compact-resource.superiority-dice-grid .dice-pool-control > .resource-rest-meta,
+  .single-compact-resource.pact-magic-grid .pact-slot-control > .resource-rest-meta,
+  .single-compact-resource.pact-magic-grid .mystic-arcanum-control > .resource-rest-meta,
+  .single-compact-resource.warlock-pact-flat-grid .pact-slot-control > .resource-rest-meta,
+  .single-compact-resource.warlock-pact-flat-grid .mystic-arcanum-control > .resource-rest-meta {
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-self: stretch;
+    justify-content: flex-start;
+  }
+}
+
+@container pact-grid (min-width: 21.5rem) {
+  .single-compact-resource .pact-slot-control,
+  .single-compact-resource .mystic-arcanum-control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) repeat(3, var(--resource-button-size));
+    grid-template-rows: auto auto;
+    align-items: center;
+    justify-items: center;
+    gap: 0.1rem;
+    width: 100%;
+    max-width: var(--compact-resource-expanded-max-width);
+    justify-self: center;
+  }
+
+  .single-compact-resource .pact-slot-control > .resource-compact-label,
+  .single-compact-resource .mystic-arcanum-control > .resource-compact-label {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: stretch;
+    width: 100%;
+    min-height: 0;
+    padding-left: 0.5rem;
+    white-space: normal;
+    text-align: left;
+  }
+
+  .single-compact-resource .pact-slot-control > [data-action="reset-resource"],
+  .single-compact-resource .mystic-arcanum-control > [data-action="reset-resource"] {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+
+  .single-compact-resource .pact-slot-control > .resource-compact-count,
+  .single-compact-resource .mystic-arcanum-control > .resource-compact-count {
+    grid-column: 3;
+    grid-row: 1 / 3;
+  }
+
+  .single-compact-resource .pact-slot-control > [data-action="use-resource"],
+  .single-compact-resource .mystic-arcanum-control > [data-action="use-resource"] {
+    grid-column: 4;
+    grid-row: 1 / 3;
+  }
+
+  .single-compact-resource .pact-slot-control > .resource-rest-meta,
+  .single-compact-resource .mystic-arcanum-control > .resource-rest-meta {
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-self: stretch;
+    justify-content: flex-start;
   }
 }

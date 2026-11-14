@@ -457,6 +457,8 @@
     pendingAction: null,
     modal: null,
     roleModal: null,
+    resourceCountModal: null,
+    editingResourceIndex: null,
     resourceDetailsModal: null,
     toast: null,
     classRowId: 0,
@@ -468,9 +470,11 @@
   const app = document.getElementById('crApp');
   const modalElement = document.getElementById('managementModal');
   const roleModalElement = document.getElementById('roleCreateModal');
+  const resourceCountModalElement = document.getElementById('resourceCountModal');
   const resourceDetailsModalElement = document.getElementById('resourceDetailsModal');
   state.modal = bootstrap.Modal.getOrCreateInstance(modalElement);
   state.roleModal = bootstrap.Modal.getOrCreateInstance(roleModalElement);
+  state.resourceCountModal = bootstrap.Modal.getOrCreateInstance(resourceCountModalElement);
   state.resourceDetailsModal = bootstrap.Modal.getOrCreateInstance(resourceDetailsModalElement);
   resourceDetailsModalElement.querySelector('.modal-dialog').addEventListener('click', function () {
     state.resourceDetailsModal.hide();
@@ -520,6 +524,24 @@
     return isAccumulativeResource(resource)
       ? t('accumulativeResourceCountTemplate', values)
       : t('common.resourceCountTemplate', Object.assign({ prefix: t('resourceCountPrefix') }, values));
+  }
+
+  function createResourceCountButton(resource, index, className) {
+    const button = document.createElement('button');
+    button.className = className + ' btn resource-count-edit';
+    button.type = 'button';
+    button.dataset.action = 'edit-resource-count';
+    button.dataset.index = String(index);
+    button.textContent = resourceCountText(resource);
+    const accessibleLabel = t('resourceCountEditLabelTemplate', {
+      name: displayResourceName(resource),
+      current: resource.current,
+      max: resource.max
+    });
+    button.setAttribute('aria-label', accessibleLabel);
+    button.title = accessibleLabel;
+    button.disabled = !state.character;
+    return button;
   }
 
   function syncAccumulativeControls(container, resource) {
@@ -962,9 +984,13 @@
     name.textContent = displayResourceName(resource);
     summary.appendChild(name);
     if (!isDisplayOnlyResource(resource)) {
-      const meta = document.createElement('div');
-      meta.className = 'small text-secondary text-end resource-count';
-      meta.textContent = resourceCountText(resource);
+      const meta = isAccumulativeResource(resource)
+        ? document.createElement('div')
+        : createResourceCountButton(resource, index, 'small text-secondary text-end resource-count');
+      if (isAccumulativeResource(resource)) {
+        meta.className = 'small text-secondary text-end resource-count';
+        meta.textContent = resourceCountText(resource);
+      }
       summary.appendChild(meta);
     }
     row.append(summary, createResourceRestMeta(resource, index));
@@ -1017,13 +1043,26 @@
     resetButton.disabled = !state.character;
     resetButton.appendChild(createCompactResourceIcon('M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.418A6 6 0 1 0 8 2z M8 4.5V1.5a.5.5 0 0 0-.854-.354L4.146 4.146A.5.5 0 0 0 4.5 5h3a.5.5 0 0 0 .5-.5'));
 
-    const count = document.createElement('div');
-    count.className = 'resource-compact-count';
+    const count = document.createElement('button');
+    count.className = 'btn resource-compact-count';
+    count.type = 'button';
+    count.dataset.action = 'edit-resource-count';
+    count.dataset.index = String(index);
     count.textContent = String(resource.current);
-    count.setAttribute('aria-label', countLabel);
-    count.setAttribute('role', 'status');
+    count.setAttribute('aria-label', t('resourceCountEditLabelTemplate', {
+      name: displayResourceName(resource),
+      current: resource.current,
+      max: resource.max
+    }));
+    count.setAttribute('aria-description', countLabel);
+    count.title = t('resourceCountEditLabelTemplate', {
+      name: displayResourceName(resource),
+      current: resource.current,
+      max: resource.max
+    });
     count.setAttribute('aria-live', 'polite');
     count.setAttribute('aria-atomic', 'true');
+    count.disabled = !state.character;
 
     const useButton = document.createElement('button');
     useButton.className = 'btn btn-light resource-compact-action';
@@ -1292,9 +1331,7 @@
     const body = document.createElement('div');
     body.className = 'card-body';
     if (!isDisplayOnlyResource(resource)) {
-      const count = document.createElement('p');
-      count.className = 'resource-count';
-      count.textContent = resourceCountText(resource);
+      const count = createResourceCountButton(resource, index, 'resource-count');
       const actions = createResourceActions(resource, index, false);
       body.append(count, actions);
     }
@@ -1549,10 +1586,26 @@
           values.die = hitDie ? formatDieLabel(hitDie) : displayResourceName(resource);
         }
         compactCount.textContent = String(resource.current);
-        compactCount.setAttribute('aria-label', t(templateKey, values));
+        compactCount.setAttribute('aria-label', t('resourceCountEditLabelTemplate', {
+          name: displayResourceName(resource),
+          current: resource.current,
+          max: resource.max
+        }));
+        compactCount.setAttribute('aria-description', t(templateKey, values));
       } else {
         const count = row.querySelector('.resource-count');
-        if (count) count.textContent = resourceCountText(resource);
+        if (count) {
+          count.textContent = resourceCountText(resource);
+          if (count.matches('button')) {
+            const accessibleLabel = t('resourceCountEditLabelTemplate', {
+              name: displayResourceName(resource),
+              current: resource.current,
+              max: resource.max
+            });
+            count.setAttribute('aria-label', accessibleLabel);
+            count.title = accessibleLabel;
+          }
+        }
       }
       const useButton = row.querySelector('[data-action="use-resource"]');
       if (useButton) useButton.disabled = Number(resource.current) <= 0;
@@ -1785,7 +1838,7 @@
       const value = Number(element.dataset.resourceIndex);
       if (value > index) element.dataset.resourceIndex = String(value - 1);
     });
-    list.querySelectorAll('[data-action="use-resource"], [data-action="reset-resource"], [data-action="adjust-accumulative-resource"]').forEach(function (button) {
+    list.querySelectorAll('[data-action="use-resource"], [data-action="reset-resource"], [data-action="edit-resource-count"], [data-action="adjust-accumulative-resource"]').forEach(function (button) {
       const value = Number(button.dataset.index);
       if (value > index) button.dataset.index = String(value - 1);
     });
@@ -2798,6 +2851,26 @@
     refreshResourceAt(index);
   }
 
+  function setResourceCount(index, current) {
+    const resource = currentResources()[index];
+    if (!resource || isDisplayOnlyResource(resource) || isAccumulativeResource(resource)) return;
+    resource.current = current;
+    save();
+    refreshResourceAt(index);
+  }
+
+  function openResourceCountModal(index) {
+    const resource = currentResources()[index];
+    if (!resource || isDisplayOnlyResource(resource) || isAccumulativeResource(resource)) return;
+    state.editingResourceIndex = index;
+    document.getElementById('resourceCountTitle').textContent = t('resourceCountModalTitleTemplate', {
+      name: displayResourceName(resource)
+    });
+    const input = document.getElementById('resourceCountInput');
+    input.value = String(resource.current);
+    state.resourceCountModal.show();
+  }
+
   function resetResource(index) {
     const resource = currentResources()[index];
     if (!resource || isDisplayOnlyResource(resource) || isAccumulativeResource(resource)) return;
@@ -2958,6 +3031,7 @@
     else if (action === 'apply-class-levels') createClassConfirmation();
     else if (action === 'use-resource') useResource(index);
     else if (action === 'reset-resource') resetResource(index);
+    else if (action === 'edit-resource-count') openResourceCountModal(index);
     else if (action === 'adjust-accumulative-resource') {
       const control = actionElement.closest('.accumulative-control');
       const amountInput = control && control.querySelector('[data-accumulative-amount]');
@@ -3126,6 +3200,41 @@
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     state.roleModal.hide();
     notify(t('roleCreated', { name: name }));
+  });
+
+  document.getElementById('resourceCountForm').addEventListener('submit', function (event) {
+    event.preventDefault();
+    const input = document.getElementById('resourceCountInput');
+    const current = Number(input.value);
+    if (!input.value || !Number.isSafeInteger(current) || current < 0 || current > 999) {
+      input.setCustomValidity(t('resourceCountInvalid'));
+      input.reportValidity();
+      return;
+    }
+    input.setCustomValidity('');
+    if (!input.checkValidity()) {
+      input.reportValidity();
+      return;
+    }
+    setResourceCount(state.editingResourceIndex, current);
+    state.resourceCountModal.hide();
+  });
+
+  document.getElementById('resourceCountInput').addEventListener('input', function (event) {
+    event.target.setCustomValidity('');
+  });
+
+  resourceCountModalElement.addEventListener('shown.bs.modal', function () {
+    const input = document.getElementById('resourceCountInput');
+    input.focus();
+    input.select();
+  });
+
+  resourceCountModalElement.addEventListener('hidden.bs.modal', function () {
+    state.editingResourceIndex = null;
+    const input = document.getElementById('resourceCountInput');
+    input.value = '';
+    input.setCustomValidity('');
   });
 
   roleModalElement.addEventListener('hidden.bs.modal', function () {
