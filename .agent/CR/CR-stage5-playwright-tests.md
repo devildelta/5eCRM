@@ -4,6 +4,7 @@
 - 對照版本：目前工作區的 `cr.html`、`src/cr.js`、`src/cr.css`
 - 目的：整理本工作階段已執行的 Playwright 瀏覽器案例，判斷它們是否仍符合目前 UI，並提供階段 5 可重跑的驗收步驟。
 - 限制：工作區沒有 Playwright 測試 runner / `package.json`；以下是已手動執行過的瀏覽器案例與重跑規格，不是可直接執行的自動化測試檔。歷史結果不代表每項都已在目前版重跑。
+- 測試範圍：`src/dice.test.js` 測試 `src/dice.js` 的攻擊標籤及每回合傷害計算，不屬於 CR 測試範圍。它的通過結果不得當作 `cr.html`、`src/cr.js` 或 `src/cr.css` 的驗證；CR 變更應使用本文件列出的 Playwright 案例或針對 CR 行為的檢查。
 
 ## 狀態定義
 
