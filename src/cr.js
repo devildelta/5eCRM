@@ -468,6 +468,8 @@
   };
 
   const app = document.getElementById('crApp');
+  const flexibleCastingRules = app.flexibleCastingRules;
+  if (!flexibleCastingRules) throw new Error('Flexible Casting rules are unavailable.');
   const modalElement = document.getElementById('managementModal');
   const roleModalElement = document.getElementById('roleCreateModal');
   const resourceCountModalElement = document.getElementById('resourceCountModal');
@@ -625,11 +627,6 @@
     const isSorceryPoints = metadata.resourceKey === 'class:sorcerer:sorcery-points';
     if (metadata.sourceVersion === 'TCE') details.push(t('classResourceSourceTce'));
     if (isSorceryPoints) {
-      details.push(t('sorceryFlexibleCastingHeading'));
-      details.push(t('sorceryCreateSlotLabel'));
-      [2, 3, 5, 6, 7].forEach(function (cost, index) {
-        details.push(t('sorceryCreateSlotCostTemplate', { level: index + 1, cost: cost }));
-      });
       details.push(t('sorceryMetamagicHeading'));
       [
         ['Careful Spell', '1 SP'],
@@ -790,15 +787,18 @@
     return details.join('\n');
   }
 
-  function createResourceDetailsButton(resource, index) {
-    if (!classResourceDetails(resource)) return null;
+  function createResourceDetailsButton(resource, index, detailType) {
+    if (detailType !== 'flexible-casting' && !classResourceDetails(resource)) return null;
     const button = document.createElement('button');
     button.className = 'resource-rest-badge resource-details-trigger';
     button.type = 'button';
     button.dataset.action = 'show-resource-details';
     button.dataset.index = String(index);
+    if (detailType) button.dataset.detailType = detailType;
     button.textContent = t('resourceDetailsLabel');
-    button.setAttribute('aria-label', t('resourceDetailsAriaTemplate', { name: displayResourceName(resource) }));
+    button.setAttribute('aria-label', t('resourceDetailsAriaTemplate', {
+      name: detailType === 'flexible-casting' ? t('sorceryFlexibleCastingHeading') : displayResourceName(resource)
+    }));
     return button;
   }
 
@@ -811,12 +811,24 @@
     return meta;
   }
 
-  function showResourceDetails(index) {
+  function sorceryFlexibleCastingDetails() {
+    const creationCosts = [1, 2, 3, 4, 5].map(function (level) {
+      return flexibleCastingRules.slotCreationCost(level);
+    });
+    return [t('sorceryConvertSlotLabel'), t('sorceryCreateSlotLabel')].concat(creationCosts.map(function (cost, index) {
+      return t('sorceryCreateSlotCostTemplate', { level: index + 1, cost: cost });
+    })).join('\n');
+  }
+
+  function showResourceDetails(index, detailType) {
     const resource = currentResources()[index];
     if (!resource) throw new Error('Unable to find resource for description.');
-    const description = classResourceDetails(resource);
+    const isFlexibleCasting = detailType === 'flexible-casting';
+    const description = isFlexibleCasting ? sorceryFlexibleCastingDetails() : classResourceDetails(resource);
     if (!description) throw new Error('Resource description is unavailable.');
-    setText(document.getElementById('resourceDetailsTitle'), displayResourceName(resource));
+    setText(document.getElementById('resourceDetailsTitle'), isFlexibleCasting
+      ? t('sorceryFlexibleCastingHeading')
+      : displayResourceName(resource));
     setText(document.getElementById('resourceDetailsContent'), description);
     state.resourceDetailsModal.show();
   }
@@ -1170,6 +1182,93 @@
     return control;
   }
 
+  function sorceryPointsIndex(items) {
+    const entry = items.find(function (item) {
+      return item.resource.generatedClass &&
+        item.resource.generatedClass.resourceKey === 'class:sorcerer:sorcery-points';
+    });
+    return entry || null;
+  }
+
+  function spellSlotsForFlexibleCasting() {
+    return new Map(flexibleCastingRules.availableSlotEntries(currentResources()).map(function (entry) {
+      return [entry.level, entry];
+    }));
+  }
+
+  function flexibleCastingAvailability(sorceryPoints, spellSlot, level) {
+    const availability = flexibleCastingRules.getAvailability(sorceryPoints, spellSlot, level);
+    return {
+      pointsToSlot: !state.character || !availability.pointsToSlot,
+      slotToPoints: !state.character || !availability.slotToPoints
+    };
+  }
+
+  function createFlexibleCastingSection(sorceryPointsEntry) {
+    const slotsByLevel = spellSlotsForFlexibleCasting();
+    if (!slotsByLevel.size) return null;
+
+    const section = document.createElement('section');
+    section.className = 'flexible-casting-section';
+    section.setAttribute('aria-labelledby', 'flexibleCastingHeading');
+
+    const header = document.createElement('div');
+    header.className = 'flexible-casting-header';
+    const heading = document.createElement('h4');
+    heading.className = 'h6 flexible-casting-title';
+    heading.id = 'flexibleCastingHeading';
+    heading.textContent = t('sorceryFlexibleCastingHeading');
+    header.append(heading, createResourceDetailsButton(sorceryPointsEntry.resource, sorceryPointsEntry.index, 'flexible-casting'));
+
+    const grid = document.createElement('div');
+    grid.className = 'resource-compact-grid spell-slot-grid-low flexible-casting-grid';
+    Array.from(slotsByLevel.keys()).sort(function (left, right) { return left - right; }).forEach(function (level) {
+      const slotEntry = slotsByLevel.get(level);
+      const availability = flexibleCastingAvailability(sorceryPointsEntry.resource, slotEntry.resource, level);
+      const control = document.createElement('div');
+      control.className = 'resource-compact-control flexible-casting-slot-control';
+
+      const label = document.createElement('div');
+      label.className = 'resource-compact-label';
+      label.textContent = t('slotLevelLabel', { level: level });
+
+      const pointsToSlot = document.createElement('button');
+      pointsToSlot.className = 'btn btn-light resource-compact-action flexible-casting-action';
+      pointsToSlot.type = 'button';
+      pointsToSlot.dataset.action = 'sorcery-points-to-slot';
+      pointsToSlot.dataset.sorceryPointsIndex = String(sorceryPointsEntry.index);
+      pointsToSlot.dataset.slotIndex = String(slotEntry.index);
+      pointsToSlot.dataset.level = String(level);
+      pointsToSlot.textContent = '→';
+      pointsToSlot.disabled = availability.pointsToSlot;
+      pointsToSlot.setAttribute('aria-label', t('sorceryPointsToSlotAriaTemplate', {
+        cost: flexibleCastingRules.slotCreationCost(level),
+        level: level
+      }));
+      pointsToSlot.title = pointsToSlot.getAttribute('aria-label');
+
+      const slotToPoints = document.createElement('button');
+      slotToPoints.className = 'btn btn-light resource-compact-action flexible-casting-action';
+      slotToPoints.type = 'button';
+      slotToPoints.dataset.action = 'spell-slot-to-sorcery-points';
+      slotToPoints.dataset.sorceryPointsIndex = String(sorceryPointsEntry.index);
+      slotToPoints.dataset.slotIndex = String(slotEntry.index);
+      slotToPoints.dataset.level = String(level);
+      slotToPoints.textContent = '←';
+      slotToPoints.disabled = availability.slotToPoints;
+      slotToPoints.setAttribute('aria-label', t('spellSlotToSorceryPointsAriaTemplate', {
+        level: level,
+        amount: level
+      }));
+      slotToPoints.title = slotToPoints.getAttribute('aria-label');
+
+      control.append(label, pointsToSlot, slotToPoints);
+      grid.appendChild(control);
+    });
+    section.append(header, grid);
+    return section;
+  }
+
   function createMagicItemResourceControl(resource, index) {
     return createClassResourceControl(resource, index, displayResourceName(resource));
   }
@@ -1237,6 +1336,13 @@
       if (!isCompactGroup) row.classList.add('mb-2');
       body.appendChild(row);
     });
+    if (groupType === 'class-resources:sorcerer') {
+      const pointsEntry = sorceryPointsIndex(items);
+      if (pointsEntry) {
+        const flexibleCasting = createFlexibleCastingSection(pointsEntry);
+        if (flexibleCasting) body.appendChild(flexibleCasting);
+      }
+    }
     card.append(header, body);
     const states = items.map(function (item) { return resourceState(item.resource); });
     const allDepleted = states.length > 0 && states.every(function (value) { return value.depleted; });
@@ -1555,6 +1661,14 @@
   function refreshResourceAt(index) {
     const resource = currentResources()[index];
     if (!resource) return;
+    const metadata = resource.generatedClass;
+    const isSorceryPointPool = metadata && metadata.resourceKey === 'class:sorcerer:sorcery-points';
+    const isFlexibleCastingSlot = metadata && metadata.kind === 'spell-slot' &&
+      Number.isInteger(metadata.slotLevel) && metadata.slotLevel >= 1 && metadata.slotLevel <= 5;
+    if (isSorceryPointPool || isFlexibleCastingSlot) {
+      refreshResourceGroups(['class-resources:sorcerer', 'spell-1-5']);
+      return;
+    }
     const list = document.getElementById('skillList');
     const matches = list.querySelectorAll('[data-resource-index="' + index + '"]');
     if (!matches.length) return;
@@ -1612,7 +1726,7 @@
       syncAccumulativeControls(row, resource);
       applyResourceStatus(row, resource);
       const card = row.classList.contains('card') ? row : row.closest('.card');
-      const groupRows = card ? Array.from(card.querySelectorAll('.resource-row, .resource-compact-control')) : [];
+      const groupRows = card ? Array.from(card.querySelectorAll('.resource-row[data-resource-index], .resource-compact-control[data-resource-index]')) : [];
       if (groupRows.length > 0) {
         const states = groupRows.map(function (item) {
           const itemIndex = Number(item.dataset.resourceIndex);
@@ -2851,6 +2965,24 @@
     refreshResourceAt(index);
   }
 
+  function convertFlexibleCasting(direction, sorceryPointsIndexValue, spellSlotIndex, level) {
+    const resources = currentResources();
+    const sorceryPoints = resources[sorceryPointsIndexValue];
+    const spellSlot = resources[spellSlotIndex];
+    let converted;
+    if (direction === 'points-to-slot') {
+      converted = flexibleCastingRules.convertPointsToSlot(sorceryPoints, spellSlot, level);
+    } else if (direction === 'slot-to-points') {
+      converted = flexibleCastingRules.convertSlotToPoints(sorceryPoints, spellSlot, level);
+    } else {
+      throw new Error('Unsupported Flexible Casting conversion.');
+    }
+    if (!converted) return;
+
+    save();
+    refreshResourceGroups(['class-resources:sorcerer', 'spell-1-5']);
+  }
+
   function setResourceCount(index, current) {
     const resource = currentResources()[index];
     if (!resource || isDisplayOnlyResource(resource) || isAccumulativeResource(resource)) return;
@@ -3023,7 +3155,7 @@
     const selectedResource = selected === null ? null : currentResources()[selected];
 
     if (action === 'open-management') openManagement();
-    else if (action === 'show-resource-details') showResourceDetails(index);
+    else if (action === 'show-resource-details') showResourceDetails(index, actionElement.dataset.detailType);
     else if (action === 'accumulate-hit-die') accumulateHitDie(actionElement.dataset.die);
     else if (action === 'commit-hit-dice') commitHitDiceAccumulator();
     else if (action === 'clear-hit-dice') clearHitDiceAccumulator();
@@ -3031,6 +3163,14 @@
     else if (action === 'apply-class-levels') createClassConfirmation();
     else if (action === 'use-resource') useResource(index);
     else if (action === 'reset-resource') resetResource(index);
+    else if (action === 'sorcery-points-to-slot' || action === 'spell-slot-to-sorcery-points') {
+      convertFlexibleCasting(
+        action === 'sorcery-points-to-slot' ? 'points-to-slot' : 'slot-to-points',
+        Number.parseInt(actionElement.dataset.sorceryPointsIndex, 10),
+        Number.parseInt(actionElement.dataset.slotIndex, 10),
+        Number.parseInt(actionElement.dataset.level, 10)
+      );
+    }
     else if (action === 'edit-resource-count') openResourceCountModal(index);
     else if (action === 'adjust-accumulative-resource') {
       const control = actionElement.closest('.accumulative-control');

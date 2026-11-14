@@ -144,7 +144,7 @@
 
 ## Sorcerer（PHB / XGE / TCE）
 
-- **Sorcery Points**：數量等於 Sorcerer 等級；LR 全恢復。Metamagic、Flexible Casting 及 subclass 指定點數消耗共用此池。Sorcery Points 與 Spell Slots 會互相轉換，資料層不可把兩者混為一個池。
+- **Sorcery Points**：數量等於 Sorcerer 等級；LR 全恢復。Metamagic、Flexible Casting 及 subclass 指定點數消耗共用此池。Flexible Casting 將法術位轉成術法點時，每環換 1 點；以術法點創造 1–5 環法術位分別花 2、3、5、6、7 點。Sorcery Points 與 Spell Slots 會互相轉換，資料層不可把兩者混為一個池。
 - **Sorcerous Restoration（20 級，TCE optional）**：SR 恢復 4 點 Sorcery Points。
 - **Wild Magic：Tides of Chaos**：使用後通常需 LR 才恢復；在恢復前，施放 1 環或更高環 Sorcerer 法術後，DM 可選擇要求 Wild Magic Surge 擲骰；若 DM 如此裁定並觸發 Surge，Tides of Chaos 隨即恢復。這是 DM 可選的事件觸發，不是每次施法都自動恢復（PHB 2014, p. 103）。
 - **Divine Soul：Favored by the Gods**：SR/LR。

@@ -231,4 +231,5 @@
 
 | 日期 / 版本 | 案例 ID | 結果 | 瀏覽器 / viewport | 備註 |
 |---|---|---|---|---|
+| 2026-11-14 | Flexible Casting | PASS | VS Code 整合式瀏覽器；file://；320px | `node --test src/cr.test.js` 六項通過。Sorcerer 5 顯示 1–3 環，Sorcerer 9 / Warlock 1 顯示 1–5 環；沒有 reset/count 控件；兩向轉換及點數上限通過，轉換只更新普通法術位而 Pact Slot 保持不變；詳情使用「詳情」按鈕；320px 五格同行且無水平溢出。測試角色已刪除。 |
 |  |  |  |  |  |
