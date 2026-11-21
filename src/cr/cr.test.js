@@ -182,3 +182,87 @@ test('both CR locale files contain Flexible Casting action labels', () => {
     assert.ok(messages.sorceryConvertSlotLabel);
   });
 });
+
+test('both CR locales contain hit point rotor and configuration labels', () => {
+  ['zh-HK', 'zh-TW'].forEach(function (locale) {
+    const localePath = path.join(__dirname, 'locales', locale + '.json');
+    const messages = JSON.parse(fs.readFileSync(localePath, 'utf8'));
+    assert.ok(messages.hpHeading);
+    assert.ok(messages.hpModifierLimitReached);
+    assert.ok(messages.hpModifierMaximumAmountLabel);
+    assert.ok(messages.hpActionsAria);
+    assert.ok(messages.hpQuickActionsAria);
+    assert.ok(messages.hpDecreaseAmountAriaTemplate);
+    assert.ok(messages.hpIncreaseAmountAriaTemplate);
+    assert.ok(messages.hpSetMaximum);
+    assert.ok(messages.hpClearModifiers);
+    assert.ok(messages.hpClearModifiersAria);
+    assert.ok(messages.hpClearModifiersError);
+    assert.ok(messages.hpAddTemporary);
+    assert.ok(messages.hpMaximumModifierAriaTemplate);
+    assert.ok(messages.hpModifierRemoveAriaTemplate);
+    assert.ok(messages.hpRemoveMaximumConfirm);
+  });
+});
+
+test('CR page places the HP rotor below character info and keeps HP offset settings in management', () => {
+  const htmlPath = path.resolve(__dirname, '..', '..', 'cr.html');
+  const html = fs.readFileSync(htmlPath, 'utf8');
+  const characterInfoPosition = html.indexOf('</header>');
+  const hpSectionPosition = html.indexOf('id="hitPointsSection"');
+  const resourcePosition = html.indexOf('id="skillList"');
+  const configSectionPosition = html.indexOf('data-section-panel="configuration"');
+  const classRowsPosition = html.indexOf('id="classRows"');
+  const hpCardMarkup = html.slice(hpSectionPosition, resourcePosition);
+  const configurationMarkup = html.slice(configSectionPosition, html.indexOf('data-section-panel="tce"'));
+  const hpOperationsPosition = hpCardMarkup.indexOf('id="hitPointOperationGrid"');
+  const hpQuickActionsPosition = hpCardMarkup.indexOf('id="hitPointQuickActions"');
+  const hpModifierActionsPosition = hpCardMarkup.indexOf('class="hp-card-modifier-actions');
+
+  assert.ok(characterInfoPosition < hpSectionPosition && hpSectionPosition < resourcePosition);
+  assert.match(hpCardMarkup, /class="hp-section mb-4 d-none"/);
+  assert.ok(hpOperationsPosition < hpQuickActionsPosition && hpQuickActionsPosition < hpModifierActionsPosition);
+  assert.ok(configSectionPosition < classRowsPosition);
+  assert.match(html, /id="hitPointOperationGrid" class="hp-operation-grid/);
+  assert.match(hpCardMarkup, /class="input-group hp-input-group"/);
+  assert.match(hpCardMarkup, /id="hitPointQuickActions" class="hp-quick-actions mt-3"[^>]*data-i18n-aria-label="hpQuickActionsAria"/);
+  assert.match(hpCardMarkup, /id="hitPointsMaximum" class="hp-counter"/);
+  assert.match(hpCardMarkup, /<div class="input-group-text hp-value-group hp-maximum-group">\s*<output id="hitPointsMaximum" class="hp-counter"><\/output>\s*<\/div>\s*<div id="maximumHitPointModifierBox" class="hp-maximum-modifier-box"[^>]*>\s*<div id="maximumHitPointTags"/);
+  assert.match(hpCardMarkup, /id="maximumHitPointTags" class="hp-tags hp-value-tags hp-maximum-tags"/);
+  assert.doesNotMatch(hpCardMarkup, /data-bs-toggle="dropdown"|dropdown-toggle/);
+  assert.match(hpCardMarkup, /data-action="open-temporary-hit-points"/);
+  assert.match(hpCardMarkup, /data-action="open-maximum-hit-point-modifier"/);
+  assert.doesNotMatch(hpCardMarkup, /data-hp-offset/);
+  assert.match(configurationMarkup, /data-hp-offset="per-level"/);
+  assert.match(configurationMarkup, /data-hp-offset="constant"/);
+  assert.doesNotMatch(html, /id="hitPointsModifierSource"|max="99999"/);
+  assert.match(html, /id="hitPointsRemoveConfirmModal"/);
+  assert.match(html, /src\/cr\/hit-points\.js\?v=/);
+});
+
+test('narrow character-sheet controls retain hit-die sizing and wrap the HP rotor accessibly', () => {
+  const cssPath = path.resolve(__dirname, '..', 'cr.css');
+  const css = fs.readFileSync(cssPath, 'utf8');
+  const controllerPath = path.join(__dirname, 'page-controller.js');
+  const controller = fs.readFileSync(controllerPath, 'utf8');
+
+  assert.match(css, /\.single-compact-resource\.hit-dice-grid \.hit-die-control\s*\{\s*--resource-button-size: clamp\(1\.75rem, 12\.5vw, 2\.5rem\);/);
+  assert.match(css, /grid-auto-flow: row;\s*grid-template-columns: repeat\(auto-fit, minmax\(2\.75rem, 1fr\)\);\s*grid-template-rows: none;\s*max-width: 21rem;/);
+  assert.match(css, /#hitPointOperationGrid > \.hp-rotor-action\s*\{\s*min-height: 2\.75rem;\s*padding: 0\.25rem 0\.1rem;\s*font-size: 0\.9rem;/);
+  assert.match(css, /@container \(max-width: 22rem\)\s*\{\s*\.hp-operation-grid\s*\{\s*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/);
+  assert.match(css, /#hitPointOperationGrid > \.hp-rotor-action\s*\{\s*font-size: clamp\(1rem, 6\.2cqi, 1\.1rem\);/);
+  assert.match(css, /\.hp-maximum-modifier-box\s*\{[^}]*grid-column: 1 \/ -1;[^}]*grid-row: 2;[^}]*justify-content: flex-end;/);
+  assert.match(css, /\.hp-maximum-modifier-box:not\(\.has-maximum-modifiers\)\s*\{\s*display: none;/);
+  assert.match(css, /\.hp-maximum-tags\s*\{[^}]*flex-wrap: nowrap;[^}]*justify-content: flex-end;/);
+  assert.match(css, /\.hp-maximum-tags \.hp-modifier-tag\s*\{[^}]*font-size: 0\.68em;/);
+  assert.match(css, /\.hp-modifier-tag\s*\{[^}]*padding: 0\.08em 0\.3em;[^}]*border-radius: 0\.35rem;/);
+  assert.match(controller, /container\.classList\.toggle\('has-maximum-modifiers', hitPointState\.maximumModifiers\.length > 0\)/);
+  assert.match(controller, /container\.parentElement\.classList\.toggle\('has-maximum-modifiers', hitPointState\.maximumModifiers\.length > 0\)/);
+  assert.match(controller, /createHitPointAction\('↑', 'reset-hit-points'[\s\S]*maximumButton\.title = t\('hpSetMaximum'\)/);
+  assert.match(controller, /createHitPointAction\([\s\S]*'×',\s*'clear-hit-point-modifiers'[\s\S]*clearModifiersButton\.title = t\('hpClearModifiers'\)/);
+  assert.match(css, /\.hp-quick-actions \.hp-quick-action-symbol\s*\{\s*font-size: 1\.25rem;\s*font-weight: 600;/);
+  assert.match(controller, /function renderHitPointQuickActions\([\s\S]*'clear-hit-point-modifiers'[\s\S]*container\.append\(zero, maximumButton, clearModifiersButton\)/);
+  assert.match(controller, /hitPoints\.clearModifiers\(hitPointState\)/);
+  assert.match(controller, /action === 'set-hit-points-zero' \|\| action === 'clear-hit-point-modifiers' \|\| action === 'open-temporary-hit-points'/);
+  assert.match(controller, /amounts\.forEach\(function \(amount\)[\s\S]*container\.append\(decrease, increase\)/);
+});

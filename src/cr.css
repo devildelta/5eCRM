@@ -865,6 +865,318 @@ header {
   width: 100%;
 }
 
+.hp-card {
+  container-type: inline-size;
+  min-width: 0;
+  width: 100%;
+}
+
+.hp-input-group {
+  display: grid;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  min-width: 0;
+  align-items: stretch;
+  row-gap: 0.2rem;
+  font-size: clamp(1.75rem, 6cqi, 2.25rem);
+  line-height: 1.15;
+}
+
+.hp-input-group > :not(:first-child) {
+  margin-left: 0;
+  border-left-width: 0;
+}
+
+.hp-value-group {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-wrap: nowrap;
+  align-content: flex-start;
+  justify-content: center;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.25rem 0.45rem;
+  background-color: #222830;
+  border-color: #4a5360;
+  color: #f8f9fb;
+  font-size: inherit;
+  line-height: 1.15;
+}
+
+.hp-current-group {
+  grid-column: 1;
+}
+
+.hp-maximum-group {
+  grid-column: 3;
+  grid-row: 1;
+  padding-inline: 0.2rem;
+}
+
+.hp-maximum-modifier-box {
+  display: flex;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0.2rem;
+  border: 1px solid #4a5360;
+  border-radius: 0.375rem;
+  background-color: #222830;
+  color: #f8f9fb;
+}
+
+.hp-input-group > .hp-maximum-modifier-box {
+  border-left-width: 1px;
+}
+
+.hp-maximum-modifier-box:not(.has-maximum-modifiers) {
+  display: none;
+}
+
+.hp-divider {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  width: 100%;
+  padding: 0.25rem 0.35rem;
+  background-color: #222830;
+  border-color: #4a5360;
+  color: #aab4c0;
+  font-size: inherit;
+  font-weight: 700;
+  line-height: 1.15;
+  border-right-width: 0;
+}
+
+.hp-counter {
+  display: block;
+  min-width: 0;
+  color: #f8f9fb;
+  font-size: inherit;
+  font-weight: 800;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hp-counter.resource-status-green { color: #7ee787; }
+.hp-counter.resource-status-yellow { color: #fff275; }
+.hp-counter.resource-status-orange { color: #ffb86c; }
+.hp-counter.resource-status-red { color: #ff7b72; }
+.hp-counter.resource-status-zero { color: #d0d7de; }
+
+.hp-counter.hp-over-maximum {
+  color: #ff8a80;
+}
+
+.hp-operation-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-columns: repeat(var(--hp-adjustment-columns, 1), minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(2.5rem, auto));
+  gap: 0.35rem;
+}
+
+.hp-rotor-action {
+  display: flex;
+  min-width: 0;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.2rem;
+  border-radius: 0.55rem;
+  font-size: clamp(0.6rem, 3vw, 0.9rem);
+  font-size: clamp(0.6rem, 3cqi, 0.9rem);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.hp-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.hp-quick-actions .hp-rotor-action {
+  width: 100%;
+  min-width: 0;
+  white-space: normal;
+  font-size: 0.9rem;
+}
+
+.hp-quick-actions .hp-quick-action-symbol {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.hp-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.hp-value-tags {
+  display: inline-flex;
+  flex: 0 1 auto;
+  max-width: 100%;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.hp-maximum-tags {
+  flex-wrap: nowrap;
+  gap: 0.1rem;
+  justify-content: flex-end;
+  max-width: 100%;
+}
+
+.hp-maximum-tags .hp-modifier-tag {
+  height: 1.40244em;
+  padding-inline: 0.16em;
+  font-size: 0.82em;
+  border-radius: 0.35rem;
+}
+
+.hp-maximum-tags::before,
+.hp-maximum-tags::after {
+  color: #aab4c0;
+}
+
+.hp-maximum-tags.has-maximum-modifiers::before {
+  content: "(";
+}
+
+.hp-maximum-tags.has-maximum-modifiers::after {
+  content: ")";
+}
+
+.hp-modifier-tag-item {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-width: 0;
+}
+
+.hp-modifier-tag {
+  display: inline-flex;
+  min-width: 0;
+  height: 1.15em;
+  align-items: center;
+  justify-content: center;
+  padding: 0.08em 0.3em;
+  border: 1px solid currentColor;
+  border-radius: 0.35rem;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.hp-modifier-tag-temporary {
+  background: rgba(224, 172, 37, 0.18);
+  border-color: #d3a627;
+  color: #ffe082;
+}
+
+.hp-modifier-tag-positive {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: #5b9cff;
+  color: #cfe2ff;
+}
+
+.hp-modifier-tag-negative {
+  background: rgba(220, 53, 69, 0.18);
+  border-color: #e56773;
+  color: #ffd1d5;
+}
+
+.hp-modifier-tag:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.hp-card-modifier-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.hp-card-modifier-actions .btn {
+  min-width: 0;
+  white-space: normal;
+}
+
+@media (max-width: 23rem) {
+  .hp-rotor-action {
+    padding-right: 0.1rem;
+    padding-left: 0.1rem;
+  }
+}
+
+@container (max-width: 24rem) {
+  .hp-input-group {
+    width: 100%;
+  }
+
+  .hp-value-tags {
+    flex: 1 1 0;
+  }
+
+  .hp-maximum-group {
+    gap: 0.02rem;
+    padding-inline: 0.02rem;
+  }
+
+  .hp-maximum-tags {
+    gap: 0.02rem;
+  }
+
+  .hp-maximum-tags .hp-modifier-tag {
+    height: 1.65em;
+    padding-inline: 0.12em;
+    font-size: 0.68em;
+  }
+
+}
+
+@container (max-width: 28rem) {
+  .hp-operation-grid {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(auto-fit, minmax(2.75rem, 1fr));
+    grid-template-rows: none;
+    max-width: 21rem;
+    margin-inline: auto;
+  }
+
+  #hitPointOperationGrid > .hp-rotor-action {
+    min-height: 2.75rem;
+    padding: 0.25rem 0.1rem;
+    font-size: 0.9rem;
+  }
+}
+
+@container (max-width: 22rem) {
+  .hp-operation-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  #hitPointOperationGrid > .hp-rotor-action {
+    font-size: clamp(1rem, 6.2cqi, 1.1rem);
+  }
+}
+
 #skillList > .resource-card-column[data-resource-group="hit-dice"] > .card,
 #skillList > .resource-card-column[data-resource-group="dice-pool:shared:superiority-dice"] > .card,
 #skillList > .resource-card-column[data-resource-group="pact"] > .card,
@@ -1497,6 +1809,10 @@ input {
     grid-template-rows: auto auto;
     max-width: 14rem;
     justify-self: center;
+  }
+
+  .single-compact-resource.hit-dice-grid .hit-die-control {
+    --resource-button-size: clamp(1.75rem, 12.5vw, 2.5rem);
   }
 
   .single-compact-resource.pact-magic-grid .pact-slot-control,

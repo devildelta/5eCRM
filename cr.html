@@ -5,7 +5,7 @@
   <title data-i18n="pageTitle"></title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link href="src/cr.css?v=20261114-17" rel="stylesheet" />
+  <link href="src/cr.css?v=20261121-4" rel="stylesheet" />
 </head>
 <body>
   <main class="container py-4" id="crApp">
@@ -22,6 +22,37 @@
       </div>
     </header>
 
+    <section id="hitPointsSection" aria-labelledby="hitPointsHeading" class="hp-section mb-4 d-none">
+      <article class="card hp-card">
+        <div class="card-header">
+          <h2 id="hitPointsHeading" class="h5 mb-0" data-i18n="hpHeading"></h2>
+        </div>
+        <div class="card-body">
+          <div class="input-group hp-input-group" role="group" data-i18n-aria-label="hpDisplayAria">
+            <div class="input-group-text hp-value-group hp-current-group">
+              <output id="hitPointsCurrent" class="hp-counter" aria-live="polite"></output>
+              <div id="temporaryHitPointTags" class="hp-tags hp-value-tags" role="list"></div>
+            </div>
+            <span class="input-group-text hp-divider" aria-hidden="true">/</span>
+            <div class="input-group-text hp-value-group hp-maximum-group">
+              <output id="hitPointsMaximum" class="hp-counter"></output>
+            </div>
+            <div id="maximumHitPointModifierBox" class="hp-maximum-modifier-box">
+              <div id="maximumHitPointTags" class="hp-tags hp-value-tags hp-maximum-tags" role="list"></div>
+            </div>
+          </div>
+
+          <div id="hitPointOperationGrid" class="hp-operation-grid mt-3" role="group" data-i18n-aria-label="hpActionsAria"></div>
+          <div id="hitPointQuickActions" class="hp-quick-actions mt-3" role="group" data-i18n-aria-label="hpQuickActionsAria"></div>
+
+          <div class="hp-card-modifier-actions mt-3">
+            <button class="btn btn-outline-warning" type="button" data-action="open-temporary-hit-points" data-i18n="hpAddTemporary"></button>
+            <button class="btn btn-outline-info" type="button" data-action="open-maximum-hit-point-modifier" data-i18n="hpAddMaximumModifier"></button>
+          </div>
+        </div>
+      </article>
+    </section>
+
     <section aria-labelledby="restHeading" class="mb-4">
       <h2 id="restHeading" class="h5" data-i18n="restHeading"></h2>
       <div class="row g-2 rest-actions">
@@ -37,6 +68,48 @@
       <div id="skillList" class="row g-3"></div>
     </section>
 
+    <div class="modal fade" id="hitPointsModifierModal" tabindex="-1" aria-labelledby="hitPointsModifierTitle" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content cr-modal">
+          <div class="modal-header">
+            <h2 class="modal-title fs-5" id="hitPointsModifierTitle"></h2>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-i18n-aria-label="close"></button>
+          </div>
+          <form id="hitPointsModifierForm">
+            <div class="modal-body">
+              <div class="mb-3">
+                <label for="hitPointsModifierAmount" class="form-label" id="hitPointsModifierAmountLabel"></label>
+                <input id="hitPointsModifierAmount" class="form-control" type="number" step="1" required>
+              </div>
+              <p id="hitPointsModifierError" class="small text-warning mb-0" role="status" aria-live="polite"></p>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-primary" type="submit" data-i18n="save"></button>
+              <button class="btn btn-outline-light" type="button" data-bs-dismiss="modal" data-i18n="cancel"></button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="hitPointsRemoveConfirmModal" tabindex="-1" aria-labelledby="hitPointsRemoveConfirmTitle" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content cr-modal">
+          <div class="modal-header">
+            <h2 class="modal-title fs-5" id="hitPointsRemoveConfirmTitle" data-i18n="hpRemoveConfirmTitle"></h2>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-i18n-aria-label="close"></button>
+          </div>
+          <div class="modal-body">
+            <p id="hitPointsRemoveConfirmMessage" class="mb-0"></p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-danger" type="button" data-action="confirm-hit-point-removal" data-i18n="hpModifierRemove"></button>
+            <button class="btn btn-outline-light" type="button" data-bs-dismiss="modal" data-i18n="cancel"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="modal fade" id="managementModal" tabindex="-1" aria-labelledby="managementTitle" aria-hidden="true">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content cr-modal">
@@ -48,6 +121,7 @@
             <div id="managementSections">
               <ul class="nav nav-tabs mb-3" role="tablist">
                 <li class="nav-item" role="presentation"><button class="nav-link active" type="button" data-section="resources" role="tab" data-i18n="tabResources"></button></li>
+                <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-section="configuration" role="tab" data-i18n="tabCharacterConfig"></button></li>
                 <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-section="tce" role="tab" data-i18n="tabTceFeatures"></button></li>
                 <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-section="backup" role="tab" data-i18n="tabBackup"></button></li>
               </ul>
@@ -82,6 +156,23 @@
                     <button class="btn btn-sm btn-outline-secondary" type="button" data-action="clear-hit-dice" data-i18n="hitDiceClear"></button>
                   </div>
                 </div>
+              </section>
+
+              <section class="management-section d-none" data-section-panel="configuration">
+                <section aria-labelledby="hpConfigurationTitle" class="mb-4">
+                  <h3 id="hpConfigurationTitle" class="h6" data-i18n="hpConfigurationHeading"></h3>
+                  <div class="row g-2 mb-3">
+                    <div class="col-6">
+                      <label for="hitPointsPerLevelOffset" class="form-label small" data-i18n="hpPerLevelOffset"></label>
+                      <input id="hitPointsPerLevelOffset" class="form-control form-control-sm" type="number" step="1" data-hp-offset="per-level">
+                    </div>
+                    <div class="col-6">
+                      <label for="hitPointsConstantOffset" class="form-label small" data-i18n="hpConstantOffset"></label>
+                      <input id="hitPointsConstantOffset" class="form-control form-control-sm" type="number" step="1" data-hp-offset="constant">
+                    </div>
+                  </div>
+                  <p id="hitPointsStatus" class="small mb-0 mt-2" role="status" aria-live="polite"></p>
+                </section>
                 <hr>
                 <section aria-labelledby="classBuilderTitle">
                   <h3 id="classBuilderTitle" class="h6" data-i18n="classBuilderTitle"></h3>
@@ -237,6 +328,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="src/cr/flexible-casting.js?v=20261114-2"></script>
   <script src="src/cr/resource-pools.js?v=20261114-1"></script>
-  <script src="src/cr/page-controller.js?v=20261114-4"></script>
+  <script src="src/cr/hit-points.js?v=20261121-1"></script>
+  <script src="src/cr/page-controller.js?v=20261121-1"></script>
 </body>
 </html>

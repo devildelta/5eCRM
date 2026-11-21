@@ -1,6 +1,9 @@
 (async function () {
   'use strict';
 
+  const app = document.getElementById('crApp');
+  if (!app || !app.hitPoints) throw new Error('Hit point rules are unavailable.');
+  const hitPoints = app.hitPoints;
   const scriptUrl = document.currentScript.src;
   const localeStorageKey = 'dnd_skills_locale';
   const browserLocale = navigator.language.toLowerCase().replace('_', '-').split('-').indexOf('tw') !== -1 ? 'zh-TW' : 'zh-HK';
@@ -58,6 +61,8 @@
   }
 
   const storageKey = 'dnd_skills_db';
+  const hitPointsStorageKey = 'dnd_skills_hit_points';
+  const hitPointsBackupFormat = '5ecrm-cr-backup';
   const classSettingsStorageKey = 'dnd_skills_class_feature_settings';
   const sourceInfo = {
     '角色職業': { label: 'sourceClassLabel', english: 'common.sourceClassEnglish', description: 'sourceClassDescription' },
@@ -439,13 +444,32 @@
   const storedDb = JSON.parse(localStorage.getItem(storageKey) || '{}');
   if (normalizeLegacyRestTerminology(storedDb)) localStorage.setItem(storageKey, JSON.stringify(storedDb));
   const storedClassFeatureSettingsValue = JSON.parse(localStorage.getItem(classSettingsStorageKey) || '{}');
+  const storedHitPointStatesValue = JSON.parse(localStorage.getItem(hitPointsStorageKey) || '{}');
   if (!storedClassFeatureSettingsValue || typeof storedClassFeatureSettingsValue !== 'object' || Array.isArray(storedClassFeatureSettingsValue)) {
     throw new Error('Invalid class feature settings in local storage.');
+  }
+  if (!storedHitPointStatesValue || typeof storedHitPointStatesValue !== 'object' || Array.isArray(storedHitPointStatesValue)) {
+    throw new Error('Invalid hit point settings in local storage.');
   }
   const storedClassFeatureSettings = Object.create(null);
   Object.keys(storedClassFeatureSettingsValue).forEach(function (key) {
     storedClassFeatureSettings[key] = storedClassFeatureSettingsValue[key];
   });
+  const storedHitPointStates = Object.create(null);
+  Object.keys(storedHitPointStatesValue).forEach(function (name) {
+    if (!name.trim() || !hitPoints.isValidState(storedHitPointStatesValue[name])) {
+      throw new Error('Invalid hit point settings for character "' + name + '".');
+    }
+    Object.defineProperty(storedHitPointStates, name, {
+      value: hitPoints.copyState(storedHitPointStatesValue[name]),
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  });
+  if (JSON.stringify(storedHitPointStatesValue) !== JSON.stringify(storedHitPointStates)) {
+    localStorage.setItem(hitPointsStorageKey, JSON.stringify(storedHitPointStates));
+  }
   const requestedCharacter = params.get('character');
   const state = {
     db: storedDb,
@@ -463,11 +487,13 @@
     toast: null,
     classRowId: 0,
     classFeatureSettings: storedClassFeatureSettings,
+    hitPointStates: storedHitPointStates,
+    hitPointsEditor: null,
+    pendingHitPointRemoval: null,
     openManagementAfterRoleCreate: false,
     hitDiceAccumulator: { d6: 0, d8: 0, d10: 0, d12: 0 }
   };
 
-  const app = document.getElementById('crApp');
   const flexibleCastingRules = app.flexibleCastingRules;
   if (!flexibleCastingRules) throw new Error('Flexible Casting rules are unavailable.');
   const resourcePools = app.resourcePools;
@@ -476,10 +502,14 @@
   const roleModalElement = document.getElementById('roleCreateModal');
   const resourceCountModalElement = document.getElementById('resourceCountModal');
   const resourceDetailsModalElement = document.getElementById('resourceDetailsModal');
+  const hitPointsModifierModalElement = document.getElementById('hitPointsModifierModal');
+  const hitPointsRemoveConfirmModalElement = document.getElementById('hitPointsRemoveConfirmModal');
   state.modal = bootstrap.Modal.getOrCreateInstance(modalElement);
   state.roleModal = bootstrap.Modal.getOrCreateInstance(roleModalElement);
   state.resourceCountModal = bootstrap.Modal.getOrCreateInstance(resourceCountModalElement);
   state.resourceDetailsModal = bootstrap.Modal.getOrCreateInstance(resourceDetailsModalElement);
+  state.hitPointsModifierModal = bootstrap.Modal.getOrCreateInstance(hitPointsModifierModalElement);
+  state.hitPointsRemoveConfirmModal = bootstrap.Modal.getOrCreateInstance(hitPointsRemoveConfirmModalElement);
   resourceDetailsModalElement.querySelector('.modal-dialog').addEventListener('click', function () {
     state.resourceDetailsModal.hide();
   });
@@ -492,6 +522,10 @@
 
   function save() {
     localStorage.setItem(storageKey, JSON.stringify(state.db));
+  }
+
+  function saveHitPointStates() {
+    localStorage.setItem(hitPointsStorageKey, JSON.stringify(state.hitPointStates));
   }
 
   function sourceLabel(value) {
@@ -1556,6 +1590,9 @@
     document.querySelectorAll('[data-i18n-aria-label]').forEach(function (element) {
       element.setAttribute('aria-label', t(element.dataset.i18nAriaLabel));
     });
+    document.querySelectorAll('[data-i18n-title]').forEach(function (element) {
+      element.title = t(element.dataset.i18nTitle);
+    });
     document.getElementById('localeSelect').value = locale;
   }
 
@@ -1618,6 +1655,306 @@
     document.getElementById('emptyState').classList.toggle('d-none', resources.length > 0);
     if (!state.character) setText(document.getElementById('emptyState'), t('emptySelectCharacter'));
     else if (!resources.length) setText(document.getElementById('emptyState'), t('emptyCharacterResources'));
+  }
+
+  function getHitPointState() {
+    if (!state.character) return null;
+    if (!Object.prototype.hasOwnProperty.call(state.hitPointStates, state.character)) {
+      state.hitPointStates[state.character] = hitPoints.createState();
+    }
+    return state.hitPointStates[state.character];
+  }
+
+  function calculateHitPointBaseMaximum(hitPointState) {
+    const metadata = classBuilderMetadataFromResources(currentResources());
+    if (!metadata || !metadata.abilityScores) return null;
+    return hitPoints.calculateBaseMaximum(
+      metadata.classConfigs,
+      metadata.abilityScores.con,
+      hitPointState.perLevelOffset,
+      hitPointState.constantOffset
+    );
+  }
+
+  function calculateHitPointMaximum(hitPointState) {
+    const baseMaximum = calculateHitPointBaseMaximum(hitPointState);
+    return baseMaximum === null ? null : hitPoints.calculateMaximum(baseMaximum, hitPointState);
+  }
+
+  function createHitPointModifierTag(type, modifier, index) {
+    const item = createElement('span', 'hp-modifier-tag-item');
+    item.setAttribute('role', 'listitem');
+    const amount = typeof modifier === 'number' ? modifier : modifier.amount;
+    const text = (amount > 0 ? '+' : '') + String(amount);
+    const tag = createElement('button', 'hp-modifier-tag', text);
+    tag.type = 'button';
+    tag.dataset.action = 'remove-hit-point-modifier';
+    tag.dataset.type = type;
+    if (index !== null) tag.dataset.index = String(index);
+    if (type === 'temporary') {
+      tag.classList.add('hp-modifier-tag-temporary');
+    } else {
+      tag.classList.add(amount > 0 ? 'hp-modifier-tag-positive' : 'hp-modifier-tag-negative');
+    }
+    tag.setAttribute('aria-label', t('hpModifierRemoveAriaTemplate', {
+      modifier: t(type === 'temporary' ? 'hpTemporaryAriaTemplate' : 'hpMaximumModifierAriaTemplate', { amount: text })
+    }));
+    item.appendChild(tag);
+    return item;
+  }
+
+  function renderHitPointModifierTags(container, hitPointState, type) {
+    container.replaceChildren();
+    if (type === 'maximum') {
+      container.classList.remove('has-maximum-modifiers');
+      container.parentElement.classList.remove('has-maximum-modifiers');
+    }
+    if (!hitPointState) return;
+    if (type === 'temporary' && hitPointState.temporary !== null) {
+      container.appendChild(createHitPointModifierTag('temporary', hitPointState.temporary, null));
+    }
+    if (type === 'maximum') {
+      container.classList.toggle('has-maximum-modifiers', hitPointState.maximumModifiers.length > 0);
+      container.parentElement.classList.toggle('has-maximum-modifiers', hitPointState.maximumModifiers.length > 0);
+      hitPointState.maximumModifiers.forEach(function (modifier, index) {
+        container.appendChild(createHitPointModifierTag('maximum', modifier, index));
+      });
+    }
+  }
+
+  function createHitPointAction(label, action, amount, ariaLabel, className) {
+    const button = createElement('button', 'btn ' + className + ' hp-rotor-action', label);
+    button.type = 'button';
+    button.dataset.action = action;
+    if (amount !== null) button.dataset.amount = String(amount);
+    button.setAttribute('aria-label', ariaLabel);
+    return button;
+  }
+
+  function renderHitPointOperationButtons(maximum, canAdjustCurrent) {
+    const container = document.getElementById('hitPointOperationGrid');
+    const amounts = hitPoints.adjustmentAmounts(maximum);
+    container.replaceChildren();
+    container.style.setProperty('--hp-adjustment-columns', String(Math.max(1, amounts.length)));
+    amounts.forEach(function (amount) {
+      const decrease = createHitPointAction(
+        '−' + amount,
+        'decrease-hit-points',
+        amount,
+        t('hpDecreaseAmountAriaTemplate', { amount: amount }),
+        'btn-outline-light'
+      );
+      const increase = createHitPointAction(
+        '+' + amount,
+        'increase-hit-points',
+        amount,
+        t('hpIncreaseAmountAriaTemplate', { amount: amount }),
+        'btn-outline-success'
+      );
+      decrease.disabled = !canAdjustCurrent;
+      increase.disabled = !canAdjustCurrent;
+      container.append(decrease, increase);
+    });
+  }
+
+  function renderHitPointQuickActions(canAdjustCurrent, canClearModifiers) {
+    const container = document.getElementById('hitPointQuickActions');
+    container.replaceChildren();
+    const zero = createHitPointAction('0', 'set-hit-points-zero', null, t('hpDecreaseZeroAria'), 'btn-outline-danger');
+    const maximumButton = createHitPointAction('↑', 'reset-hit-points', null, t('hpResetAria'), 'btn-primary');
+    maximumButton.classList.add('hp-quick-action-symbol');
+    maximumButton.title = t('hpSetMaximum');
+    const clearModifiersButton = createHitPointAction(
+      '×',
+      'clear-hit-point-modifiers',
+      null,
+      t('hpClearModifiersAria'),
+      'btn-outline-warning'
+    );
+    clearModifiersButton.classList.add('hp-quick-action-symbol');
+    clearModifiersButton.title = t('hpClearModifiers');
+    zero.disabled = !canAdjustCurrent;
+    maximumButton.disabled = !canAdjustCurrent;
+    clearModifiersButton.disabled = !canClearModifiers;
+    container.append(zero, maximumButton, clearModifiersButton);
+  }
+
+  function renderHitPoints() {
+    const hitPointState = getHitPointState();
+    const baseMaximum = hitPointState ? calculateHitPointBaseMaximum(hitPointState) : null;
+    const maximum = hitPointState ? calculateHitPointMaximum(hitPointState) : null;
+    const section = document.getElementById('hitPointsSection');
+    const ready = Boolean(hitPointState && maximum !== null);
+    section.classList.toggle('d-none', !ready);
+    const current = hitPointState ? hitPointState.current : null;
+    if (hitPointState && maximum !== null && current === null) {
+      hitPoints.reset(hitPointState, maximum);
+      saveHitPointStates();
+    }
+    const effectiveCurrent = hitPointState ? hitPointState.current : null;
+    const currentCounter = document.getElementById('hitPointsCurrent');
+    const maximumCounter = document.getElementById('hitPointsMaximum');
+    const maximumText = maximum === null ? '—' : String(maximum);
+    const baseMaximumText = baseMaximum === null ? '—' : String(baseMaximum);
+    currentCounter.textContent = maximum === null || effectiveCurrent === null ? '—' : String(effectiveCurrent);
+    maximumCounter.textContent = maximumText;
+    currentCounter.setAttribute('aria-label', maximum === null || effectiveCurrent === null
+      ? t('hpUnavailableAria')
+      : t('hpCurrentAriaTemplate', { current: effectiveCurrent, maximum: maximumText }));
+    maximumCounter.setAttribute('aria-label', baseMaximum === null
+      ? t('hpUnavailableAria')
+      : t('hpMaximumAriaTemplate', { amount: maximumText, base: baseMaximumText }));
+    const currentBand = maximum !== null && effectiveCurrent !== null
+      ? resourceState({ current: effectiveCurrent, max: maximum }).countBand
+      : null;
+    ['green', 'yellow', 'orange', 'red', 'zero'].forEach(function (band) {
+      currentCounter.classList.toggle('resource-status-' + band, currentBand === band);
+    });
+    currentCounter.classList.toggle('hp-over-maximum', maximum !== null && effectiveCurrent !== null && effectiveCurrent > maximum);
+    const status = document.getElementById('hitPointsStatus');
+    setText(status, maximum !== null && effectiveCurrent !== null && effectiveCurrent > maximum
+      ? t('hpOverMaximum')
+      : '');
+    renderHitPointModifierTags(document.getElementById('temporaryHitPointTags'), hitPointState, 'temporary');
+    renderHitPointModifierTags(document.getElementById('maximumHitPointTags'), hitPointState, 'maximum');
+
+    const hasCharacter = Boolean(state.character);
+    const canAdjustCurrent = hasCharacter && ready;
+    renderHitPointOperationButtons(maximum, canAdjustCurrent);
+    const hasHitPointModifiers = Boolean(hitPointState &&
+      (hitPointState.temporary !== null || hitPointState.maximumModifiers.length > 0));
+    renderHitPointQuickActions(canAdjustCurrent, hasCharacter && hasHitPointModifiers);
+    const temporaryButton = document.querySelector('[data-action="open-temporary-hit-points"]');
+    const maximumButton = document.querySelector('[data-action="open-maximum-hit-point-modifier"]');
+    temporaryButton.disabled = !hasCharacter;
+    maximumButton.disabled = !hasCharacter || hitPointState.maximumModifiers.length >= hitPoints.maximumModifiersLimit;
+    document.querySelectorAll('[data-hp-offset]').forEach(function (input) {
+      input.disabled = !hitPointState;
+    });
+    document.getElementById('hitPointsPerLevelOffset').value = hitPointState ? String(hitPointState.perLevelOffset) : '0';
+    document.getElementById('hitPointsConstantOffset').value = hitPointState ? String(hitPointState.constantOffset) : '0';
+  }
+
+  function openHitPointModifierEditor(type, index) {
+    if (!state.character) return;
+    const hitPointState = getHitPointState();
+    const isTemporary = type === 'temporary';
+    if (!isTemporary && type !== 'maximum') throw new Error('Unsupported hit point modifier type.');
+    const storedModifier = isTemporary
+      ? hitPointState.temporary
+      : index === null ? null : hitPointState.maximumModifiers[index];
+    if (!isTemporary && index !== null && storedModifier === undefined) return;
+    const modifier = typeof storedModifier === 'object' && storedModifier !== null
+      ? storedModifier.amount
+      : storedModifier;
+    state.hitPointsEditor = { type: type, index: isTemporary ? null : index };
+
+    const titleKey = isTemporary
+      ? 'hpModifierAddTemporaryTitle'
+      : modifier ? 'hpModifierEditMaximumTitle' : 'hpModifierAddMaximumTitle';
+    const amountInput = document.getElementById('hitPointsModifierAmount');
+    setText(document.getElementById('hitPointsModifierTitle'), t(titleKey));
+    setText(document.getElementById('hitPointsModifierAmountLabel'),
+      t(isTemporary ? 'hpModifierTemporaryAmountLabel' : 'hpModifierMaximumAmountLabel'));
+    if (isTemporary) amountInput.min = '1';
+    else amountInput.removeAttribute('min');
+    amountInput.removeAttribute('max');
+    amountInput.value = isTemporary ? '' : modifier !== null && modifier !== undefined ? String(modifier) : '';
+    setText(document.getElementById('hitPointsModifierError'), '');
+    state.hitPointsModifierModal.show();
+  }
+
+  function requestHitPointModifierRemoval(type, index) {
+    const hitPointState = getHitPointState();
+    if (!hitPointState) return;
+    if (type === 'temporary' && hitPointState.temporary === null) return;
+    if (type === 'maximum' && (!Number.isInteger(index) ||
+      index < 0 || index >= hitPointState.maximumModifiers.length)) return;
+    if (type !== 'temporary' && type !== 'maximum') throw new Error('Unsupported hit point modifier type.');
+
+    state.pendingHitPointRemoval = { type: type, index: type === 'maximum' ? index : null };
+    const message = type === 'temporary' ? 'hpRemoveTemporaryConfirm' : 'hpRemoveMaximumConfirm';
+    setText(document.getElementById('hitPointsRemoveConfirmMessage'), t(message));
+    state.hitPointsRemoveConfirmModal.show();
+  }
+
+  function confirmHitPointModifierRemoval() {
+    const pending = state.pendingHitPointRemoval;
+    state.pendingHitPointRemoval = null;
+    if (!pending) return;
+    const hitPointState = getHitPointState();
+    if (!hitPointState) return;
+    const removed = pending.type === 'temporary'
+      ? hitPoints.removeTemporary(hitPointState)
+      : hitPoints.removeMaximumModifier(hitPointState, pending.index);
+    if (!removed) return;
+    saveHitPointStates();
+    renderHitPoints();
+    state.hitPointsRemoveConfirmModal.hide();
+  }
+
+  function saveHitPointOffset(input) {
+    const hitPointState = getHitPointState();
+    if (!hitPointState) return;
+    const perLevelInput = document.getElementById('hitPointsPerLevelOffset');
+    const constantInput = document.getElementById('hitPointsConstantOffset');
+    const perLevelOffset = Number(perLevelInput.value);
+    const constantOffset = Number(constantInput.value);
+    const validValues = perLevelInput.value !== '' && constantInput.value !== '' &&
+      Number.isSafeInteger(perLevelOffset) && Number.isSafeInteger(constantOffset) &&
+      perLevelInput.checkValidity() && constantInput.checkValidity();
+    if (!validValues || !hitPoints.setOffsets(hitPointState, perLevelOffset, constantOffset)) {
+      input.value = String(input.dataset.hpOffset === 'per-level'
+        ? hitPointState.perLevelOffset
+        : hitPointState.constantOffset);
+      setText(document.getElementById('hitPointsStatus'), t('hpOffsetError'));
+      return;
+    }
+    saveHitPointStates();
+    renderHitPoints();
+  }
+
+  function handleHitPointAction(actionElement) {
+    const hitPointState = getHitPointState();
+    if (!hitPointState) return;
+    const action = actionElement.dataset.action;
+    let changed = false;
+    if (action === 'reset-hit-points') {
+      const maximum = calculateHitPointMaximum(hitPointState);
+      changed = maximum !== null && hitPoints.reset(hitPointState, maximum);
+    } else if (action === 'decrease-hit-points') {
+      changed = hitPoints.decrease(hitPointState, Number.parseInt(actionElement.dataset.amount, 10));
+    } else if (action === 'increase-hit-points') {
+      const maximum = calculateHitPointMaximum(hitPointState);
+      changed = maximum !== null && hitPoints.increase(hitPointState, Number.parseInt(actionElement.dataset.amount, 10), maximum);
+    } else if (action === 'set-hit-points-zero') {
+      changed = hitPoints.reset(hitPointState, 0);
+    } else if (action === 'clear-hit-point-modifiers') {
+      changed = hitPoints.clearModifiers(hitPointState);
+      if (!changed) {
+        setText(document.getElementById('hitPointsStatus'), t('hpClearModifiersError'));
+        return;
+      }
+    } else if (action === 'open-temporary-hit-points') {
+      openHitPointModifierEditor('temporary', null);
+      return;
+    } else if (action === 'open-maximum-hit-point-modifier') {
+      openHitPointModifierEditor('maximum', null);
+      return;
+    } else if (action === 'edit-hit-point-modifier') {
+      openHitPointModifierEditor(actionElement.dataset.type,
+        actionElement.dataset.index === undefined ? null : Number.parseInt(actionElement.dataset.index, 10));
+      return;
+    } else if (action === 'remove-hit-point-modifier') {
+      requestHitPointModifierRemoval(
+        actionElement.dataset.type,
+        actionElement.dataset.index === undefined ? null : Number.parseInt(actionElement.dataset.index, 10)
+      );
+      return;
+    }
+    if (!changed) return;
+    saveHitPointStates();
+    renderHitPoints();
   }
 
   function refreshResourceGroups(groupTypes) {
@@ -1830,6 +2167,7 @@
 
   function render() {
     updateCharacters();
+    renderHitPoints();
     renderResources();
     renderManagementResources();
   }
@@ -1992,18 +2330,26 @@
     } else if (action.type === 'delete-character') {
       delete state.db[action.name];
       delete state.classFeatureSettings[classSettingsEntryKey(action.name)];
+      delete state.hitPointStates[action.name];
       state.character = '';
       state.selectedResource = null;
       save();
       localStorage.setItem(classSettingsStorageKey, JSON.stringify(state.classFeatureSettings));
+      saveHitPointStates();
       render();
       renderClassRowsFromResources();
       state.modal.hide();
     } else if (action.type === 'copy-character') {
       state.db[action.target] = JSON.parse(JSON.stringify(state.db[action.source]));
       state.classFeatureSettings[classSettingsEntryKey(action.target)] = classFeatureSelectionsForCharacter();
+      if (state.hitPointStates[action.source]) {
+        state.hitPointStates[action.target] = hitPoints.copyState(state.hitPointStates[action.source]);
+      } else {
+        delete state.hitPointStates[action.target];
+      }
       save();
       localStorage.setItem(classSettingsStorageKey, JSON.stringify(state.classFeatureSettings));
+      saveHitPointStates();
       render();
       setManagementView('sections');
       setManagementSection('characters');
@@ -3002,7 +3348,13 @@
   }
 
   function exportData() {
-    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(state.db))));
+    const backup = {
+      format: hitPointsBackupFormat,
+      version: 1,
+      characters: state.db,
+      hitPoints: state.hitPointStates
+    };
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(backup))));
     document.getElementById('exportBox').value = encoded;
     document.getElementById('exportActions').classList.remove('d-none');
     setText(document.getElementById('backupStatus'), t('backupExportDone'));
@@ -3025,7 +3377,7 @@
     });
   }
 
-  function isValidImportData(data) {
+  function isValidCharacterDatabase(data) {
     if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
     return Object.keys(data).every(function (name) {
       if (!name.trim() || !Array.isArray(data[name])) return false;
@@ -3039,6 +3391,22 @@
           (resource.details === undefined || typeof resource.details === 'string'));
       });
     });
+  }
+
+  function isValidHitPointDatabase(data, characterDatabase) {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+    return Object.keys(data).every(function (name) {
+      return name.trim() && Object.prototype.hasOwnProperty.call(characterDatabase, name) &&
+        hitPoints.isValidState(data[name]);
+    });
+  }
+
+  function isValidImportData(data) {
+    if (data && typeof data === 'object' && data.format === hitPointsBackupFormat) {
+      return data.version === 1 && isValidCharacterDatabase(data.characters) &&
+        isValidHitPointDatabase(data.hitPoints, data.characters);
+    }
+    return isValidCharacterDatabase(data);
   }
 
   function importData() {
@@ -3061,18 +3429,31 @@
 
     if (!window.confirm(t('backupImportConfirm'))) return;
 
+    const importedCharacters = data.format === hitPointsBackupFormat ? data.characters : data;
+    const importedHitPoints = data.format === hitPointsBackupFormat ? data.hitPoints : {};
     const nextDb = Object.create(null);
-    Object.keys(data).forEach(function (name) {
-      Object.defineProperty(nextDb, name, { value: data[name], enumerable: true, configurable: true, writable: true });
+    Object.keys(importedCharacters).forEach(function (name) {
+      Object.defineProperty(nextDb, name, { value: importedCharacters[name], enumerable: true, configurable: true, writable: true });
     });
     normalizeLegacyRestTerminology(nextDb);
+    const nextHitPointStates = Object.create(null);
+    Object.keys(importedHitPoints).forEach(function (name) {
+      Object.defineProperty(nextHitPointStates, name, {
+        value: hitPoints.copyState(importedHitPoints[name]),
+        enumerable: true,
+        configurable: true,
+        writable: true
+      });
+    });
     try {
       localStorage.setItem(storageKey, JSON.stringify(nextDb));
+      localStorage.setItem(hitPointsStorageKey, JSON.stringify(nextHitPointStates));
     } catch (error) {
       setText(document.getElementById('backupStatus'), t('backupImportSaveFailed'));
       throw error;
     }
     state.db = nextDb;
+    state.hitPointStates = nextHitPointStates;
     const importedClassSettings = Object.create(null);
     Object.keys(nextDb).forEach(function (name) {
       const metadata = classBuilderMetadataFromResources(nextDb[name]);
@@ -3095,7 +3476,12 @@
     const selected = state.selectedResource;
     const selectedResource = selected === null ? null : currentResources()[selected];
 
-    if (action === 'open-management') openManagement();
+    if (action === 'confirm-hit-point-removal') confirmHitPointModifierRemoval();
+    else if (action === 'reset-hit-points' || action === 'decrease-hit-points' || action === 'increase-hit-points' ||
+      action === 'set-hit-points-zero' || action === 'clear-hit-point-modifiers' || action === 'open-temporary-hit-points' ||
+      action === 'open-maximum-hit-point-modifier' || action === 'edit-hit-point-modifier' ||
+      action === 'remove-hit-point-modifier') handleHitPointAction(actionElement);
+    else if (action === 'open-management') openManagement();
     else if (action === 'show-resource-details') showResourceDetails(index, actionElement.dataset.detailType);
     else if (action === 'accumulate-hit-die') accumulateHitDie(actionElement.dataset.die);
     else if (action === 'commit-hit-dice') commitHitDiceAccumulator();
@@ -3196,6 +3582,8 @@
     } else if (event.target.matches('[data-resource-select]')) {
       state.selectedResource = Number.parseInt(event.target.value, 10);
       syncManagementResourceControls();
+    } else if (event.target.matches('[data-hp-offset]')) {
+      saveHitPointOffset(event.target);
     } else if (event.target.id === 'resourceSource') {
       updateSourceHelp();
     } else if (event.target.matches('[data-class-preset]')) {
@@ -3223,7 +3611,38 @@
   });
 
   app.addEventListener('submit', function (event) {
-    if (event.target.id === 'resourceForm') {
+    if (event.target.id === 'hitPointsModifierForm') {
+      event.preventDefault();
+      const editor = state.hitPointsEditor;
+      if (!editor) throw new Error('Hit point modifier form submitted without editor state.');
+      const hitPointState = getHitPointState();
+      const amountInput = document.getElementById('hitPointsModifierAmount');
+      const error = document.getElementById('hitPointsModifierError');
+      const amount = Number(amountInput.value);
+      if (!event.target.checkValidity() || !Number.isSafeInteger(amount)) {
+        setText(error, t('hpModifierAmountError'));
+        amountInput.focus();
+        return;
+      }
+      let result;
+      if (editor.type === 'temporary') {
+        result = hitPoints.setTemporary(hitPointState, amount)
+          ? { ok: true, reason: '' }
+          : { ok: false, reason: 'invalid' };
+      } else if (editor.type === 'maximum') {
+        result = hitPoints.upsertMaximumModifier(hitPointState, amount, editor.index);
+      } else {
+        throw new Error('Unsupported hit point modifier type.');
+      }
+      if (!result.ok) {
+        const errorKey = result.reason === 'limit-reached' ? 'hpModifierLimitReached' : 'hpModifierAmountError';
+        setText(error, t(errorKey));
+        return;
+      }
+      saveHitPointStates();
+      renderHitPoints();
+      state.hitPointsModifierModal.hide();
+    } else if (event.target.id === 'resourceForm') {
       event.preventDefault();
       const resource = readResourceForm();
       if (!resource) return;
@@ -3269,11 +3688,13 @@
       return;
     }
     state.db[name] = [];
+    state.hitPointStates[name] = hitPoints.createState();
     state.character = name;
     state.classFeatureSettings[classSettingsEntryKey(name)] = normalizedClassFeatureSelections();
     localStorage.setItem(classSettingsStorageKey, JSON.stringify(state.classFeatureSettings));
     state.selectedResource = null;
     save();
+    saveHitPointStates();
     render();
     renderClassRowsFromResources();
     nameInput.value = '';
@@ -3303,6 +3724,22 @@
 
   document.getElementById('resourceCountInput').addEventListener('input', function (event) {
     event.target.setCustomValidity('');
+  });
+
+  hitPointsModifierModalElement.addEventListener('shown.bs.modal', function () {
+    const input = document.getElementById('hitPointsModifierAmount');
+    input.focus();
+    input.select();
+  });
+
+  hitPointsModifierModalElement.addEventListener('hidden.bs.modal', function () {
+    state.hitPointsEditor = null;
+    document.getElementById('hitPointsModifierAmount').value = '';
+    setText(document.getElementById('hitPointsModifierError'), '');
+  });
+
+  hitPointsRemoveConfirmModalElement.addEventListener('hidden.bs.modal', function () {
+    state.pendingHitPointRemoval = null;
   });
 
   resourceCountModalElement.addEventListener('shown.bs.modal', function () {
